@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 
-export interface SurveyQuestion {
+// UI(surveys/page.tsx) 요구 규격에 맞춘 타입 리네임
+export type SurveyType = 'COMPETENCY' | 'SATISFACTION';
+
+export interface Question {
   id: string;
   division: string;
   theme: string;
@@ -13,23 +16,24 @@ export interface SurveyQuestion {
 export interface SurveyTemplate {
   id: string;
   name: string;
-  type: 'COMPETENCY' | 'SATISFACTION';
-  questions: SurveyQuestion[];
+  type: SurveyType;
+  questions: Question[];
   createdAt: number;
 }
 
-export interface SurveyAnswer {
+export interface Answer {
   questionId: string;
   preScore?: number;
   score: number;
+  text?: string; // 추가: 텍스트 응답 지원
 }
 
 export interface SurveyResponse {
   id: string;
   projectId: string;
   templateId: string;
-  respondentId: string; // userId 대신 UI 규격에 맞춤
-  answers: SurveyAnswer[];
+  respondentId: string;
+  answers: Answer[];
   createdAt: number;
 }
 
@@ -41,8 +45,11 @@ interface SurveyState {
   // Actions
   fetchSurveys: () => Promise<void>;
   addTemplate: (template: Omit<SurveyTemplate, 'id' | 'createdAt'>) => Promise<void>;
+  updateTemplate: (id: string, template: Partial<Omit<SurveyTemplate, 'id' | 'createdAt'>>) => Promise<void>;
+  deleteTemplate: (id: string) => Promise<void>;
   addResponse: (response: Omit<SurveyResponse, 'id' | 'createdAt'>) => Promise<void>;
   deleteResponse: (id: string) => Promise<void>;
+  clearProjectResponses: (projectId: string) => Promise<void>;
 }
 
 export const useSurveyStore = create<SurveyState>((set, get) => ({
@@ -62,7 +69,7 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
     const mappedTemplates: SurveyTemplate[] = (tmplRes.data || []).map(t => ({
       id: t.id,
       name: t.name,
-      type: t.type,
+      type: t.type as SurveyType,
       questions: t.questions,
       createdAt: new Date(t.created_at).getTime(),
     }));
@@ -93,6 +100,22 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
     await get().fetchSurveys();
   },
 
+  updateTemplate: async (id, template) => {
+    const { error } = await supabase.from('survey_templates').update({
+      name: template.name,
+      type: template.type,
+      questions: template.questions
+    }).eq('id', id);
+    if (error) throw error;
+    await get().fetchSurveys();
+  },
+
+  deleteTemplate: async (id) => {
+    const { error } = await supabase.from('survey_templates').delete().eq('id', id);
+    if (error) throw error;
+    await get().fetchSurveys();
+  },
+
   addResponse: async (response) => {
     const { error } = await supabase.from('surveys').insert([{
       project_id: response.projectId,
@@ -105,7 +128,13 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
   },
 
   deleteResponse: async (id) => {
-    const { error } = await supabase.from('surveys').group('id').delete().eq('id', id);
+    const { error } = await supabase.from('surveys').delete().eq('id', id);
+    if (error) throw error;
+    await get().fetchSurveys();
+  },
+
+  clearProjectResponses: async (projectId) => {
+    const { error } = await supabase.from('surveys').delete().eq('project_id', projectId);
     if (error) throw error;
     await get().fetchSurveys();
   }
