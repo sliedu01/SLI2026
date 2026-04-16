@@ -1,89 +1,112 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 
+export interface SurveyQuestion {
+  id: string;
+  division: string;
+  theme: string;
+  content: string;
+  type: 'SCALE' | 'TEXT';
+  order: number;
+}
+
+export interface SurveyTemplate {
+  id: string;
+  name: string;
+  type: 'COMPETENCY' | 'SATISFACTION';
+  questions: SurveyQuestion[];
+  createdAt: number;
+}
+
+export interface SurveyAnswer {
+  questionId: string;
+  preScore?: number;
+  score: number;
+}
+
 export interface SurveyResponse {
   id: string;
   projectId: string;
-  userId: string;
-  answers: Record<string, any>;
-  metadata: Record<string, any>;
-  completedAt: string;
+  templateId: string;
+  respondentId: string; // userId 대신 UI 규격에 맞춤
+  answers: SurveyAnswer[];
+  createdAt: number;
 }
 
 interface SurveyState {
+  templates: SurveyTemplate[];
   responses: SurveyResponse[];
   isLoading: boolean;
   
   // Actions
-  fetchResponses: () => Promise<void>;
-  addResponse: (response: Omit<SurveyResponse, 'id' | 'completedAt'>) => Promise<void>;
-  updateResponse: (id: string, updates: Partial<SurveyResponse>) => Promise<void>;
+  fetchSurveys: () => Promise<void>;
+  addTemplate: (template: Omit<SurveyTemplate, 'id' | 'createdAt'>) => Promise<void>;
+  addResponse: (response: Omit<SurveyResponse, 'id' | 'createdAt'>) => Promise<void>;
   deleteResponse: (id: string) => Promise<void>;
 }
 
 export const useSurveyStore = create<SurveyState>((set, get) => ({
+  templates: [],
   responses: [],
   isLoading: false,
 
-  fetchResponses: async () => {
+  fetchSurveys: async () => {
     set({ isLoading: true });
-    const { data, error } = await supabase
-      .from('surveys')
-      .select('*')
-      .order('completed_at', { ascending: false });
+    
+    // 템플릿과 응답 데이터를 동시에 가져옴
+    const [tmplRes, respRes] = await Promise.all([
+      supabase.from('survey_templates').select('*').order('created_at', { ascending: false }),
+      supabase.from('surveys').select('*').order('created_at', { ascending: false }),
+    ]);
 
-    if (error) {
-      console.error('Error fetching surveys:', error);
-    } else {
-      const mappedResponses: SurveyResponse[] = (data || []).map(s => ({
-        id: s.id,
-        projectId: s.project_id,
-        userId: s.user_id || '',
-        answers: (s.answers as Record<string, any>) || {},
-        metadata: (s.metadata as Record<string, any>) || {},
-        completedAt: s.completed_at,
-      }));
-      set({ responses: mappedResponses });
-    }
-    set({ isLoading: false });
+    const mappedTemplates: SurveyTemplate[] = (tmplRes.data || []).map(t => ({
+      id: t.id,
+      name: t.name,
+      type: t.type,
+      questions: t.questions,
+      createdAt: new Date(t.created_at).getTime(),
+    }));
+
+    const mappedResponses: SurveyResponse[] = (respRes.data || []).map(r => ({
+      id: r.id,
+      projectId: r.project_id,
+      templateId: r.template_id,
+      respondentId: r.respondent_id,
+      answers: r.answers,
+      createdAt: new Date(r.created_at).getTime(),
+    }));
+
+    set({ 
+      templates: mappedTemplates, 
+      responses: mappedResponses, 
+      isLoading: false 
+    });
   },
 
-  addResponse: async (responseData) => {
-    const { error } = await supabase
-      .from('surveys')
-      .insert([{
-        project_id: responseData.projectId,
-        user_id: responseData.userId,
-        answers: responseData.answers,
-        metadata: responseData.metadata,
-      }]);
-
+  addTemplate: async (template) => {
+    const { error } = await supabase.from('survey_templates').insert([{
+      name: template.name,
+      type: template.type,
+      questions: template.questions
+    }]);
     if (error) throw error;
-    await get().fetchResponses();
+    await get().fetchSurveys();
   },
 
-  updateResponse: async (id, updates) => {
-    const { error } = await supabase
-      .from('surveys')
-      .update({
-        project_id: updates.projectId,
-        user_id: updates.userId,
-        answers: updates.answers,
-        metadata: updates.metadata,
-      })
-      .eq('id', id);
-
+  addResponse: async (response) => {
+    const { error } = await supabase.from('surveys').insert([{
+      project_id: response.projectId,
+      template_id: response.templateId,
+      respondent_id: response.respondentId,
+      answers: response.answers
+    }]);
     if (error) throw error;
-    await get().fetchResponses();
+    await get().fetchSurveys();
   },
 
   deleteResponse: async (id) => {
-    const { error } = await supabase
-      .from('surveys')
-      .delete()
-      .eq('id', id);
-
+    const { error } = await supabase.from('surveys').group('id').delete().eq('id', id);
     if (error) throw error;
-    await get().fetchResponses();
-  },
+    await get().fetchSurveys();
+  }
 }));
