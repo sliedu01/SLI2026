@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 
+export interface ProjectSession {
+  id: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  content: string;
+  participantCount: number;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -14,6 +24,7 @@ export interface Project {
   partnerId?: string; 
   quota: number; 
   participantCount: number; 
+  sessions?: ProjectSession[]; // 다차시 정보
   createdAt: number;
 }
 
@@ -28,6 +39,7 @@ interface ProjectState {
   addProject: (project: Omit<Project, 'id' | 'createdAt'>) => Promise<void>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
+  copyProject: (id: string) => Promise<void>;
   setSort: (key: 'name' | 'date', direction: 'asc' | 'desc') => void;
   
   // Helpers
@@ -64,6 +76,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         partnerId: p.partner_id || undefined,
         quota: p.quota || 0,
         participantCount: p.participant_count || 0,
+        sessions: p.sessions || [],
         createdAt: new Date(p.created_at).getTime(),
       }));
       set({ projects: mappedProjects });
@@ -79,10 +92,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     for (let lv = 4; lv >= 1; lv--) {
       updatedProjects.forEach((p, idx) => {
         if (p.level === lv) {
+          if (lv === 4 && p.sessions && p.sessions.length > 0) {
+            // LV4는 세션 합계를 자동 반영
+            const sessionSum = p.sessions.reduce((sum, s) => sum + (s.participantCount || 0), 0);
+            updatedProjects[idx] = { ...p, participantCount: sessionSum };
+          }
+          
           const children = updatedProjects.filter(child => child.parentId === p.id);
           if (children.length > 0) {
             updatedProjects[idx] = {
-              ...p,
+              ...updatedProjects[idx], // LV4에서 이미 업데이트되었을 수 있으므로
               quota: children.reduce((sum, c) => sum + (c.quota || 0), 0),
               participantCount: children.reduce((sum, c) => sum + (c.participantCount || 0), 0)
             };
@@ -109,6 +128,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         partner_id: projectData.partnerId,
         quota: projectData.quota,
         participant_count: projectData.participantCount,
+        sessions: projectData.sessions || [],
       }]);
 
     if (error) throw error;
@@ -130,6 +150,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         partner_id: updates.partnerId,
         quota: updates.quota,
         participant_count: updates.participantCount,
+        sessions: updates.sessions,
       })
       .eq('id', id);
 
@@ -145,6 +166,57 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     if (error) throw error;
     await get().fetchProjects();
+  },
+
+  copyProject: async (id) => {
+    const { projects, fetchProjects } = get();
+    
+    // 재귀 복사 헬퍼 함수
+    const copyRecursive = async (sourceId: string, newParentId: string | null, isRoot: boolean = false) => {
+      const source = projects.find(p => p.id === sourceId);
+      if (!source) return;
+
+      const newProjectData = {
+        name: isRoot ? `[복사] ${source.name}` : source.name,
+        start_date: source.startDate,
+        end_date: source.endDate,
+        start_time: source.startTime,
+        end_time: source.endTime,
+        description: source.description,
+        parent_id: newParentId,
+        level: source.level,
+        partner_id: source.partnerId,
+        quota: source.quota,
+        participant_count: source.participantCount,
+        sessions: source.sessions || [],
+      };
+
+      const { data, error } = await supabase
+        .from('projects')
+        .insert([newProjectData])
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (!data) return;
+
+      // 하위 프로젝트 찾기
+      const children = projects.filter(p => p.parentId === sourceId);
+      for (const child of children) {
+        await copyRecursive(child.id, data.id, false);
+      }
+    };
+
+    try {
+      set({ isLoading: true });
+      await copyRecursive(id, projects.find(p => p.id === id)?.parentId || null, true);
+      await fetchProjects();
+    } catch (err) {
+      console.error('Failed to copy project:', err);
+      alert('복사 중 오류가 발생했습니다.');
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   setSort: (key, direction) => {

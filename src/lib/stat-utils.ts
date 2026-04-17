@@ -36,8 +36,8 @@ export function calculateCohensD(preScores: number[], postScores: number[]): num
 }
 
 /**
- * Paired T-test (p-value) 계산
- * 대응표본 T-검정을 통해 변화의 통계적 유의성 검증
+ * Paired T-test (t-value) 계산
+ * 대응표본 T-검정을 통해 변화의 통계적 유의성 검증을 위한 t-value를 산출합니다.
  */
 export function calculatePairedTTest(preScores: number[], postScores: number[]): number {
   if (preScores.length !== postScores.length || preScores.length < 2) return 1.0;
@@ -50,7 +50,6 @@ export function calculatePairedTTest(preScores: number[], postScores: number[]):
   if (sdDiff === 0) return meanDiff === 0 ? 1.0 : 0.0;
   
   const tValue = meanDiff / (sdDiff / Math.sqrt(n));
-  const df = n - 1;
   
   // simple-statistics에는 t-distribution p-value 함수가 직접 없으므로
   // t-value 절대값에 따른 근사치를 반환하거나 직접 수식을 사용해야 함.

@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
  * @param fileName 확장자를 제외한 파일명
  * @param sheetName 시트 이름
  */
-export const exportToExcel = (data: any[], fileName: string, sheetName: string = 'Sheet1') => {
+export const exportToExcel = (data: Record<string, unknown>[], fileName: string, sheetName: string = 'Sheet1') => {
   try {
     // 1. 워크북 생성
     const wb = XLSX.utils.book_new();
@@ -15,7 +15,7 @@ export const exportToExcel = (data: any[], fileName: string, sheetName: string =
     const ws = XLSX.utils.json_to_sheet(data);
     
     // 3. 열 너비 자동 조정 (심플 로직)
-    const maxWidths = data.reduce((acc: any, row: any) => {
+    const maxWidths = data.reduce((acc: number[], row) => {
       Object.keys(row).forEach((key, i) => {
         const val = row[key] ? row[key].toString() : '';
         const len = val.length;

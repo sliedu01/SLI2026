@@ -31,14 +31,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (error) {
       console.error('Error fetching settings:', error);
     } else if (data) {
-      const settingsMap: Record<string, any> = {};
+      const settingsMap: Record<string, unknown> = {};
       data.forEach(item => {
         settingsMap[item.key] = item.value;
       });
 
       set({
-        systemName: settingsMap['systemName'] || get().systemName,
-        lastBackupDate: settingsMap['lastBackupDate'] || get().lastBackupDate,
+        systemName: (settingsMap['systemName'] as string) || get().systemName,
+        lastBackupDate: (settingsMap['lastBackupDate'] as string) || get().lastBackupDate,
       });
     }
     set({ isLoading: false });

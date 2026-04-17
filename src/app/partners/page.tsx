@@ -36,7 +36,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function PartnersPage() {
   const [mounted, setMounted] = React.useState(false);
-  const { partners, deletePartner } = usePartnerStore();
+  const { partners, deletePartner, isLoading, fetchPartners } = usePartnerStore();
   const { projects } = useProjectStore();
   const { responses } = useSurveyStore();
   
@@ -50,7 +50,8 @@ export default function PartnersPage() {
 
   React.useEffect(() => {
     setMounted(true);
-  }, []);
+    fetchPartners();
+  }, [fetchPartners]);
 
   if (!mounted) return null;
 
@@ -278,7 +279,13 @@ export default function PartnersPage() {
 
       {/* 업체 목록 그리드 */}
       <div className="grid grid-cols-1 gap-8">
-         {filteredPartners.length === 0 ? (
+         {isLoading ? (
+           <div className="space-y-6">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-48 w-full bg-slate-100 animate-pulse rounded-[3rem]" />
+              ))}
+           </div>
+         ) : filteredPartners.length === 0 ? (
            <div className="py-40 bg-white/50 rounded-[3rem] border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-300 gap-6">
               <Building2 className="size-20 opacity-10" />
               <p className="font-black text-sm uppercase tracking-widest leading-relaxed text-center">
@@ -472,18 +479,10 @@ export default function PartnersPage() {
                      )}
                   </div>
                </Card>
-             );
-           })
-         )}
-      </div>
-
-      {/* 업체 등록/수정 다이얼로그 */}
-      <PartnerDialog 
-         open={dialogOpen} 
-         onOpenChange={setDialogOpen} 
-         mode={dialogMode} 
-         partnerId={selectedPartnerId} 
-      />
+              );
+            })
+          )}
+       </div>
     </div>
   );
 }

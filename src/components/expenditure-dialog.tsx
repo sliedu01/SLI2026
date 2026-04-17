@@ -65,7 +65,6 @@ export function ExpenditureDialog({ open, onOpenChange, executionItem }: Expendi
 
     addExpenditure({
       executionId: executionItem.id,
-      projectId: executionItem.projectId,
       date,
       amount: Number(amount),
       vendor: vendorName,
@@ -73,7 +72,6 @@ export function ExpenditureDialog({ open, onOpenChange, executionItem }: Expendi
       attachmentOriginalName: uploadFile?.originalName,
       attachmentName: uploadFile?.fileName,
       attachmentUrl: uploadFile?.fileUrl,
-      status: 'pending'
     });
 
     onOpenChange(false);

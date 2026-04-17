@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabase';
+import { supabase, Json } from '@/lib/supabase';
 
 export interface PartnerDocument {
   id: string;
@@ -58,7 +58,7 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
         phone2: p.phone2 || '',
         email: p.email || '',
         address: p.address || '',
-        documents: (p.documents as any as PartnerDocument[]) || [],
+        documents: (p.documents as unknown as PartnerDocument[]) || [],
         createdAt: new Date(p.created_at).getTime(),
       }));
       set({ partners: mappedPartners });
@@ -76,7 +76,7 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
         phone2: partnerData.phone2,
         email: partnerData.email,
         address: partnerData.address,
-        documents: partnerData.documents as any,
+        documents: partnerData.documents as unknown as Json,
       }])
       .select()
       .single();
@@ -104,7 +104,7 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
         phone2: updates.phone2,
         email: updates.email,
         address: updates.address,
-        documents: updates.documents as any,
+        documents: updates.documents as unknown as Json,
       })
       .eq('id', id);
 

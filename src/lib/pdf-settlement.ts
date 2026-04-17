@@ -7,7 +7,13 @@ import { jsPDF } from 'jspdf';
 export async function generateSettlementPDF(
   projectName: string, 
   executionName: string, 
-  expenditures: any[]
+  expenditures: {
+    date: string;
+    vendor: string;
+    amount: number;
+    attachmentUrl?: string;
+    projectId?: string;
+  }[]
 ) {
   // 1. 커버 페이지 생성 (jsPDF 사용)
   const doc = new jsPDF();

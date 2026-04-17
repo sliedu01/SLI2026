@@ -13,7 +13,8 @@ import {
   Search,
   Users,
   LayoutGrid,
-  GanttChartSquare
+  GanttChartSquare,
+  Copy
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -39,8 +40,9 @@ export default function ProjectsPage() {
   const [hasMounted, setHasMounted] = React.useState(false);
   React.useEffect(() => { setHasMounted(true); }, []);
   const { 
-    projects, 
+    projects,
     deleteProject, 
+    copyProject,
     sortKey, 
     sortDirection, 
     setSort,
@@ -52,6 +54,7 @@ export default function ProjectsPage() {
   const [partnerDialogOpen, setPartnerDialogOpen] = React.useState(false);
   const [dialogMode, setDialogMode] = React.useState<'add' | 'edit'>('add');
   const [selectedProject, setSelectedProject] = React.useState<Project | undefined>();
+  const [parentProject, setParentProject] = React.useState<Project | undefined>();
   const [selectedProjectForPartner, setSelectedProjectForPartner] = React.useState<Project | undefined>();
   const [currentLevel, setCurrentLevel] = React.useState(1);
   const [currentParentId, setCurrentParentId] = React.useState<string | null>(null);
@@ -78,6 +81,7 @@ export default function ProjectsPage() {
     setCurrentLevel(1);
     setCurrentParentId(null);
     setSelectedProject(undefined);
+    setParentProject(undefined);
     setIsDialogOpen(true);
   };
 
@@ -86,12 +90,14 @@ export default function ProjectsPage() {
     setCurrentLevel(parent.level + 1);
     setCurrentParentId(parent.id);
     setSelectedProject(undefined);
+    setParentProject(parent);
     setIsDialogOpen(true);
   };
 
   const handleEdit = (project: Project) => {
     setDialogMode('edit');
     setSelectedProject(project);
+    setParentProject(undefined);
     setIsDialogOpen(true);
   };
 
@@ -99,6 +105,69 @@ export default function ProjectsPage() {
   // 개별 프로젝트 행 컴포넌트 (중첩 방지 및 성능 최적화)
   const ProjectRow = ({ p, depth }: { p: Project, depth: number }) => {
     const { partners } = usePartnerStore();
+    const { responses: surveys } = useSurveyStore();
+
+    // 프로젝트의 모든 하위 ID를 무한 깊이로 가져오는 헬퍼
+    const getAllDescendantIds = (parentId: string): string[] => {
+      const children = projects.filter(child => child.parentId === parentId);
+      let ids = children.map(c => c.id);
+      children.forEach(c => {
+        ids = [...ids, ...getAllDescendantIds(c.id)];
+      });
+      return ids;
+    };
+
+    const descendantIds = getAllDescendantIds(p.id);
+    const allRelevantIds = [p.id, ...descendantIds];
+
+    // 1. 유니크 협력업체 수 계산 (LV1, LV2 전용: 자신을 제외한 하위 전체 합산)
+    // 'none' 이나 비어있는 경우는 제외
+    const uniquePartnerCount = new Set(
+      projects
+        .filter(proj => descendantIds.includes(proj.id) && proj.partnerId && proj.partnerId !== 'none')
+        .map(proj => proj.partnerId)
+    ).size;
+
+    // 2. 만족도 및 역량 향상 지표 계산
+    const projectSurveys = surveys.filter(s => allRelevantIds.includes(s.projectId));
+    
+    // 만족도 (SATISFACTION)
+    let satSum = 0;
+    let satCount = 0;
+    projectSurveys.forEach(s => {
+      s.answers.forEach(ans => {
+        if (ans.score !== undefined) {
+          satSum += ans.score;
+          satCount++;
+        }
+      });
+    });
+    const avgSatisfaction = satCount > 0 ? satSum / satCount : 0;
+    const satisfaction100 = avgSatisfaction * 20;
+
+    // 역량 향상 (COMPETENCY) - 단순 사전/사후 점수 차이 평균
+    let preSum = 0;
+    let postSum = 0;
+    let compCount = 0;
+    projectSurveys.forEach(s => {
+      s.answers.forEach(ans => {
+        if (ans.preScore !== undefined && ans.score !== undefined) {
+          preSum += ans.preScore;
+          postSum += ans.score;
+          compCount++;
+        }
+      });
+    });
+    const avgGain = compCount > 0 ? (postSum - preSum) / compCount : 0;
+
+    // 3. LV3 참가자 지표 (하위 세션 합계 및 평균)
+    let totalSessions = 0;
+    const lv4s = projects.filter(proj => descendantIds.includes(proj.id) && proj.level === 4);
+    lv4s.forEach(l4 => {
+      if (l4.sessions) totalSessions += l4.sessions.length;
+    });
+    const avgPerSession = totalSessions > 0 ? p.participantCount / totalSessions : 0;
+
     const partner = partners.find(ptr => ptr.id === p.partnerId);
 
     return (
@@ -153,21 +222,69 @@ export default function ProjectsPage() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-[10px] text-slate-400 font-bold mt-1.5">
-              <div className="flex items-center gap-1">
+
+            {/* LV1, LV2 사업명 바로 아래에 핵심 지표 명시 (항상 노출 권장) */}
+            {p.level <= 2 && (
+              <div className="flex items-center gap-3 mt-2.5">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50/80 rounded-xl border border-blue-100 shadow-sm">
+                  <span className="text-[10px] font-black text-blue-500 uppercase tracking-tight">참여 협력사</span>
+                  <span className="text-[11px] font-black text-blue-700">{uniquePartnerCount}개소</span>
+                </div>
+
+                {avgSatisfaction > 0 && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50/80 rounded-xl border border-amber-100 shadow-sm">
+                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-tight">평균 만족도</span>
+                    <span className="text-[11px] font-black text-amber-700">
+                      {avgSatisfaction.toFixed(2)}pt ({satisfaction100.toFixed(1)}점)
+                    </span>
+                  </div>
+                )}
+
+                {avgGain !== 0 && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/80 rounded-xl border border-emerald-100 shadow-sm">
+                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tight">역량 향상도</span>
+                    <span className="text-[11px] font-black text-emerald-700">+{avgGain.toFixed(2)}pt</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold">
                  <Calendar className="size-3" />
                  {p.startDate} ~ {p.endDate}
               </div>
-              {p.startTime && (
-                <div className="bg-slate-100 px-1.5 py-0.5 rounded text-[9px]">
-                  {p.startTime} - {p.endTime}
-                </div>
-              )}
+              
+              <div className="flex items-center gap-3">
+                {/* LV3 전용 인원 지표 */}
+                {p.level === 3 && totalSessions > 0 && (
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 rounded-lg border border-indigo-100/50">
+                    <span className="text-[9px] font-black text-indigo-400 uppercase">세션평균</span>
+                    <span className="text-[10px] font-black text-indigo-700">{avgPerSession.toFixed(1)}명</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2 px-3 py-1 bg-slate-100/80 rounded-xl border border-slate-200/50">
+               <div className="flex flex-col items-end">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Target</span>
+                  <span className="text-xs font-black text-slate-600">{p.quota?.toLocaleString() || 0}</span>
+               </div>
+               <Separator orientation="vertical" className="h-4 bg-slate-300 mx-1" />
+               <div className="flex flex-col items-end">
+                  <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Actual</span>
+                  <span className="text-xs font-black text-blue-600">{p.participantCount?.toLocaleString() || 0}</span>
+               </div>
+            </div>
+            {p.level === 4 && p.sessions && p.sessions.length > 0 && (
+              <span className="text-[9px] font-bold text-slate-400 mr-1">총 {p.sessions.length}차시 교육 완료</span>
+            )}
+          </div>
           {/* 파트너 연동 버튼 제거 (전역에서 관리하므로) */}
           {p.level < 4 && (
             <Button 
@@ -180,6 +297,19 @@ export default function ProjectsPage() {
               <Plus className="size-5" />
             </Button>
           )}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            type="button"
+            className="size-9 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl"
+            onClick={() => {
+              if (confirm('하위 항목을 포함한 전체 정보를 복사하시겠습니까?')) {
+                copyProject(p.id);
+              }
+            }}
+          >
+            <Copy className="size-4" />
+          </Button>
           <Button 
             variant="ghost" 
             size="icon" 
@@ -488,6 +618,7 @@ export default function ProjectsPage() {
         onOpenChange={setIsDialogOpen}
         mode={dialogMode}
         project={selectedProject}
+        parentProject={parentProject}
         parentId={currentParentId}
         level={currentLevel}
       />

@@ -54,7 +54,17 @@ interface BudgetState {
   addCategory: (name: string) => Promise<void>;
   addManagement: (categoryId: string, name: string) => Promise<void>;
   addExecution: (managementId: string, data: { name: string, budgetAmount: number, projectId?: string }) => Promise<void>;
-  addExpenditure: (data: any) => Promise<void>;
+  addExpenditure: (data: {
+    executionId: string;
+    date: string;
+    amount: number;
+    partnerId?: string;
+    vendor: string;
+    description: string;
+    attachmentName?: string;
+    attachmentOriginalName?: string;
+    attachmentUrl?: string;
+  }) => Promise<void>;
   deleteExecution: (id: string) => Promise<void>;
 }
 
@@ -88,7 +98,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     }));
 
     const mappedExps: Expenditure[] = (exps.data || []).map(e => {
-      const attachment = e.attachment as any;
+      const attachment = e.attachment as { fileName?: string; originalName?: string; fileUrl?: string } | null;
       return {
         id: e.id,
         executionId: e.execution_id,

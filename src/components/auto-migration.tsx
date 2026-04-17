@@ -63,7 +63,7 @@ export function AutoMigration() {
           if (state?.responses?.length > 0) {
             await supabase.from('surveys').upsert(state.responses.map((r: any) => ({
               id: r.id, project_id: r.projectId, template_id: r.templateId, 
-              respondent_id: r.respondentId, answers: r.answers, metadata: r.metadata
+              respondent_id: r.respondentId, answers: r.answers
             })));
           }
           localStorage.removeItem('survey-storage');
