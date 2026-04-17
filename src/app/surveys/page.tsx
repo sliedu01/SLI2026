@@ -172,7 +172,7 @@ export default function SurveysPage() {
     }
   };
 
-  const handleUpdateQuestion = (qId: string, field: keyof Question, value: string) => {
+  const handleUpdateQuestion = (qId: string, field: keyof Question, value: any) => {
     if (!editingTemplate) return;
     setEditingTemplate({
       ...editingTemplate,
@@ -190,14 +190,14 @@ export default function SurveysPage() {
     });
   };
 
-  const handleAddQuestion = () => {
+  const handleAddQuestion = (type: 'SCALE' | 'TEXT' = 'SCALE') => {
     if (!editingTemplate) return;
     const newQ: Question = {
       id: crypto.randomUUID(),
-      division: '신규 구분',
-      theme: '신규 주제',
-      content: '신규 문항 내용을 입력하세요',
-      type: 'SCALE',
+      division: type === 'SCALE' ? '신규 구분' : '종합 의견',
+      theme: type === 'SCALE' ? '신규 주제' : '주관식 제언',
+      content: type === 'SCALE' ? '신규 문항 내용을 입력하세요' : '자유로운 의견을 입력해 주세요.',
+      type,
       order: editingTemplate.questions.length + 1
     };
     setEditingTemplate({
@@ -223,19 +223,36 @@ export default function SurveysPage() {
 
       selectedTemplate.questions.forEach(q => {
         if (selectedTemplate.type === 'COMPETENCY') {
-          answers.push({
-            questionId: q.id,
-            preScore: Number(cols[colIdx]) || 0,
-            score: Number(cols[colIdx + 1]) || 0
-          });
-          colIdx += 2;
+          if (q.type === 'SCALE') {
+            answers.push({
+              questionId: q.id,
+              preScore: Number(cols[colIdx]) || 0,
+              score: Number(cols[colIdx + 1]) || 0
+            });
+            colIdx += 2;
+          } else {
+            answers.push({
+              questionId: q.id,
+              score: 0,
+              text: cols[colIdx] || ''
+            });
+            colIdx += 1;
+          }
         } else {
-          answers.push({
-            questionId: q.id,
-            score: Number(cols[colIdx]) || 0,
-            text: cols[colIdx + 1] || ''
-          });
-          colIdx += 2;
+          if (q.type === 'SCALE') {
+            answers.push({
+              questionId: q.id,
+              score: Number(cols[colIdx]) || 0,
+            });
+            colIdx += 1;
+          } else {
+            answers.push({
+              questionId: q.id,
+              score: 0,
+              text: cols[colIdx] || ''
+            });
+            colIdx += 1;
+          }
         }
       });
 
@@ -398,7 +415,7 @@ export default function SurveysPage() {
                                <div className="flex items-center gap-2 mt-1 opacity-60">
                                   <Badge className="text-[8px] h-4 px-1.5 bg-white/20 text-white border-none">{t.type}</Badge>
                                   <span className="text-[9px] font-bold uppercase">{t.questions.length || 0} Questions</span>
-                               </div>
+                                </div>
                              </div>
                            </div>
                            <Button 
@@ -466,7 +483,7 @@ export default function SurveysPage() {
                                     <Input 
                                       value={q.division} 
                                       onChange={(e) => handleUpdateQuestion(q.id, 'division', e.target.value)}
-                                      className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs" 
+                                      className="h-10 rounded-xl bg-slate-100 border-none font-bold text-xs" 
                                     />
                                  </div>
                                  <div className="space-y-2">
@@ -474,7 +491,7 @@ export default function SurveysPage() {
                                     <Input 
                                       value={q.theme} 
                                       onChange={(e) => handleUpdateQuestion(q.id, 'theme', e.target.value)}
-                                      className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs" 
+                                      className="h-10 rounded-xl bg-slate-100 border-none font-bold text-xs" 
                                     />
                                  </div>
                                  <div className="space-y-2">
@@ -482,8 +499,26 @@ export default function SurveysPage() {
                                     <Input 
                                       value={q.content} 
                                       onChange={(e) => handleUpdateQuestion(q.id, 'content', e.target.value)}
-                                      className="h-11 rounded-xl bg-slate-50 border-none font-bold text-sm" 
+                                      className="h-10 rounded-xl bg-slate-100 border-none font-bold text-xs" 
                                     />
+                                 </div>
+                                 <div className="space-y-2">
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">문항 유형</label>
+                                    <Select 
+                                      value={q.type || 'SCALE'} 
+                                      onValueChange={(val: any) => handleUpdateQuestion(q.id, 'type', val)}
+                                    >
+                                      <SelectTrigger className={cn(
+                                        "h-10 rounded-xl border-none font-black text-[10px] transition-colors",
+                                        q.type === 'TEXT' ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
+                                      )}>
+                                         <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="rounded-xl border-none shadow-xl bg-white">
+                                         <SelectItem value="SCALE" className="font-bold text-xs">객관식 (5점척도)</SelectItem>
+                                         <SelectItem value="TEXT" className="font-bold text-xs text-emerald-600">주관식 (서술형)</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                  </div>
                               </div>
                               <Button 
@@ -496,14 +531,32 @@ export default function SurveysPage() {
                               </Button>
                            </div>
                          ))}
-                         <div className="p-10 flex justify-center">
-                            <Button 
-                              onClick={handleAddQuestion}
-                              variant="ghost" 
-                              className="h-16 w-full max-w-md rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-black gap-3 hover:bg-slate-50 hover:border-slate-300"
-                            >
-                               <Plus className="size-5" /> 새 문항 정의하기
-                            </Button>
+                         <div className="p-10 flex flex-col items-center gap-6">
+                            <div className="flex items-center gap-4 w-full max-w-2xl">
+                               <Button 
+                                 onClick={() => handleAddQuestion('SCALE')}
+                                 variant="ghost" 
+                                 className="flex-1 h-20 rounded-2xl border-2 border-dashed border-blue-200 text-blue-600 font-black gap-3 hover:bg-blue-50 hover:border-blue-300 transition-all flex flex-col items-center justify-center"
+                               >
+                                  <div className="flex items-center gap-2">
+                                     <Plus className="size-5" /> <span className="text-sm">객관식 문항 추가</span>
+                                  </div>
+                                  <span className="text-[10px] opacity-60 font-bold uppercase tracking-tight">5-Point Likert Scale</span>
+                               </Button>
+                               <Button 
+                                 onClick={() => handleAddQuestion('TEXT')}
+                                 variant="ghost" 
+                                 className="flex-1 h-20 rounded-2xl border-2 border-dashed border-emerald-200 text-emerald-600 font-black gap-3 hover:bg-emerald-50 hover:border-emerald-300 transition-all flex flex-col items-center justify-center"
+                               >
+                                  <div className="flex items-center gap-2">
+                                     <MessageSquare className="size-5" /> <span className="text-sm">주관식 문항 추가</span>
+                                  </div>
+                                  <span className="text-[10px] opacity-60 font-bold uppercase tracking-tight">Descriptive Text Input</span>
+                               </Button>
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em] flex items-center gap-2">
+                               <AlertCircle className="size-3" /> 유형에 따라 데이터 연동을 위한 엑셀 컬럼 구성이 달라집니다
+                            </p>
                          </div>
                       </div>
                    </CardContent>
