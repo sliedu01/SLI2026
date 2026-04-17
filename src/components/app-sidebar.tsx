@@ -41,7 +41,7 @@ const data = {
       icon: FileSpreadsheet,
     },
     {
-      title: "설문 및 역량평가",
+      title: "설문 및 성과 관리",
       url: "/surveys",
       icon: ClipboardCheck,
     },

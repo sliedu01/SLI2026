@@ -238,7 +238,7 @@ export default function SurveysPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white/50 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/20">
         <div className="space-y-1">
           <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            <ClipboardCheck className="size-8 text-blue-600" /> 설문 및 성과 지능
+            <ClipboardCheck className="size-8 text-blue-600" /> 설문 및 성과 관리
           </h1>
           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest font-mono">Statistical Analysis & Survey Intelligence</p>
         </div>
