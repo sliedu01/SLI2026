@@ -92,6 +92,7 @@ export default function SurveysPage() {
   const [selectedPartnerId, setSelectedPartnerId] = React.useState<string | null>(null);
   const [dateRange, setDateRange] = React.useState<{ start: string; end: string }>({ start: '', end: '' });
 
+  const [editingTemplate, setEditingTemplate] = React.useState<SurveyTemplate | null>(null);
   const [pasteContent, setPasteContent] = React.useState('');
   const [isPasteDialogOpen, setIsPasteDialogOpen] = React.useState(false);
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
@@ -116,10 +117,82 @@ export default function SurveysPage() {
     }
   }, [mounted, templates.length]);
 
+  React.useEffect(() => {
+    if (selectedTemplateId) {
+      const t = templates.find(i => i.id === selectedTemplateId);
+      if (t) setEditingTemplate({...t, questions: t.questions.map(q => ({...q}))});
+    } else if (templates.length > 0) {
+      // 초기 선택 로직
+      const t = templates[0];
+      setSelectedTemplateId(t.id);
+    }
+  }, [selectedTemplateId, templates]);
+
   if (!mounted) return null;
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId) || templates[0];
   const projectResponses = selectedProjectId ? responses.filter(r => r.projectId === selectedProjectId && r.templateId === selectedTemplate?.id) : [];
+
+  // --- 템플릿 편집 핸들러 ---
+  const handleSaveTemplate = async () => {
+    if (!editingTemplate) return;
+    try {
+      await updateTemplate(editingTemplate.id, {
+        name: editingTemplate.name,
+        questions: editingTemplate.questions
+      });
+      alert('템플릿이 성공적으로 저장되었습니다.');
+    } catch (err) {
+      console.error(err);
+      alert('저장 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('정말로 이 템플릿을 삭제하시겠습니까? 관련 데이터는 유지되지만 템플릿은 사라집니다.')) return;
+    try {
+      await deleteTemplate(id);
+      if (selectedTemplateId === id) setSelectedTemplateId(null);
+    } catch (err) {
+      console.error(err);
+      alert('삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleUpdateQuestion = (qId: string, field: keyof Question, value: string) => {
+    if (!editingTemplate) return;
+    setEditingTemplate({
+      ...editingTemplate,
+      questions: editingTemplate.questions.map(q => 
+        q.id === qId ? { ...q, [field]: value } : q
+      )
+    });
+  };
+
+  const handleDeleteQuestion = (qId: string) => {
+    if (!editingTemplate) return;
+    setEditingTemplate({
+      ...editingTemplate,
+      questions: editingTemplate.questions.filter(q => q.id !== qId)
+    });
+  };
+
+  const handleAddQuestion = () => {
+    if (!editingTemplate) return;
+    const newQ: Question = {
+      id: crypto.randomUUID(),
+      division: '신규 구분',
+      theme: '신규 주제',
+      content: '신규 문항 내용을 입력하세요',
+      type: 'SCALE',
+      order: editingTemplate.questions.length + 1
+    };
+    setEditingTemplate({
+      ...editingTemplate,
+      questions: [...editingTemplate.questions, newQ]
+    });
+  };
 
   // --- 데이터 파싱 로직 (Excel Paste) ---
   const handlePasteProcess = () => {
@@ -278,15 +351,27 @@ export default function SurveysPage() {
                            key={t.id} 
                            onClick={() => { setSelectedTemplateId(t.id); setSurveyType(t.type); }}
                            className={cn(
-                             "p-4 rounded-2xl cursor-pointer border transition-all",
+                             "p-4 rounded-2xl cursor-pointer border transition-all group relative",
                              selectedTemplateId === t.id ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100" : "bg-slate-50 border-transparent text-slate-600 hover:bg-slate-100"
                            )}
                         >
-                           <p className="text-sm font-black truncate">{t.name}</p>
-                           <div className="flex items-center gap-2 mt-1 opacity-60">
-                              <Badge className="text-[8px] h-4 px-1.5 bg-white/20 text-white border-none">{t.type}</Badge>
-                              <span className="text-[9px] font-bold uppercase">{t.questions.length || 0} Questions</span>
+                           <div className="flex justify-between items-start pr-8">
+                             <div>
+                               <p className="text-sm font-black truncate">{t.name}</p>
+                               <div className="flex items-center gap-2 mt-1 opacity-60">
+                                  <Badge className="text-[8px] h-4 px-1.5 bg-white/20 text-white border-none">{t.type}</Badge>
+                                  <span className="text-[9px] font-bold uppercase">{t.questions.length || 0} Questions</span>
+                               </div>
+                             </div>
                            </div>
+                           <Button 
+                             onClick={(e) => handleDeleteTemplate(t.id, e)}
+                             variant="ghost" 
+                             size="icon" 
+                             className="absolute top-4 right-2 size-7 text-white/40 hover:text-white hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all rounded-lg"
+                           >
+                             <Trash2 className="size-3.5" />
+                           </Button>
                         </div>
                       ))}
                    </CardContent>
@@ -296,9 +381,13 @@ export default function SurveysPage() {
              <div className="lg:col-span-3">
                 <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden">
                     <CardHeader className="p-10 pb-6 border-b border-slate-50 flex flex-row items-center justify-between">
-                       <div>
-                          <CardTitle className="text-2xl font-black">{selectedTemplate?.name}</CardTitle>
-                          <div className="flex items-center gap-3 mt-2">
+                       <div className="flex-1 mr-8">
+                          <Input 
+                            value={editingTemplate?.name || ''} 
+                            onChange={(e) => setEditingTemplate(prev => prev ? {...prev, name: e.target.value} : null)}
+                            className="text-2xl font-black bg-transparent border-none p-0 focus-visible:ring-0 h-auto"
+                          />
+                          <div className="flex items-center gap-3 mt-4">
                              <Button 
                                onClick={() => handleAddDefaultTemplate('SATISFACTION')}
                                variant="outline" 
@@ -319,12 +408,17 @@ export default function SurveysPage() {
                        </div>
                        <div className="flex gap-2">
                           <Button variant="outline" className="rounded-xl h-12 font-black border-slate-200">데이터 구조화</Button>
-                          <Button className="rounded-xl h-12 px-8 bg-slate-900 font-black">최종 저장</Button>
+                          <Button 
+                            onClick={handleSaveTemplate}
+                            className="rounded-xl h-12 px-8 bg-slate-900 font-black"
+                          >
+                            최종 저장
+                          </Button>
                        </div>
                     </CardHeader>
                    <CardContent className="p-0">
                       <div className="divide-y divide-slate-100">
-                         {selectedTemplate?.questions.map((q, idx) => (
+                         {editingTemplate?.questions.map((q, idx) => (
                            <div key={q.id} className="p-8 group hover:bg-slate-50/50 transition-all flex gap-8">
                               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center shrink-0">
                                  <span className="text-xs font-black text-slate-400">{idx + 1}</span>
@@ -332,24 +426,45 @@ export default function SurveysPage() {
                               <div className="flex-1 grid grid-cols-3 gap-6">
                                  <div className="space-y-2">
                                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">구분 (Division)</label>
-                                    <Input defaultValue={q.division} className="h-11 rounded-xl bg-slate-50 border-none font-bold text-sm" />
+                                    <Input 
+                                      value={q.division} 
+                                      onChange={(e) => handleUpdateQuestion(q.id, 'division', e.target.value)}
+                                      className="h-11 rounded-xl bg-slate-50 border-none font-bold text-sm" 
+                                    />
                                  </div>
                                  <div className="space-y-2">
                                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">주제 (Theme)</label>
-                                    <Input defaultValue={q.theme} className="h-11 rounded-xl bg-slate-50 border-none font-bold text-sm" />
+                                    <Input 
+                                      value={q.theme} 
+                                      onChange={(e) => handleUpdateQuestion(q.id, 'theme', e.target.value)}
+                                      className="h-11 rounded-xl bg-slate-50 border-none font-bold text-sm" 
+                                    />
                                  </div>
                                  <div className="space-y-2">
                                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">문항 내용 (Content)</label>
-                                    <Input defaultValue={q.content} className="h-11 rounded-xl bg-slate-50 border-none font-bold text-sm" />
+                                    <Input 
+                                      value={q.content} 
+                                      onChange={(e) => handleUpdateQuestion(q.id, 'content', e.target.value)}
+                                      className="h-11 rounded-xl bg-slate-50 border-none font-bold text-sm" 
+                                    />
                                  </div>
                               </div>
-                              <Button variant="ghost" size="icon" className="self-center text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                              <Button 
+                                onClick={() => handleDeleteQuestion(q.id)}
+                                variant="ghost" 
+                                size="icon" 
+                                className="self-center text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all font-black"
+                              >
                                  <Trash2 className="size-4" />
                               </Button>
                            </div>
                          ))}
                          <div className="p-10 flex justify-center">
-                            <Button variant="ghost" className="h-16 w-full max-w-md rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-black gap-3 hover:bg-slate-50 hover:border-slate-300">
+                            <Button 
+                              onClick={handleAddQuestion}
+                              variant="ghost" 
+                              className="h-16 w-full max-w-md rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-black gap-3 hover:bg-slate-50 hover:border-slate-300"
+                            >
                                <Plus className="size-5" /> 새 문항 정의하기
                             </Button>
                          </div>
