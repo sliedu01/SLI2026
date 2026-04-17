@@ -257,10 +257,22 @@ export default function ProjectsPage() {
               
               <div className="flex items-center gap-3">
                 {/* LV3 전용 인원 지표 */}
-                {p.level === 3 && totalSessions > 0 && (
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 rounded-lg border border-indigo-100/50">
-                    <span className="text-[9px] font-black text-indigo-400 uppercase">세션평균</span>
-                    <span className="text-[10px] font-black text-indigo-700">{avgPerSession.toFixed(1)}명</span>
+                {p.level === 3 && (
+                  <div className="flex items-center gap-2">
+                    {totalSessions > 0 && (
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 rounded-lg border border-indigo-100/50">
+                        <span className="text-[9px] font-black text-indigo-400 uppercase">평균 참가인원</span>
+                        <span className="text-[10px] font-black text-indigo-700">{avgPerSession.toFixed(1)}명</span>
+                      </div>
+                    )}
+                    {p.quota > 0 && (
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-50 rounded-lg border border-rose-100/50">
+                        <span className="text-[9px] font-black text-rose-400 uppercase">참석률</span>
+                        <span className="text-[10px] font-black text-rose-700">
+                          {((p.participantCount / p.quota) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

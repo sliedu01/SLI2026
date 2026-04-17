@@ -148,9 +148,9 @@ export function ProjectDialog({
       startTime,
       endTime,
       quota,
-      participantCount: level === 4 ? sessions.reduce((sum, s) => sum + s.participantCount, 0) : participantCount,
+      participantCount: level >= 3 ? sessions.reduce((sum, s) => sum + s.participantCount, 0) : participantCount,
       partnerId: partnerId === 'none' ? undefined : partnerId,
-      sessions: level === 4 ? sessions : [],
+      sessions: level >= 3 ? sessions : [],
       parentId: mode === 'edit' ? project?.parentId || null : parentId,
       level: mode === 'edit' ? project?.level || 1 : level,
     };
@@ -219,7 +219,7 @@ export function ProjectDialog({
               </div>
             </div>
 
-            {level < 4 && (
+            {level < 3 && (
               <div className="space-y-6 pt-4 border-t border-slate-100">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
@@ -272,7 +272,7 @@ export function ProjectDialog({
               </div>
             )}
 
-            {level === 4 && (
+            {level >= 3 && (
               <div className="space-y-4 pt-4 border-t border-slate-100">
                 <div className="flex items-center justify-between pb-2">
                   <div className="flex items-center gap-2">

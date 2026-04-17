@@ -93,41 +93,53 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     for (let lv = 4; lv >= 1; lv--) {
       updatedProjects.forEach((p, idx) => {
         if (p.level === lv) {
-          // 1. LV4: 세션을 기반으로 참가인원 및 시작/종료일 계산
-          if (lv === 4 && p.sessions && p.sessions.length > 0) {
-            const sessionSum = p.sessions.reduce((sum, s) => sum + (s.participantCount || 0), 0);
+          let currentQuota = 0;
+          let currentParticipantCount = 0;
+          let minDate = p.startDate;
+          let maxDate = p.endDate;
+
+          // 1. 해당 사업의 세션(sessions) 기반 통계 및 날짜 계산
+          if (p.sessions && p.sessions.length > 0) {
+            currentParticipantCount = p.sessions.reduce((sum, s) => sum + (s.participantCount || 0), 0);
             
             const sessionStartDates = p.sessions.map(s => s.startDate).filter(Boolean);
             const sessionEndDates = p.sessions.map(s => s.endDate).filter(Boolean);
             
-            const minDate = sessionStartDates.length > 0 ? sessionStartDates.reduce((min, cur) => cur < min ? cur : min) : p.startDate;
-            const maxDate = sessionEndDates.length > 0 ? sessionEndDates.reduce((max, cur) => cur > max ? cur : max) : p.endDate;
-
-            updatedProjects[idx] = { 
-              ...p, 
-              participantCount: sessionSum,
-              startDate: minDate,
-              endDate: maxDate
-            };
+            if (sessionStartDates.length > 0) {
+              minDate = sessionStartDates.reduce((min, cur) => cur < min ? cur : min);
+            }
+            if (sessionEndDates.length > 0) {
+              maxDate = sessionEndDates.reduce((max, cur) => cur > max ? cur : max);
+            }
           }
           
-          // 2. LV1~LV3: 하위 사업(children)을 기반으로 정원/참가인원 및 시작/종료일 계산
+          // 2. 하위 사업(children) 기반 통계 합산 (있는 경우 기존 세션 데이터에 추가)
           const children = updatedProjects.filter(child => child.parentId === p.id);
           if (children.length > 0) {
+            currentQuota += children.reduce((sum, c) => sum + (c.quota || 0), 0);
+            currentParticipantCount += children.reduce((sum, c) => sum + (c.participantCount || 0), 0);
+            
             const childStartDates = children.map(c => c.startDate).filter(Boolean);
             const childEndDates = children.map(c => c.endDate).filter(Boolean);
             
-            const minDate = childStartDates.length > 0 ? childStartDates.reduce((min, cur) => cur < min ? cur : min) : updatedProjects[idx].startDate;
-            const maxDate = childEndDates.length > 0 ? childEndDates.reduce((max, cur) => cur > max ? cur : max) : updatedProjects[idx].endDate;
-
-            updatedProjects[idx] = {
-              ...updatedProjects[idx],
-              quota: children.reduce((sum, c) => sum + (c.quota || 0), 0),
-              participantCount: children.reduce((sum, c) => sum + (c.participantCount || 0), 0),
-              startDate: minDate,
-              endDate: maxDate
-            };
+            if (childStartDates.length > 0) {
+              const childrenMin = childStartDates.reduce((min, cur) => cur < min ? cur : min);
+              if (!minDate || childrenMin < minDate) minDate = childrenMin;
+            }
+            if (childEndDates.length > 0) {
+              const childrenMax = childEndDates.reduce((max, cur) => cur > max ? cur : max);
+              if (!maxDate || childrenMax > maxDate) maxDate = childrenMax;
+            }
           }
+
+          // 최종 값 반영
+          updatedProjects[idx] = {
+            ...updatedProjects[idx],
+            quota: currentQuota || p.quota, // 하위가 없으면 본인 정원 유지
+            participantCount: currentParticipantCount,
+            startDate: minDate,
+            endDate: maxDate
+          };
         }
       });
     }
@@ -249,8 +261,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const { projects, sortKey, sortDirection } = get();
     const filtered = projects.filter((p) => p.parentId === parentId);
 
+    // LV3, LV4는 무조건 날짜 오름차순(오래된 순) 정렬
+    // filtered의 첫 번째 요소가 LV3 이상인지 확인 (모든 siblings는 같은 레벨임)
+    const isHighLevel = filtered.length > 0 && filtered[0].level >= 3;
+
     return [...filtered].sort((a, b) => {
       let comparison = 0;
+      
+      if (isHighLevel) {
+        // LV3, LV4 특화 정렬 (날짜 ASC)
+        comparison = (a.startDate || '').localeCompare(b.startDate || '');
+        return comparison; // 항상 ASC
+      }
+
       if (sortKey === 'name') {
         comparison = a.name.localeCompare(b.name);
       } else if (sortKey === 'date') {
