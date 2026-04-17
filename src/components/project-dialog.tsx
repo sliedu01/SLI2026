@@ -116,14 +116,19 @@ export function ProjectDialog({
   };
 
   const addSession = () => {
-    const sDate = startDate ? format(startDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
-    const eDate = endDate ? format(endDate, 'yyyy-MM-dd') : sDate;
+    const lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+    
+    const sDate = lastSession ? lastSession.startDate : (startDate ? format(startDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+    const eDate = lastSession ? lastSession.endDate : (endDate ? format(endDate, 'yyyy-MM-dd') : sDate);
+    const sTime = lastSession ? lastSession.startTime : '10:00';
+    const eTime = lastSession ? lastSession.endTime : '12:00';
+
     const newSession: ProjectSession = {
       id: crypto.randomUUID(),
       startDate: sDate,
       endDate: eDate,
-      startTime: '09:00',
-      endTime: '18:00',
+      startTime: sTime,
+      endTime: eTime,
       content: '',
       participantCount: 0
     };

@@ -161,11 +161,10 @@ export default function ProjectsPage() {
     });
     const avgGain = compCount > 0 ? (postSum - preSum) / compCount : 0;
 
-    // 3. LV3 참가자 지표 (하위 세션 합계 및 평균)
+    // 3. 참가자 지표 (사업 본인 + 하위 전체 세션 합계 및 평균)
     let totalSessions = 0;
-    const lv4s = projects.filter(proj => descendantIds.includes(proj.id) && proj.level === 4);
-    lv4s.forEach(l4 => {
-      if (l4.sessions) totalSessions += l4.sessions.length;
+    projects.filter(proj => allRelevantIds.includes(proj.id)).forEach(proj => {
+      if (proj.sessions) totalSessions += proj.sessions.length;
     });
     const avgPerSession = totalSessions > 0 ? p.participantCount / totalSessions : 0;
 
@@ -294,8 +293,8 @@ export default function ProjectsPage() {
                   <span className="text-xs font-black text-blue-600">{p.participantCount?.toLocaleString() || 0}</span>
                </div>
             </div>
-            {p.level === 4 && p.sessions && p.sessions.length > 0 && (
-              <span className="text-[9px] font-bold text-slate-400 mr-1">총 {p.sessions.length}차시 교육 완료</span>
+            {totalSessions > 0 && (
+              <span className="text-[9px] font-bold text-slate-400 mr-1">총 {totalSessions}차시 교육 완료</span>
             )}
           </div>
           {/* 파트너 연동 버튼 제거 (전역에서 관리하므로) */}
