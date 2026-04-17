@@ -71,19 +71,49 @@ export function getAchievementLevel(gain: number): 'High' | 'Medium' | 'Low' {
 }
 
 /**
- * 성과 해석 스트림 생성
+ * 15년차 교육 컨설턴트 페르소나 기반의 분석 보고서 생성 프롬프트
  */
-export function generateAnalysisSummary(
-  projectName: string, 
-  cohensD: number, 
-  avgGain: number
+export function generateAIExpertReport(
+  projectList: any[],
+  aggregatedData: Record<string, number>,
+  responses: any[]
 ): string {
-  let effectStr = "보통";
-  if (cohensD >= 0.8) effectStr = "매우 우수";
-  else if (cohensD >= 0.5) effectStr = "우수";
-  else if (cohensD < 0.2) effectStr = "미미";
-
-  const gainPercent = (avgGain * 100).toFixed(1);
+  const lv1s = projectList.filter(p => p.level === 1);
   
-  return `이번 [${projectName}] 교육은 효과 크기(Cohen's d: ${cohensD.toFixed(2)}) 측면에서 [${effectStr}]한 수준이며, 학습자들의 잠재력 대비 ${gainPercent}%의 성취(Hake's Gain)를 달성한 것으로 분석되었습니다.`;
+  const reportStructure = lv1s.map(lv1 => {
+    const lv1Score = aggregatedData[lv1.id] || 0;
+    const children = projectList.filter(p => p.parentId === lv1.id);
+    
+    return `
+### [종합 분석] ${lv1.name} (LV1)
+- **성과 요약**: 기술적 달성도 및 학습 만족도 지점 분석 (전체 평균: ${lv1Score.toFixed(2)}점)
+- **Insight**: 15년차 컨설턴트 관점에서 본 사업의 거시적 성과와 목표 달성 여부 해석.
+
+### [세부 사업 분석] 구성 요소별 연결성 (LV2)
+${children.map(lv2 => {
+  const lv2Score = aggregatedData[lv2.id] || 0;
+  return `- **${lv2.name}**: 하위 프로그램들과의 유기적 연결성 평가 (평균: ${lv2Score.toFixed(2)}점)`;
+}).join('\n')}
+
+### [핵심 인사이트] 만족도 대비 역량 향상 (LV3-4)
+- 만족도와 실제 역량 향상폭 간의 상관관계를 탐색하여 교육 내용의 적합성을 분석합니다.
+- 데이터 이상치(유난히 높거나 낮은 점수) 발생 원인 추론 포함.
+
+### [제언 및 액션 아이템]
+- 향후 교육 설계 시 개선해야 할 구체적인 전략 제시.
+    `;
+  }).join('\n---\n');
+
+  return `
+당신은 대한민국 교육 공학 및 성과 분석 분야에서 15년 이상의 경력을 가진 **시니어 교육 컨설턴트**입니다.
+제공된 LV1부터 LV4까지의 계층형 데이터를 바탕으로, 전문적이고 비판적이며 건설적인 '성과 분석 보고서'를 작성해 주세요.
+
+[제약 사항]
+1. 깔끔한 마크다운 형식을 사용하십시오.
+2. 데이터의 이상치가 있다면 그 원인을 교육 설계 관점에서 추론하십시오.
+3. 단순 나열이 아닌, 레벨 간의 유기적 관계에 집중하십시오.
+
+[분석 데이터 요약]
+${reportStructure}
+  `;
 }
