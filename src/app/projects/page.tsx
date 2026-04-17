@@ -98,6 +98,7 @@ export default function ProjectsPage() {
     setDialogMode('edit');
     setSelectedProject(project);
     setParentProject(undefined);
+    setCurrentLevel(project.level);
     setIsDialogOpen(true);
   };
 
