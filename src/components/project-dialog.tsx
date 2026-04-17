@@ -225,7 +225,8 @@ export function ProjectDialog({
                   <div className="grid gap-2">
                     <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">시작일</Label>
                     <Popover>
-                      <PopoverTrigger asChild>
+                      <PopoverTrigger
+                      render={
                         <Button
                           variant="outline"
                           type="button"
@@ -234,7 +235,8 @@ export function ProjectDialog({
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {startDate ? format(startDate, "yyyy-MM-dd") : <span>날짜 선택</span>}
                         </Button>
-                      </PopoverTrigger>
+                      }
+                    />
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar mode="single" selected={startDate} onSelect={handleStartDateSelect} locale={ko} initialFocus />
                       </PopoverContent>
@@ -243,7 +245,8 @@ export function ProjectDialog({
                   <div className="grid gap-2">
                     <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">종료일</Label>
                     <Popover>
-                      <PopoverTrigger asChild>
+                      <PopoverTrigger
+                      render={
                         <Button
                           variant="outline"
                           type="button"
@@ -252,7 +255,8 @@ export function ProjectDialog({
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {endDate ? format(endDate, "yyyy-MM-dd") : <span>날짜 선택</span>}
                         </Button>
-                      </PopoverTrigger>
+                      }
+                    />
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar mode="single" selected={endDate} onSelect={setEndDate} locale={ko} initialFocus />
                       </PopoverContent>
