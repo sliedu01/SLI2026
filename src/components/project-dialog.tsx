@@ -225,7 +225,7 @@ export function ProjectDialog({
                   <div className="grid gap-2">
                     <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">시작일</Label>
                     <Popover>
-                      <PopoverTrigger>
+                      <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           type="button"
@@ -243,7 +243,7 @@ export function ProjectDialog({
                   <div className="grid gap-2">
                     <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">종료일</Label>
                     <Popover>
-                      <PopoverTrigger>
+                      <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           type="button"
