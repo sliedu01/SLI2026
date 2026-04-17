@@ -89,21 +89,43 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const { projects } = get();
     const updatedProjects = [...projects];
 
+    // 하위에서 상위로 (LV4 -> LV1) 통계 및 날짜 합산
     for (let lv = 4; lv >= 1; lv--) {
       updatedProjects.forEach((p, idx) => {
         if (p.level === lv) {
+          // 1. LV4: 세션을 기반으로 참가인원 및 시작/종료일 계산
           if (lv === 4 && p.sessions && p.sessions.length > 0) {
-            // LV4는 세션 합계를 자동 반영
             const sessionSum = p.sessions.reduce((sum, s) => sum + (s.participantCount || 0), 0);
-            updatedProjects[idx] = { ...p, participantCount: sessionSum };
+            
+            const sessionStartDates = p.sessions.map(s => s.startDate).filter(Boolean);
+            const sessionEndDates = p.sessions.map(s => s.endDate).filter(Boolean);
+            
+            const minDate = sessionStartDates.length > 0 ? sessionStartDates.reduce((min, cur) => cur < min ? cur : min) : p.startDate;
+            const maxDate = sessionEndDates.length > 0 ? sessionEndDates.reduce((max, cur) => cur > max ? cur : max) : p.endDate;
+
+            updatedProjects[idx] = { 
+              ...p, 
+              participantCount: sessionSum,
+              startDate: minDate,
+              endDate: maxDate
+            };
           }
           
+          // 2. LV1~LV3: 하위 사업(children)을 기반으로 정원/참가인원 및 시작/종료일 계산
           const children = updatedProjects.filter(child => child.parentId === p.id);
           if (children.length > 0) {
+            const childStartDates = children.map(c => c.startDate).filter(Boolean);
+            const childEndDates = children.map(c => c.endDate).filter(Boolean);
+            
+            const minDate = childStartDates.length > 0 ? childStartDates.reduce((min, cur) => cur < min ? cur : min) : updatedProjects[idx].startDate;
+            const maxDate = childEndDates.length > 0 ? childEndDates.reduce((max, cur) => cur > max ? cur : max) : updatedProjects[idx].endDate;
+
             updatedProjects[idx] = {
-              ...updatedProjects[idx], // LV4에서 이미 업데이트되었을 수 있으므로
+              ...updatedProjects[idx],
               quota: children.reduce((sum, c) => sum + (c.quota || 0), 0),
-              participantCount: children.reduce((sum, c) => sum + (c.participantCount || 0), 0)
+              participantCount: children.reduce((sum, c) => sum + (c.participantCount || 0), 0),
+              startDate: minDate,
+              endDate: maxDate
             };
           }
         }
