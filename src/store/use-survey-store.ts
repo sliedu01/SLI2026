@@ -53,7 +53,7 @@ interface SurveyState {
   
   // Helpers
   createDefaultQuestions: (type: SurveyType) => Question[];
-  getAggregatedStats: (projects: any[], projectId: string | null, partnerId?: string) => Record<string, number>;
+  getAggregatedStats: (projects: any[], projectId: string | null, partnerId?: string, type?: SurveyType) => Record<string, number>;
 }
 
 export const useSurveyStore = create<SurveyState>((set, get) => ({
@@ -165,14 +165,20 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
     }
   },
 
-  getAggregatedStats: (projects, projectId, partnerId) => {
+  getAggregatedStats: (projects, projectId, partnerId, type) => {
     const { responses } = get();
     
     // 1. 기초 데이터 확보: 프로젝트별 평균 점수 계산 (LV4, LV3 등 직접 입력 데이터)
     const projectAverages: Record<string, { avg: number, count: number }> = {};
     
     responses.forEach(res => {
-      // 파트너 필터 적용
+      // 1-1. 유형별 필터 (만족도/역량진단)
+      if (type) {
+        const tmpl = get().templates.find(t => t.id === res.templateId);
+        if (tmpl?.type !== type) return;
+      }
+
+      // 1-2. 파트너 필터 적용
       if (partnerId) {
         const proj = projects.find(p => p.id === res.projectId);
         if (proj?.partnerId !== partnerId) return;

@@ -14,7 +14,9 @@ import {
   Users,
   LayoutGrid,
   GanttChartSquare,
-  Copy
+  Copy,
+  ClipboardCheck,
+  Activity
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -34,7 +36,9 @@ import { usePartnerStore } from '@/store/use-partner-store';
 import { useSurveyStore } from '@/store/use-survey-store';
 import { ProjectDialog } from '@/components/project-dialog';
 import { PartnerDialog } from '@/components/partner-dialog';
+import { SurveyEntryDialog } from '@/components/survey-entry-dialog';
 import { cn } from '@/lib/utils';
+import { SurveyType } from '@/store/use-survey-store';
 
 export default function ProjectsPage() {
   const [hasMounted, setHasMounted] = React.useState(false);
@@ -60,6 +64,11 @@ export default function ProjectsPage() {
   const [currentParentId, setCurrentParentId] = React.useState<string | null>(null);
   const [viewMode, setViewMode] = React.useState<'list' | 'gantt'>('list');
   
+  // 설문 입력 관련 상태
+  const [surveyEntryDialogOpen, setSurveyEntryDialogOpen] = React.useState(false);
+  const [selectedSurveyProject, setSelectedSurveyProject] = React.useState<Project | null>(null);
+  const [selectedSurveyType, setSelectedSurveyType] = React.useState<SurveyType>('SATISFACTION');
+
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
 
   // 하이드레이션 오류 방지
@@ -129,37 +138,20 @@ export default function ProjectsPage() {
         .map(proj => proj.partnerId)
     ).size;
 
-    // 2. 만족도 및 역량 향상 지표 계산
-    const projectSurveys = surveys.filter(s => allRelevantIds.includes(s.projectId));
+    const { getAggregatedStats } = useSurveyStore();
     
-    // 만족도 (SATISFACTION)
-    let satSum = 0;
-    let satCount = 0;
-    projectSurveys.forEach(s => {
-      s.answers.forEach(ans => {
-        if (ans.score !== undefined) {
-          satSum += ans.score;
-          satCount++;
-        }
-      });
-    });
-    const avgSatisfaction = satCount > 0 ? satSum / satCount : 0;
-    const satisfaction100 = avgSatisfaction * 20;
+    // 만족도 및 역량 향상 지표 계산 (계층 합산 반영)
+    const satisfactionStats = getAggregatedStats(projects, p.id, undefined, 'SATISFACTION');
+    const competencyStats = getAggregatedStats(projects, p.id, undefined, 'COMPETENCY');
 
-    // 역량 향상 (COMPETENCY) - 단순 사전/사후 점수 차이 평균
-    let preSum = 0;
-    let postSum = 0;
-    let compCount = 0;
-    projectSurveys.forEach(s => {
-      s.answers.forEach(ans => {
-        if (ans.preScore !== undefined && ans.score !== undefined) {
-          preSum += ans.preScore;
-          postSum += ans.score;
-          compCount++;
-        }
-      });
-    });
-    const avgGain = compCount > 0 ? (postSum - preSum) / compCount : 0;
+    const avgSatisfaction = satisfactionStats[p.id] || 0;
+    const satisfaction100 = avgSatisfaction * 20;
+    const avgScore = competencyStats[p.id] || 0;
+    
+    // 역량 향상은 현재 로직상 '성취도'로 표시하거나, 
+    // 기초 데이터(responses)에서 직접 gap을 계산해야 하므로 하위 호환을 위해 유지합니다.
+    // 하지만 상위 집계는 이제 통일된 getAggregatedStats를 따릅니다.
+    const avgGain = avgScore > 0 ? avgScore : 0; // 평점으로 표시 최적화
 
     // 3. 참가자 지표 (사업 본인 + 하위 전체 세션 합계 및 평균)
     let totalSessions = 0;
@@ -309,6 +301,32 @@ export default function ProjectsPage() {
               <Plus className="size-5" />
             </Button>
           )}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            type="button"
+            className="size-9 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl"
+            onClick={() => {
+              setSelectedSurveyProject(p);
+              setSelectedSurveyType('SATISFACTION');
+              setSurveyEntryDialogOpen(true);
+            }}
+          >
+            <ClipboardCheck className="size-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            type="button"
+            className="size-9 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl"
+            onClick={() => {
+              setSelectedSurveyProject(p);
+              setSelectedSurveyType('COMPETENCY');
+              setSurveyEntryDialogOpen(true);
+            }}
+          >
+            <Activity className="size-4" />
+          </Button>
           <Button 
             variant="ghost" 
             size="icon" 
@@ -640,6 +658,16 @@ export default function ProjectsPage() {
         onOpenChange={setPartnerDialogOpen}
         project={selectedProjectForPartner}
       />
+
+      {selectedSurveyProject && (
+        <SurveyEntryDialog 
+          open={surveyEntryDialogOpen}
+          onOpenChange={setSurveyEntryDialogOpen}
+          projectId={selectedSurveyProject.id}
+          projectName={selectedSurveyProject.name}
+          type={selectedSurveyType}
+        />
+      )}
     </div>
   );
 }
