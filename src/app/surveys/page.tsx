@@ -27,6 +27,18 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -338,10 +350,35 @@ export default function SurveysPage() {
                    <CardHeader>
                       <CardTitle className="text-lg font-black flex justify-between items-center">
                          템플릿 레지스트리
-                         <Button size="icon" variant="ghost" className="size-8" onClick={() => {
-                            const name = prompt('템플릿 이름을 입력하세요:');
-                            if(name) addTemplate({ name, type: 'COMPETENCY', questions: [] });
-                         }}> <Plus className="size-4" /> </Button>
+                          <Popover>
+                            <PopoverTrigger className="size-8 p-1 hover:bg-slate-100 rounded-lg flex items-center justify-center transition-colors">
+                               <Plus className="size-4 text-slate-600" />
+                            </PopoverTrigger>
+                            <PopoverContent className="w-56 p-2 rounded-2xl shadow-2xl bg-white border border-slate-100 z-50">
+                               <div className="grid gap-1">
+                                  <Button 
+                                    variant="ghost" 
+                                    className="justify-start font-bold gap-2 text-emerald-600 hover:bg-emerald-50"
+                                    onClick={() => {
+                                      const name = prompt('만족도 조사 템플릿 이름을 입력하세요:');
+                                      if(name) addTemplate({ name, type: 'SATISFACTION', questions: [] });
+                                    }}
+                                  >
+                                    <ClipboardCheck className="size-4" /> 만족도 조사 생성
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    className="justify-start font-bold gap-2 text-blue-600 hover:bg-blue-50"
+                                    onClick={() => {
+                                      const name = prompt('역량 진단 템플릿 이름을 입력하세요:');
+                                      if(name) addTemplate({ name, type: 'COMPETENCY', questions: [] });
+                                    }}
+                                  >
+                                    <Activity className="size-4" /> 사전사후 역량 진단 생성
+                                  </Button>
+                               </div>
+                            </PopoverContent>
+                          </Popover>
                       </CardTitle>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Available Formats</p>
                    </CardHeader>
@@ -423,25 +460,25 @@ export default function SurveysPage() {
                               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center shrink-0">
                                  <span className="text-xs font-black text-slate-400">{idx + 1}</span>
                               </div>
-                              <div className="flex-1 grid grid-cols-3 gap-6">
+                              <div className="flex-1 grid grid-cols-4 gap-4">
                                  <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">구분 (Division)</label>
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">구분</label>
                                     <Input 
                                       value={q.division} 
                                       onChange={(e) => handleUpdateQuestion(q.id, 'division', e.target.value)}
-                                      className="h-11 rounded-xl bg-slate-50 border-none font-bold text-sm" 
+                                      className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs" 
                                     />
                                  </div>
                                  <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">주제 (Theme)</label>
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">주제</label>
                                     <Input 
                                       value={q.theme} 
                                       onChange={(e) => handleUpdateQuestion(q.id, 'theme', e.target.value)}
-                                      className="h-11 rounded-xl bg-slate-50 border-none font-bold text-sm" 
+                                      className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs" 
                                     />
                                  </div>
                                  <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">문항 내용 (Content)</label>
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">문항 내용</label>
                                     <Input 
                                       value={q.content} 
                                       onChange={(e) => handleUpdateQuestion(q.id, 'content', e.target.value)}

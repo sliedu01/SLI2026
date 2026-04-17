@@ -79,21 +79,40 @@ export function SurveyEntryDialog({
 
         selectedTemplate.questions.forEach(q => {
           if (selectedTemplate.type === 'COMPETENCY') {
-            // 역량진단: 사전(pre), 사후(post) 2개 컬럼씩 필요
-            answers.push({
-              questionId: q.id,
-              preScore: Number(cols[colIdx]) || 0,
-              score: Number(cols[colIdx + 1]) || 0
-            });
-            colIdx += 2;
+            if (q.type === 'SCALE') {
+              // 역량진단 객관식: 사전(pre), 사후(post) 2개 컬럼 필요
+              answers.push({
+                questionId: q.id,
+                preScore: Number(cols[colIdx]) || 0,
+                score: Number(cols[colIdx + 1]) || 0
+              });
+              colIdx += 2;
+            } else {
+              // 역량진단 주관식: 1개 컬럼(text)
+              answers.push({
+                questionId: q.id,
+                score: 0,
+                text: cols[colIdx] || ''
+              });
+              colIdx += 1;
+            }
           } else {
-            // 만족도: 점수(score), 텍스트(text) 2개 컬럼씩 필요 (또는 점수만)
-            answers.push({
-              questionId: q.id,
-              score: Number(cols[colIdx]) || 0,
-              text: cols[colIdx + 1] || ''
-            });
-            colIdx += 2;
+            if (q.type === 'SCALE') {
+              // 만족도 객관식: 1개 컬럼(score)
+              answers.push({
+                questionId: q.id,
+                score: Number(cols[colIdx]) || 0
+              });
+              colIdx += 1;
+            } else {
+              // 만족도 주관식: 1개 컬럼(text)
+              answers.push({
+                questionId: q.id,
+                score: 0,
+                text: cols[colIdx] || ''
+              });
+              colIdx += 1;
+            }
           }
         });
 
@@ -177,15 +196,27 @@ export function SurveyEntryDialog({
             <>
               {/* 2. 안내 및 도구 영역 */}
               <div className="grid grid-cols-2 gap-4">
-                 <div className="p-5 rounded-[1.5rem] bg-blue-50/50 border border-blue-100 flex items-start gap-4">
-                    <FileSpreadsheet className="size-6 text-blue-600 mt-1 shrink-0" />
+                  <div className="p-5 rounded-[2rem] bg-indigo-50/50 border border-indigo-100 flex items-start gap-4">
+                    <FileSpreadsheet className="size-6 text-indigo-600 mt-1 shrink-0" />
                     <div>
-                       <p className="text-xs font-black text-blue-900 mb-1 leading-tight">엑셀 데이터 권장 구조</p>
-                       <p className="text-[10px] font-bold text-blue-600 leading-relaxed">
-                          • 첫 번째 컬럼: 학습자 식별값(이름 등)<br/>
-                          • 이후: {selectedTemplate.type === 'COMPETENCY' ? '사전 점수, 사후 점수 나열' : '점수, 소감(선택) 나열'}<br/>
-                          • 총 {selectedTemplate.type === 'COMPETENCY' ? selectedTemplate.questions.length * 2 : selectedTemplate.questions.length * 2}개 컬럼 필요
-                       </p>
+                       <p className="text-xs font-black text-indigo-900 mb-1 leading-tight">엑셀 데이터 구성 가이드</p>
+                       <div className="text-[10px] font-bold text-indigo-600 space-y-1">
+                          <p>• 첫 번째 컬럼: 학습자 식별값 (이름/ID)</p>
+                          <div className="flex gap-2">
+                             <div className="px-1.5 py-0.5 bg-white rounded border border-indigo-200">객관식</div>
+                             <span>{selectedTemplate.type === 'COMPETENCY' ? '2개 컬럼 필요 (사전 점수, 사후 점수)' : '1개 컬럼 필요 (만족도 점수)'}</span>
+                          </div>
+                          <div className="flex gap-2">
+                             <div className="px-1.5 py-0.5 bg-white rounded border border-indigo-200">주관식</div>
+                             <span>1개 컬럼 필요 (텍스트 내용)</span>
+                          </div>
+                          <p className="pt-1 font-black text-indigo-900 mt-2 border-t border-indigo-100 italic">
+                             * 총 {selectedTemplate.questions.reduce((sum, q) => {
+                                if (selectedTemplate.type === 'COMPETENCY' && q.type === 'SCALE') return sum + 2;
+                                return sum + 1;
+                             }, 1)}개 컬럼이 필요합니다.
+                          </p>
+                       </div>
                     </div>
                  </div>
                  <div className="p-5 rounded-[1.5rem] bg-slate-50 border border-slate-100 flex items-center justify-between">
