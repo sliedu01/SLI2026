@@ -121,7 +121,7 @@ export function FileUploadZone({
           className={cn(
             "flex flex-col items-center justify-center h-40 rounded-3xl border-2 border-dashed transition-all cursor-pointer group",
             isDragging 
-              ? "bg-blue-50 border-blue-400 scale-[1.02]" 
+              ? "bg-blue-50 border-blue-400 scale-[1.02] ring-4 ring-blue-50" 
               : "bg-white border-slate-100 hover:border-blue-200 hover:bg-slate-50/50 text-slate-400"
           )}
         >
@@ -131,8 +131,12 @@ export function FileUploadZone({
               isDragging ? "text-blue-600 animate-bounce" : "group-hover:text-blue-500"
             )} />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">파일 선택</span>
-          <span className="text-[9px] font-bold text-slate-400">PDF, 이미지, 문서 (Maximum 10MB)</span>
+          <span className="text-xs font-black text-slate-700 mb-0.5 group-hover:text-blue-600 transition-colors">
+            {isDragging ? `${label} 놓기` : `${label} 선택`}
+          </span>
+          <span className="text-[9px] font-bold text-slate-400">
+            {isDragging ? "마우스를 놓으면 업로드됩니다" : "마우스로 파일을 끌어오세요"}
+          </span>
         </div>
       ) : (
         <div className="relative h-40 rounded-3xl bg-white border border-slate-100 shadow-sm overflow-hidden group/box">

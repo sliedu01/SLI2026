@@ -10,7 +10,8 @@ import { supabase } from '@/lib/supabase';
 export function AutoMigration() {
   React.useEffect(() => {
     const migrateData = async () => {
-      console.log('Auto-migration engine started...');
+      console.log('🚀 Auto-migration engine started...');
+      const results = { partners: 0, projects: 0, surveys: 0, budgets: 0 };
 
       // 1. 파트너 데이터 이관
       const partnerRaw = localStorage.getItem('partner-storage-v3');
@@ -22,6 +23,7 @@ export function AutoMigration() {
               id: p.id, name: p.name, manager: p.manager, phone1: p.phone1, phone2: p.phone2, 
               email: p.email, address: p.address, documents: p.documents
             })));
+            results.partners = state.partners.length;
             localStorage.removeItem('partner-storage-v3');
           }
         } catch (e) {}
@@ -39,6 +41,7 @@ export function AutoMigration() {
               parent_id: p.parentId, level: p.level, partner_id: p.partnerId,
               quota: p.quota, participant_count: p.participantCount
             })));
+            results.projects = state.projects.length;
             localStorage.removeItem('project-storage-v2');
             localStorage.removeItem('project-storage');
           }
@@ -109,7 +112,13 @@ export function AutoMigration() {
         } catch (e) {}
       }
 
-      console.log('Auto-migration cycle complete.');
+      if (results.partners > 0 || results.projects > 0 || results.surveys > 0 || results.budgets > 0) {
+        console.log('✅ Auto-migration success:', results);
+        alert('로컬 데이터를 클라우드 데이터베이스(Supabase)로 이전에 성공했습니다! 이제 모든 기기에서 동일한 데이터를 보실 수 있습니다.');
+        window.location.reload(); // 데이터 동기화를 위해 새로고침
+      } else {
+        console.log('ℹ️ No local data found for migration.');
+      }
     };
 
     migrateData();

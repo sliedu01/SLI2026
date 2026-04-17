@@ -1,0 +1,8 @@
+{
+  "name": "SLI2026",
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "installCommand": "npm install",
+  "devCommand": "next dev",
+  "cleanUrls": true
+}

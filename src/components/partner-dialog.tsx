@@ -7,7 +7,8 @@ import {
   Plus, 
   FileText, 
   Trash2,
-  Info
+  Info,
+  RefreshCw
 } from 'lucide-react';
 
 import { 
@@ -43,6 +44,7 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
   const [phone2, setPhone2] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [address, setAddress] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   
   // 가변 계약서 리스트
   const [contracts, setContracts] = React.useState<{id: string, name: string, originalName?: string, fileUrl?: string}[]>([{ id: 'c1', name: '' }]);
@@ -91,50 +93,58 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
     }
   }, [open, mode, partnerId, project, partners, resetForm]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) { alert('업체명을 입력해주세요.'); return; }
 
-    const combinedDocs: PartnerDocument[] = [];
-    Object.entries(docs).forEach(([type, info]) => {
-      combinedDocs.push({
-        id: crypto.randomUUID(),
-        type,
-        originalName: info.originalName,
-        fileName: info.fileName,
-        fileUrl: info.fileUrl
-      });
-    });
-    
-    contracts.forEach((c, i) => {
-      if (c.name) {
+    setIsSubmitting(true);
+    try {
+      const combinedDocs: PartnerDocument[] = [];
+      Object.entries(docs).forEach(([type, info]) => {
         combinedDocs.push({
-          id: c.id,
-          type: `${i+1}회차 계약서`,
-          originalName: c.originalName || c.name,
-          fileName: c.name,
-          fileUrl: c.fileUrl
+          id: crypto.randomUUID(),
+          type,
+          originalName: info.originalName,
+          fileName: info.fileName,
+          fileUrl: info.fileUrl
         });
+      });
+      
+      contracts.forEach((c, i) => {
+        if (c.name) {
+          combinedDocs.push({
+            id: c.id,
+            type: `${i+1}회차 계약서`,
+            originalName: c.originalName || c.name,
+            fileName: c.name,
+            fileUrl: c.fileUrl
+          });
+        }
+      });
+
+      const partnerData = {
+        name,
+        manager,
+        phone1,
+        phone2,
+        email,
+        address,
+        documents: combinedDocs,
+      };
+
+      if (mode === 'add') {
+        await addPartner(partnerData);
+      } else if (mode === 'edit' && partnerId) {
+        await updatePartner(partnerId, partnerData);
       }
-    });
 
-    const partnerData = {
-      name,
-      manager,
-      phone1,
-      phone2,
-      email,
-      address,
-      documents: combinedDocs,
-    };
-
-    if (mode === 'add') {
-      addPartner(partnerData);
-    } else if (mode === 'edit' && partnerId) {
-      updatePartner(partnerId, partnerData);
+      onOpenChange(false);
+    } catch (err: any) {
+      console.error('Submit error:', err);
+      alert(`데이터 저장 중 오류가 발생했습니다: ${err.message || '알 수 없는 오류'}`);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    onOpenChange(false);
   };
 
   return (
@@ -224,10 +234,35 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
           <Separator className="bg-slate-200/60" />
 
           <section className="space-y-6">
-             <div className="flex items-center gap-2 border-l-4 border-blue-600 pl-3">
+              <div className="flex items-center gap-2 border-l-4 border-blue-600 pl-3">
                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">공통 증빙 서류</h3>
-             </div>
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              </div>
+
+              {/* 안내 가이드 섹션 추가 */}
+              <div className="bg-blue-50/50 border border-blue-100 rounded-3xl p-6 space-y-4">
+                <div className="flex items-center gap-2 text-blue-600 mb-2">
+                  <Info className="size-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">증빙 서류 제출 가이드</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-3">
+                  {[
+                    { label: '사업자등록증', desc: '파트너사의 상호, 대표자, 업태 및 종목 확인을 위한 필수 서류입니다.' },
+                    { label: '통장사본', desc: '정산 대금 결제를 위한 계좌 정보 확인용으로 사용됩니다.' },
+                    { label: '보험증권', desc: '영업배상책임 및 사고 보장 범위 확인을 위해 필요합니다.' },
+                    { label: '사전점검체크리스트', desc: '교육 시설 및 인프라의 보안/안전 점검 결과를 기록한 서류입니다.' },
+                  ].map((guide, i) => (
+                    <div key={i} className="flex gap-2 items-start">
+                      <div className="size-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
+                      <div>
+                        <p className="text-[11px] font-black text-slate-700">{guide.label}</p>
+                        <p className="text-[10px] font-medium text-slate-500 leading-relaxed">{guide.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   '사업자등록증', '통장사본', '보험증권', '사전점검체크리스트'
                 ].map(type => (
@@ -329,9 +364,17 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
           </Button>
           <Button 
             onClick={handleSubmit}
-            className="flex-[2] h-16 rounded-2xl bg-slate-900 text-white font-black shadow-2xl hover:bg-slate-800 transition-all"
+            disabled={isSubmitting}
+            className="flex-[2] h-16 rounded-2xl bg-slate-900 text-white font-black shadow-2xl hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {mode === 'add' ? '업체 등록하기' : '정보 수정 완료'}
+            {isSubmitting ? (
+              <div className="flex items-center gap-2">
+                <RefreshCw className="size-5 animate-spin" />
+                <span>처리 중...</span>
+              </div>
+            ) : (
+              mode === 'add' ? '업체 등록하기' : '정보 수정 완료'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
