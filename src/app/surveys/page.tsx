@@ -413,14 +413,14 @@ export default function SurveysPage() {
                                   <th className="p-6 text-left">학습자</th>
                                   {satQuestions.map((q, idx) => (
                                     <th key={q.id} className="p-4 text-center">
-                                      <Tooltip><TooltipTrigger className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full">SAT Q{idx+1}</TooltipTrigger>
+                                      <Tooltip><TooltipTrigger className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full whitespace-nowrap">만족도 Q{idx+1}</TooltipTrigger>
                                       <TooltipContent className="bg-slate-900 text-white p-4 rounded-xl shadow-2xl max-w-xs">{q.content}</TooltipContent></Tooltip>
                                     </th>
                                   ))}
                                   {satTmpl && <th className="p-6 text-center bg-emerald-50/30">개인평균</th>}
                                   {compQuestions.map((q, idx) => (
                                     <th key={q.id} className="p-4 text-center">
-                                      <Tooltip><TooltipTrigger className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full">COMP Q{idx+1}</TooltipTrigger>
+                                      <Tooltip><TooltipTrigger className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full whitespace-nowrap">성숙도 Q{idx+1}</TooltipTrigger>
                                       <TooltipContent className="bg-slate-900 text-white p-4 rounded-xl shadow-2xl max-w-xs">{q.content}</TooltipContent></Tooltip>
                                     </th>
                                   ))}
@@ -436,9 +436,9 @@ export default function SurveysPage() {
                                                 </div>
                                                 <div className="space-y-3 text-[11px] leading-relaxed">
                                                    <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>교육 직후 역량 수준을 정량화한 수치입니다.</div>
-                                                   <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>교육 목표 수준(Pass/Fail) 도달 여부와 집단의 평균 성숙도를 진단합니다.</div>
+                                                   <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>교육 목표 수준(Pass/Fail) 도달 여부와 집단의 평균 성성을 진단합니다.</div>
                                                    <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>4.0 이상 (우수), 3.0 ~ 4.0 (양호), 3.0 미만 (보충 필요)</div>
-                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-blue-200">산식: Σ(사후 개별 점수) / 총 문항 수</div>
+                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-blue-200">산식: Σ(사후 점수) / 질문 수</div>
                                                 </div>
                                              </TooltipContent>
                                           </Tooltip>
@@ -455,7 +455,7 @@ export default function SurveysPage() {
                                                    <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>사전 대비 사후 점수의 순수 향상 비율을 정규화한 성장 지표입니다.</div>
                                                    <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>학습자의 초기 수준과 무관하게 교육을 통한 실질적 '성장 폭'을 정밀 측정합니다.</div>
                                                    <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>0.7 이상 (High), 0.3 ~ 0.7 (Medium), 0.3 미만 (Low)</div>
-                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-emerald-200">산식: (Post_avg - Pre_avg) / (Full_score - Pre_avg)</div>
+                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-emerald-200">산식: (사후 평균 - 사전 평균) / (만점 - 사전 평균)</div>
                                                 </div>
                                              </TooltipContent>
                                           </Tooltip>
@@ -472,7 +472,7 @@ export default function SurveysPage() {
                                                    <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>교육 전후 집단 간 평균 차이를 표준편차로 나눈 영향력 지표입니다.</div>
                                                    <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>점수 차이를 넘어 교육 프로그램의 객관적인 임팩트(낮음/중간/높음)를 판단합니다.</div>
                                                    <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>0.8 이상 (Large), 0.5 ~ 0.8 (Medium), 0.2 ~ 0.5 (Small)</div>
-                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-amber-200">산식: (Post_avg - Pre_avg) / Pooled SD</div>
+                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-amber-200">산식: (사후 평균 - 사전 평균) / 통합 표준편차</div>
                                                 </div>
                                              </TooltipContent>
                                           </Tooltip>
@@ -489,7 +489,7 @@ export default function SurveysPage() {
                                                    <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>사전/사후 변화가 우연이 아닌 유의미한 변화인지 검증하는 지표입니다.</div>
                                                    <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>데이터의 신뢰성을 확보하고 교육 효과의 유의미함(p &lt; 0.05)을 수학적으로 증명합니다.</div>
                                                    <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>p &lt; 0.05 (매우 유의함), p &lt; 0.1 (경향성 있음), p &gt;= 0.1 (유의하지 않음)</div>
-                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-purple-200">산식: t = D_avg / (S_d / √n)</div>
+                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-purple-200">산식: 평균 차이 / (표준편차 / √표본 수)</div>
                                                 </div>
                                              </TooltipContent>
                                           </Tooltip>
@@ -534,8 +534,8 @@ export default function SurveysPage() {
                                             return (
                                               <td key={q.id} className="p-4 text-center">
                                                  <div className="flex flex-col items-center gap-1">
-                                                    <span className="text-[9px] text-slate-300">PRE {ans?.preScore || 0}</span>
-                                                    <Badge className="bg-blue-600 text-white border-none text-[10px]">POST {ans?.score || 0}</Badge>
+                                                    <span className="text-[9px] text-slate-300">사전 {ans?.preScore || 0}</span>
+                                                    <Badge className="bg-blue-600 text-white border-none text-[10px]">사후 {ans?.score || 0}</Badge>
                                                  </div>
                                               </td>
                                             );
@@ -617,10 +617,10 @@ export default function SurveysPage() {
                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                       {editingResponse?.answers.map((ans, idx) => (
                         <div key={idx} className="p-6 rounded-2xl bg-slate-50 space-y-3">
-                           <p className="text-xs font-black">Q. {editingResponse.templateId === projectTemplates.sat[0]?.id ? projectTemplates.sat[0].questions.find(q=>q.id===ans.questionId)?.content : projectTemplates.comp[0]?.questions.find(q=>q.id===ans.questionId)?.content}</p>
+                           <p className="text-xs font-black">질문 {idx+1}. {editingResponse.templateId === projectTemplates.sat[0]?.id ? projectTemplates.sat[0].questions.find(q=>q.id===ans.questionId)?.content : projectTemplates.comp[0]?.questions.find(q=>q.id===ans.questionId)?.content}</p>
                            <div className="flex gap-4">
-                              {ans.preScore !== undefined && <Input type="number" value={ans.preScore} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, preScore: Number(e.target.value)}:a)})} className="bg-white h-12 rounded-xl" placeholder="Pre" />}
-                              <Input type="number" value={ans.score} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, score: Number(e.target.value)}:a)})} className="bg-white h-12 rounded-xl" placeholder="Score/Post" />
+                              {ans.preScore !== undefined && <Input type="number" value={ans.preScore} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, preScore: Number(e.target.value)}:a)})} className="bg-white h-12 rounded-xl" placeholder="사전" />}
+                              <Input type="number" value={ans.score} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, score: Number(e.target.value)}:a)})} className="bg-white h-12 rounded-xl" placeholder="사후/점수" />
                            </div>
                         </div>
                       ))}
@@ -673,9 +673,9 @@ export default function SurveysPage() {
                    <ResponsiveContainer width="100%" height="70%">
                       <PieChart>
                          <Pie data={[
-                           { name: 'High', value: 30, fill: '#10b981' },
-                           { name: 'Mid', value: 50, fill: '#3b82f6' },
-                           { name: 'Low', value: 20, fill: '#ef4444' }
+                           { name: '대폭 향상', value: 30, fill: '#10b981' },
+                           { name: '보통 향상', value: 50, fill: '#3b82f6' },
+                           { name: '미미', value: 20, fill: '#ef4444' }
                          ]} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
                             <Cell fill="#10b981" /><Cell fill="#3b82f6" /><Cell fill="#ef4444" />
                          </Pie>
