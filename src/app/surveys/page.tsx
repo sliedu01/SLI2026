@@ -102,10 +102,13 @@ export default function SurveysPage() {
   } = useSurveyStore();
 
   const [activeTab, setActiveTab] = React.useState('templates');
-  const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null);
+  const [selectedLV1Id, setSelectedLV1Id] = React.useState<string | null>(null);
+  const [selectedLV2Id, setSelectedLV2Id] = React.useState<string | null>(null);
+  const [selectedLV3Id, setSelectedLV3Id] = React.useState<string | null>(null); // 협력업체
+  const [selectedLV4Id, setSelectedLV4Id] = React.useState<string | null>(null); // 세부 프로그램
+  const [dataDateRange, setDataDateRange] = React.useState({ start: '', end: new Date().toISOString().split('T')[0] });
+
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string | null>(null);
-  const [selectedPartnerId, setSelectedPartnerId] = React.useState<string | null>(null);
-  const [selectedProgramId, setSelectedProgramId] = React.useState<string | null>(null);
 
   const [editingTemplate, setEditingTemplate] = React.useState<SurveyTemplate | null>(null);
   const [editingResponse, setEditingResponse] = React.useState<SurveyResponse | null>(null);
@@ -116,12 +119,15 @@ export default function SurveysPage() {
   const [aiSummary, setAiSummary] = React.useState<string | null>(null);
   const aiResultRef = React.useRef<HTMLDivElement>(null);
 
-  const [dateRange, setDateRange] = React.useState({ start: '', end: '' });
+  const [dateRange, setDateRange] = React.useState({ start: '', end: '' }); // 분석용
   const [surveyType, setSurveyType] = React.useState<SurveyType>('COMPETENCY');
 
+  // 현재 선택된 가장 구체적인 ID 추출 (데이터 조회용)
+  const targetIdForData = selectedLV4Id || selectedLV3Id || selectedLV2Id || selectedLV1Id;
+
   const { mergedResponses, templates: projectTemplates } = React.useMemo(() => 
-    useSurveyStore.getState().getUnifiedProjectData(selectedProgramId || selectedProjectId || ''),
-    [selectedProgramId, selectedProjectId, responses, templates]
+    useSurveyStore.getState().getUnifiedProjectData(targetIdForData || ''),
+    [targetIdForData, responses, templates]
   );
   
   const satTmpl = projectTemplates.sat[0];
@@ -129,24 +135,39 @@ export default function SurveysPage() {
   const satQuestions = satTmpl?.questions.filter(q => q.type === 'SCALE') || [];
   const compQuestions = compTmpl?.questions.filter(q => q.type === 'SCALE') || [];
 
-  const aggregatedStats = getAggregatedStats(projects, selectedProjectId, selectedPartnerId || undefined, surveyType);
+  const aggregatedStats = getAggregatedStats(projects, targetIdForData, undefined, surveyType);
   
-  // 협력업체 목록 추출: partnerId가 해시코드(UUID)일 경우 가독성을 위해 프로젝트 이름으로 매핑
-  const partners = React.useMemo(() => {
-    const uniqueIds = Array.from(new Set(projects.map(p => p.partnerId).filter((id): id is string => !!id)));
-    return uniqueIds.map(id => {
-      const partnerProj = projects.find(p => p.id === id);
-      return {
-        id,
-        name: partnerProj ? partnerProj.name : id
-      };
-    }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [projects]);
+  // 계층형 필터링 옵션 계산
+  const filteredLV1 = React.useMemo(() => 
+    projects.filter(p => p.level === 1 && (!dataDateRange.start || p.endDate >= dataDateRange.start) && (!dataDateRange.end || p.startDate <= dataDateRange.end)),
+    [projects, dataDateRange]
+  );
 
-  const projectResponses = responses.filter(r => r.projectId === selectedProjectId);
+  const filteredLV2 = React.useMemo(() => 
+    projects.filter(p => p.level === 2 && p.parentId === selectedLV1Id && (!dataDateRange.start || p.endDate >= dataDateRange.start) && (!dataDateRange.end || p.startDate <= dataDateRange.end)),
+    [projects, selectedLV1Id, dataDateRange]
+  );
+
+  const filteredLV3 = React.useMemo(() => 
+    projects.filter(p => p.level === 3 && p.parentId === selectedLV2Id && (!dataDateRange.start || p.endDate >= dataDateRange.start) && (!dataDateRange.end || p.startDate <= dataDateRange.end)),
+    [projects, selectedLV2Id, dataDateRange]
+  );
+
+  const filteredLV4 = React.useMemo(() => 
+    projects.filter(p => p.level === 4 && p.parentId === selectedLV3Id && (!dataDateRange.start || p.endDate >= dataDateRange.start) && (!dataDateRange.end || p.startDate <= dataDateRange.end)),
+    [projects, selectedLV3Id, dataDateRange]
+  );
+
+  const projectResponses = responses.filter(r => r.projectId === targetIdForData);
 
   React.useEffect(() => {
     setMounted(true);
+    // 초기화: LV1 중 가장 빠른 시작일 찾기
+    const lv1Projects = useProjectStore.getState().projects.filter(p => p.level === 1);
+    if (lv1Projects.length > 0) {
+      const earliest = lv1Projects.reduce((min, p) => (p.startDate && p.startDate < min) ? p.startDate : min, lv1Projects[0].startDate || '');
+      if (earliest) setDataDateRange(prev => ({ ...prev, start: earliest }));
+    }
   }, []);
 
   React.useEffect(() => {
@@ -216,7 +237,7 @@ export default function SurveysPage() {
   };
 
   const handlePasteProcess = async () => {
-    const targetId = selectedProgramId || selectedProjectId;
+    const targetId = targetIdForData;
     if (!pasteContent.trim() || !targetId) {
       alert('사업 및 프로그램을 먼저 선택해주세요.');
       return;
@@ -377,42 +398,63 @@ export default function SurveysPage() {
 
         {activeTab === 'data' && (
           <div className="space-y-8 animate-in slide-in-from-bottom-5">
-             <div className="flex flex-wrap items-center gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl">
-                  <div className="space-y-1 min-w-[240px]">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">사업 선택</label>
-                     <select value={selectedProjectId || ''} onChange={(e) => { setSelectedProjectId(e.target.value); setSelectedProgramId(null); }} className="w-full h-12 px-4 bg-slate-50 rounded-xl font-black">
-                        <option value="">사업을 선택하세요...</option>
-                        {projects.filter(p => p.level <= 3).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl items-end">
+                  <div className="space-y-1.5 lg:col-span-2 flex gap-2">
+                    <div className="flex-1 space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">조회 시작일</label>
+                      <Input type="date" value={dataDateRange.start} onChange={(e) => setDataDateRange(prev => ({ ...prev, start: e.target.value }))} className="h-10 bg-slate-50 border-none rounded-xl font-bold text-xs" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">조회 종료일</label>
+                      <Input type="date" value={dataDateRange.end} onChange={(e) => setDataDateRange(prev => ({ ...prev, end: e.target.value }))} className="h-10 bg-slate-50 border-none rounded-xl font-bold text-xs" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">LV1 사업</label>
+                     <select value={selectedLV1Id || ''} onChange={(e) => { setSelectedLV1Id(e.target.value || null); setSelectedLV2Id(null); setSelectedLV3Id(null); setSelectedLV4Id(null); }} className="w-full h-10 px-3 bg-slate-50 rounded-xl font-black text-xs">
+                        <option value="">사업(LV1) 선택...</option>
+                        {filteredLV1.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                      </select>
                   </div>
 
-                  <div className="space-y-1 min-w-[180px]">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">협력업체 필터</label>
-                     <select value={selectedPartnerId || ''} onChange={(e) => { setSelectedPartnerId(e.target.value || null); setSelectedProgramId(null); }} className="w-full h-12 px-4 bg-slate-50 rounded-xl font-black">
-                        <option value="">전체 업체</option>
-                        {partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">LV2 사업</label>
+                     <select value={selectedLV2Id || ''} onChange={(e) => { setSelectedLV2Id(e.target.value || null); setSelectedLV3Id(null); setSelectedLV4Id(null); }} className="w-full h-10 px-3 bg-slate-50 rounded-xl font-black text-xs" disabled={!selectedLV1Id}>
+                        <option value="">사업(LV2) 선택...</option>
+                        {filteredLV2.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                      </select>
                   </div>
 
-                  <div className="space-y-1 min-w-[240px]">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">세부 프로그램(일자)</label>
-                     <select value={selectedProgramId || ''} onChange={(e) => setSelectedProgramId(e.target.value || null)} className="w-full h-12 px-4 bg-slate-50 rounded-xl font-black" disabled={!selectedProjectId}>
-                        <option value="">프로그램을 선택하세요...</option>
-                        {projects.filter(p => p.level === 4 && (!selectedProjectId || p.parentId === selectedProjectId || projects.find(parent => parent.id === p.parentId && parent.parentId === selectedProjectId)) && (!selectedPartnerId || p.partnerId === selectedPartnerId)).map(p => (
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">협력업체(LV3)</label>
+                     <select value={selectedLV3Id || ''} onChange={(e) => { setSelectedLV3Id(e.target.value || null); setSelectedLV4Id(null); }} className="w-full h-10 px-3 bg-slate-50 rounded-xl font-black text-xs" disabled={!selectedLV2Id}>
+                        <option value="">업체 선택...</option>
+                        {filteredLV3.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                     </select>
+                  </div>
+
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">프로그램(LV4)</label>
+                     <select value={selectedLV4Id || ''} onChange={(e) => setSelectedLV4Id(e.target.value || null)} className="w-full h-10 px-3 bg-slate-50 rounded-xl font-black text-xs" disabled={!selectedLV3Id}>
+                        <option value="">프로그램 선택...</option>
+                        {filteredLV4.map(p => (
                           <option key={p.id} value={p.id}>{p.startDate} - {p.name}</option>
                         ))}
                      </select>
                   </div>
 
-                  {selectedProgramId && (
-                     <div className="flex gap-4 ml-auto">
-                        <Badge className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl border-none">
-                          {projectTemplates.all.length}개의 설문 연결됨
-                        </Badge>
-                        <Button variant="outline" onClick={() => setIsPasteDialogOpen(true)} className="h-12 px-6 rounded-xl border-blue-100 text-blue-600 font-black"><FileSpreadsheet className="size-4 mr-2" /> 엑셀 연동</Button>
-                        <Button onClick={() => { if(confirm('초기화하시겠습니까?')) clearProjectResponses(selectedProgramId); }} variant="outline" className="h-12 px-6 rounded-xl text-red-500"><Trash2 className="size-4" /></Button>
-                     </div>
-                  )}
+                  <div className="lg:col-span-full flex gap-4 pt-4 border-t border-slate-50">
+                    {targetIdForData && (
+                       <div className="flex gap-4 ml-auto items-center">
+                          <Badge className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl border-none font-bold">
+                            {projectTemplates.all.length}개의 설문 연결됨
+                          </Badge>
+                          <Button variant="outline" onClick={() => setIsPasteDialogOpen(true)} className="h-10 px-6 rounded-xl border-blue-100 text-blue-600 font-black"><FileSpreadsheet className="size-4 mr-2" /> 엑셀 연동</Button>
+                          <Button onClick={() => { if(confirm('초기화하시겠습니까?')) clearProjectResponses(targetIdForData); }} variant="outline" className="h-10 px-6 rounded-xl text-red-500 hover:bg-red-50 hover:border-red-100"><Trash2 className="size-4" /></Button>
+                       </div>
+                    )}
+                  </div>
              </div>
 
              <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden">
