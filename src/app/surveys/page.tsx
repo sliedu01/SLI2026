@@ -102,11 +102,20 @@ export default function SurveysPage() {
   } = useSurveyStore();
 
   const [activeTab, setActiveTab] = React.useState('templates');
-  const [selectedLV1Id, setSelectedLV1Id] = React.useState<string | null>(null);
-  const [selectedLV2Id, setSelectedLV2Id] = React.useState<string | null>(null);
-  const [selectedLV3Id, setSelectedLV3Id] = React.useState<string | null>(null); // 협력업체
-  const [selectedLV4Id, setSelectedLV4Id] = React.useState<string | null>(null); // 세부 프로그램
+  const [targetIdForData, setTargetIdForData] = React.useState<string | null>(null);
   const [dataDateRange, setDataDateRange] = React.useState({ start: '', end: new Date().toISOString().split('T')[0] });
+  const [isProjectSelectorOpen, setIsProjectSelectorOpen] = React.useState(false);
+  const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string | null>(null);
 
@@ -122,8 +131,17 @@ export default function SurveysPage() {
   const [dateRange, setDateRange] = React.useState({ start: '', end: '' }); // 분석용
   const [surveyType, setSurveyType] = React.useState<SurveyType>('COMPETENCY');
 
-  // 현재 선택된 가장 구체적인 ID 추출 (데이터 조회용)
-  const targetIdForData = selectedLV4Id || selectedLV3Id || selectedLV2Id || selectedLV1Id;
+  // 선택된 사업의 전체 경로 이름 추출
+  const selectionPath = React.useMemo(() => {
+    if (!targetIdForData) return '대상을 선택하세요...';
+    const path: string[] = [];
+    let curr = projects.find(p => p.id === targetIdForData);
+    while (curr) {
+      path.unshift(curr.name);
+      curr = projects.find(p => p.id === curr?.parentId);
+    }
+    return path.join(' > ');
+  }, [targetIdForData, projects]);
 
   const { mergedResponses, templates: projectTemplates } = React.useMemo(() => 
     useSurveyStore.getState().getUnifiedProjectData(targetIdForData || ''),
@@ -135,29 +153,8 @@ export default function SurveysPage() {
   const satQuestions = satTmpl?.questions.filter(q => q.type === 'SCALE') || [];
   const compQuestions = compTmpl?.questions.filter(q => q.type === 'SCALE') || [];
 
-  const aggregatedStats = getAggregatedStats(projects, targetIdForData, undefined, surveyType);
+  const aggregatedStats = getAggregatedStats(projects, targetIdForData || '', undefined, surveyType);
   
-  // 계층형 필터링 옵션 계산
-  const filteredLV1 = React.useMemo(() => 
-    projects.filter(p => p.level === 1 && (!dataDateRange.start || p.endDate >= dataDateRange.start) && (!dataDateRange.end || p.startDate <= dataDateRange.end)),
-    [projects, dataDateRange]
-  );
-
-  const filteredLV2 = React.useMemo(() => 
-    projects.filter(p => p.level === 2 && p.parentId === selectedLV1Id && (!dataDateRange.start || p.endDate >= dataDateRange.start) && (!dataDateRange.end || p.startDate <= dataDateRange.end)),
-    [projects, selectedLV1Id, dataDateRange]
-  );
-
-  const filteredLV3 = React.useMemo(() => 
-    projects.filter(p => p.level === 3 && p.parentId === selectedLV2Id && (!dataDateRange.start || p.endDate >= dataDateRange.start) && (!dataDateRange.end || p.startDate <= dataDateRange.end)),
-    [projects, selectedLV2Id, dataDateRange]
-  );
-
-  const filteredLV4 = React.useMemo(() => 
-    projects.filter(p => p.level === 4 && p.parentId === selectedLV3Id && (!dataDateRange.start || p.endDate >= dataDateRange.start) && (!dataDateRange.end || p.startDate <= dataDateRange.end)),
-    [projects, selectedLV3Id, dataDateRange]
-  );
-
   const projectResponses = responses.filter(r => r.projectId === targetIdForData);
 
   React.useEffect(() => {
@@ -398,61 +395,130 @@ export default function SurveysPage() {
 
         {activeTab === 'data' && (
           <div className="space-y-8 animate-in slide-in-from-bottom-5">
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl items-end">
-                  <div className="space-y-1.5 lg:col-span-2 flex gap-2">
+             <div className="flex flex-wrap items-end gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl overflow-visible">
+                  <div className="flex gap-4 min-w-[320px]">
                     <div className="flex-1 space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">조회 시작일</label>
-                      <Input type="date" value={dataDateRange.start} onChange={(e) => setDataDateRange(prev => ({ ...prev, start: e.target.value }))} className="h-10 bg-slate-50 border-none rounded-xl font-bold text-xs" />
+                      <Input type="date" value={dataDateRange.start} onChange={(e) => setDataDateRange(prev => ({ ...prev, start: e.target.value }))} className="h-12 bg-slate-50 border-none rounded-xl font-bold" />
                     </div>
                     <div className="flex-1 space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">조회 종료일</label>
-                      <Input type="date" value={dataDateRange.end} onChange={(e) => setDataDateRange(prev => ({ ...prev, end: e.target.value }))} className="h-10 bg-slate-50 border-none rounded-xl font-bold text-xs" />
+                      <Input type="date" value={dataDateRange.end} onChange={(e) => setDataDateRange(prev => ({ ...prev, end: e.target.value }))} className="h-12 bg-slate-50 border-none rounded-xl font-bold" />
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">LV1 사업</label>
-                     <select value={selectedLV1Id || ''} onChange={(e) => { setSelectedLV1Id(e.target.value || null); setSelectedLV2Id(null); setSelectedLV3Id(null); setSelectedLV4Id(null); }} className="w-full h-10 px-3 bg-slate-50 rounded-xl font-black text-xs">
-                        <option value="">사업(LV1) 선택...</option>
-                        {filteredLV1.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                     </select>
+                  <div className="space-y-1 flex-1 min-w-[400px]">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">사업 / 프로그램 탐색기</label>
+                     <Popover open={isProjectSelectorOpen} onOpenChange={setIsProjectSelectorOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn(
+                            "w-full h-12 justify-start px-4 rounded-xl font-black text-sm gap-3 border-slate-100 bg-slate-50 hover:bg-slate-100 transition-all",
+                            targetIdForData ? "text-slate-900 shadow-sm" : "text-slate-400"
+                          )}>
+                             <Layers className="size-4 shrink-0 text-blue-500" />
+                             <span className="truncate">{selectionPath}</span>
+                             <ChevronDown className="size-4 ml-auto opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[480px] p-0 rounded-[2rem] shadow-2xl border-none bg-white overflow-hidden max-h-[600px] flex flex-col" align="start">
+                           <div className="p-6 border-b border-slate-50 bg-slate-50/50">
+                              <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                                <Search className="size-4 text-slate-400" /> 사업 탐색 및 선택
+                              </h3>
+                           </div>
+                           <div className="overflow-y-auto p-4 custom-scrollbar flex-1 bg-white">
+                              {(() => {
+                                const renderNodes = (parentId: string | null, depth: number = 0): React.ReactNode => {
+                                  const filteredRows = projects.filter(p => 
+                                    p.parentId === parentId && 
+                                    (!dataDateRange.start || p.endDate >= dataDateRange.start) && 
+                                    (!dataDateRange.end || p.startDate <= dataDateRange.end)
+                                  );
+
+                                  if (filteredRows.length === 0) return null;
+
+                                  return (
+                                    <div className="flex flex-col gap-1">
+                                      {filteredRows.map(p => {
+                                        const isExpanded = expandedIds.has(p.id);
+                                        const isSelected = targetIdForData === p.id;
+                                        const hasChildren = projects.some(child => child.parentId === p.id);
+
+                                        return (
+                                          <div key={p.id} className="flex flex-col">
+                                            <div 
+                                              onClick={() => {
+                                                setTargetIdForData(p.id);
+                                                if (!hasChildren) setIsProjectSelectorOpen(false);
+                                              }}
+                                              className={cn(
+                                                "group flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all",
+                                                isSelected ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-50 text-slate-600"
+                                              )}
+                                              style={{ marginLeft: `${depth * 1.5}rem` }}
+                                            >
+                                              {hasChildren ? (
+                                                <button 
+                                                  onClick={(e) => toggleExpand(p.id, e)}
+                                                  className={cn("p-1 rounded hover:bg-white/20 transition-colors", isSelected ? "text-white" : "text-slate-400")}
+                                                >
+                                                  {isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                                                </button>
+                                              ) : (
+                                                <div className="size-5.5 shrink-0 ml-1 flex items-center justify-center">
+                                                  <div className={cn("size-1.5 rounded-full", isSelected ? "bg-blue-200" : "bg-slate-200")} />
+                                                </div>
+                                              )}
+                                              
+                                              <div className="flex flex-col gap-0.5 overflow-hidden">
+                                                <div className="flex items-center gap-2">
+                                                   <span className="text-xs font-black truncate">{p.name}</span>
+                                                   <Badge variant="outline" className={cn(
+                                                     "text-[8px] font-black h-4 px-1 border-none",
+                                                     isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
+                                                   )}>LV{p.level}</Badge>
+                                                </div>
+                                                <div className={cn("text-[9px] font-bold flex items-center gap-1", isSelected ? "text-blue-100" : "text-slate-400")}>
+                                                   <Calendar className="size-2.5" /> {p.startDate} ~ {p.endDate}
+                                                </div>
+                                              </div>
+
+                                              {isSelected && <Badge className="ml-auto bg-blue-500 text-white shadow-sm border-none font-black text-[9px]">SELECTED</Badge>}
+                                            </div>
+                                            {isExpanded && renderNodes(p.id, depth + 1)}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                };
+
+                                const rootNodes = renderNodes(null);
+                                return rootNodes || (
+                                  <div className="py-20 text-center space-y-3">
+                                    <AlertCircle className="size-8 text-slate-200 mx-auto" />
+                                    <p className="text-slate-400 font-black text-sm">해당 기간에 진행되는 사업이 없습니다.</p>
+                                  </div>
+                                );
+                              })()}
+                           </div>
+                           <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
+                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Tip: 노드 클릭 시 즉시 선택됩니다.</p>
+                              <Button size="sm" onClick={() => setIsProjectSelectorOpen(false)} className="h-8 rounded-lg bg-blue-600 font-black text-[10px]">확인</Button>
+                           </div>
+                        </PopoverContent>
+                     </Popover>
                   </div>
 
-                  <div className="space-y-1">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">LV2 사업</label>
-                     <select value={selectedLV2Id || ''} onChange={(e) => { setSelectedLV2Id(e.target.value || null); setSelectedLV3Id(null); setSelectedLV4Id(null); }} className="w-full h-10 px-3 bg-slate-50 rounded-xl font-black text-xs" disabled={!selectedLV1Id}>
-                        <option value="">사업(LV2) 선택...</option>
-                        {filteredLV2.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                     </select>
-                  </div>
-
-                  <div className="space-y-1">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">협력업체(LV3)</label>
-                     <select value={selectedLV3Id || ''} onChange={(e) => { setSelectedLV3Id(e.target.value || null); setSelectedLV4Id(null); }} className="w-full h-10 px-3 bg-slate-50 rounded-xl font-black text-xs" disabled={!selectedLV2Id}>
-                        <option value="">업체 선택...</option>
-                        {filteredLV3.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                     </select>
-                  </div>
-
-                  <div className="space-y-1">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">프로그램(LV4)</label>
-                     <select value={selectedLV4Id || ''} onChange={(e) => setSelectedLV4Id(e.target.value || null)} className="w-full h-10 px-3 bg-slate-50 rounded-xl font-black text-xs" disabled={!selectedLV3Id}>
-                        <option value="">프로그램 선택...</option>
-                        {filteredLV4.map(p => (
-                          <option key={p.id} value={p.id}>{p.startDate} - {p.name}</option>
-                        ))}
-                     </select>
-                  </div>
-
-                  <div className="lg:col-span-full flex gap-4 pt-4 border-t border-slate-50">
+                  <div className="flex gap-4 ml-auto h-12 items-center">
                     {targetIdForData && (
-                       <div className="flex gap-4 ml-auto items-center">
-                          <Badge className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl border-none font-bold">
+                       <>
+                          <Badge className="bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl border-none font-black text-xs h-full flex items-center shadow-inner">
                             {projectTemplates.all.length}개의 설문 연결됨
                           </Badge>
-                          <Button variant="outline" onClick={() => setIsPasteDialogOpen(true)} className="h-10 px-6 rounded-xl border-blue-100 text-blue-600 font-black"><FileSpreadsheet className="size-4 mr-2" /> 엑셀 연동</Button>
-                          <Button onClick={() => { if(confirm('초기화하시겠습니까?')) clearProjectResponses(targetIdForData); }} variant="outline" className="h-10 px-6 rounded-xl text-red-500 hover:bg-red-50 hover:border-red-100"><Trash2 className="size-4" /></Button>
-                       </div>
+                          <Button variant="outline" onClick={() => setIsPasteDialogOpen(true)} className="h-full px-8 rounded-xl border-blue-100 text-blue-600 font-black transition-all hover:bg-blue-50 hover:scale-105 active:scale-95"><FileSpreadsheet className="size-4 mr-2" /> 엑셀 연동</Button>
+                          <Button onClick={() => { if(confirm('초기화하시겠습니까?')) clearProjectResponses(targetIdForData); }} variant="outline" className="h-full px-6 rounded-xl text-red-500 border-red-50 hover:bg-red-50 hover:border-red-100 transition-all active:scale-95"><Trash2 className="size-4" /></Button>
+                       </>
                     )}
                   </div>
              </div>
