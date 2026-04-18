@@ -21,7 +21,8 @@ import {
   BarChart2,
   PieChart as PieChartIcon,
   Edit,
-  Info
+  Info,
+  Scale
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -431,11 +432,12 @@ export default function SurveysPage() {
                                              <TooltipContent className="bg-slate-900 text-white p-6 rounded-2xl shadow-3xl max-w-xs space-y-3 border border-slate-700">
                                                 <div className="flex items-center gap-2 text-blue-400">
                                                    <Info className="size-4" />
-                                                   <p className="font-black">사후 평균 (Average Post-score)</p>
+                                                   <p className="font-black">사후 평균 (Post-score Average)</p>
                                                 </div>
                                                 <div className="space-y-3 text-[11px] leading-relaxed">
                                                    <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>교육 직후 역량 수준을 정량화한 수치입니다.</div>
                                                    <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>교육 목표 수준(Pass/Fail) 도달 여부와 집단의 평균 성숙도를 진단합니다.</div>
+                                                   <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>4.0 이상 (우수), 3.0 ~ 4.0 (양호), 3.0 미만 (보충 필요)</div>
                                                    <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-blue-200">산식: Σ(사후 개별 점수) / 총 문항 수</div>
                                                 </div>
                                              </TooltipContent>
@@ -452,6 +454,7 @@ export default function SurveysPage() {
                                                 <div className="space-y-3 text-[11px] leading-relaxed">
                                                    <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>사전 대비 사후 점수의 순수 향상 비율을 정규화한 성장 지표입니다.</div>
                                                    <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>학습자의 초기 수준과 무관하게 교육을 통한 실질적 '성장 폭'을 정밀 측정합니다.</div>
+                                                   <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>0.7 이상 (High), 0.3 ~ 0.7 (Medium), 0.3 미만 (Low)</div>
                                                    <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-emerald-200">산식: (Post_avg - Pre_avg) / (Full_score - Pre_avg)</div>
                                                 </div>
                                              </TooltipContent>
@@ -467,7 +470,8 @@ export default function SurveysPage() {
                                                 </div>
                                                 <div className="space-y-3 text-[11px] leading-relaxed">
                                                    <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>교육 전후 집단 간 평균 차이를 표준편차로 나눈 영향력 지표입니다.</div>
-                                                   <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>단순 점수 격차를 넘어 교육 프로그램의 객관적인 임팩트(낮음/중간/높음)를 판단합니다.</div>
+                                                   <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>점수 차이를 넘어 교육 프로그램의 객관적인 임팩트(낮음/중간/높음)를 판단합니다.</div>
+                                                   <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>0.8 이상 (Large), 0.5 ~ 0.8 (Medium), 0.2 ~ 0.5 (Small)</div>
                                                    <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-amber-200">산식: (Post_avg - Pre_avg) / Pooled SD</div>
                                                 </div>
                                              </TooltipContent>
@@ -484,6 +488,7 @@ export default function SurveysPage() {
                                                 <div className="space-y-3 text-[11px] leading-relaxed">
                                                    <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>사전/사후 변화가 우연이 아닌 유의미한 변화인지 검증하는 지표입니다.</div>
                                                    <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>데이터의 신뢰성을 확보하고 교육 효과의 유의미함(p &lt; 0.05)을 수학적으로 증명합니다.</div>
+                                                   <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>p &lt; 0.05 (매우 유의함), p &lt; 0.1 (경향성 있음), p &gt;= 0.1 (유의하지 않음)</div>
                                                    <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-purple-200">산식: t = D_avg / (S_d / √n)</div>
                                                 </div>
                                              </TooltipContent>
@@ -572,9 +577,30 @@ export default function SurveysPage() {
                                        <>
                                          <td className="p-4 text-center text-blue-600 bg-white/5">{(mergedResponses.reduce((s,r)=>{
                                             const ans = r.compResponses[0]?.answers || [];
-                                            return s + (ans.reduce((a,b)=>a+b.score,0)/(ans.length||1));
+                                            const postScores = ans.map(a => a.score || 0);
+                                            return s + (postScores.length > 0 ? postScores.reduce((a,b)=>a+b,0)/postScores.length : 0);
                                          },0)/mergedResponses.length).toFixed(2)}</td>
-                                         <td colSpan={4} className="bg-white/5"></td>
+                                         <td className="p-4 text-center text-blue-400 bg-white/5">{(mergedResponses.reduce((s,r)=>{
+                                            const ans = r.compResponses[0]?.answers || [];
+                                            const postScores = ans.map(a => a.score || 0);
+                                            const preScores = ans.map(a => a.preScore || 0);
+                                            const postAvg = postScores.length > 0 ? postScores.reduce((a,b)=>a+b,0)/postScores.length : 0;
+                                            const preAvg = preScores.length > 0 ? preScores.reduce((a,b)=>a+b,0)/preScores.length : 0;
+                                            return s + calculateHakeGain(preAvg, postAvg);
+                                         },0)/mergedResponses.length).toFixed(2)}</td>
+                                         <td className="p-4 text-center text-blue-400 bg-white/5">{(mergedResponses.reduce((s,r)=>{
+                                            const ans = r.compResponses[0]?.answers || [];
+                                            const postScores = ans.map(a => a.score || 0);
+                                            const preScores = ans.map(a => a.preScore || 0);
+                                            return s + calculateCohensD(preScores, postScores);
+                                         },0)/mergedResponses.length).toFixed(2)}</td>
+                                         <td className="p-4 text-center text-blue-400 bg-white/5">{(mergedResponses.reduce((s,r)=>{
+                                            const ans = r.compResponses[0]?.answers || [];
+                                            const postScores = ans.map(a => a.score || 0);
+                                            const preScores = ans.map(a => a.preScore || 0);
+                                            return s + calculatePairedTTest(preScores, postScores);
+                                         },0)/mergedResponses.length).toFixed(2)}</td>
+                                         <td className="bg-white/5"></td>
                                        </>
                                      )}
                                   </tr>
