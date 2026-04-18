@@ -106,10 +106,20 @@ export default function SurveysPage() {
   const [dataDateRange, setDataDateRange] = React.useState({ start: '', end: new Date().toISOString().split('T')[0] });
   const [isProjectSelectorOpen, setIsProjectSelectorOpen] = React.useState(false);
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
+  const [expandedTableIds, setExpandedTableIds] = React.useState<Set<string>>(new Set());
 
   const toggleExpand = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleTableExpand = (id: string) => {
+    setExpandedTableIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -453,7 +463,7 @@ export default function SurveysPage() {
                                               }}
                                               className={cn(
                                                 "group flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all",
-                                                isSelected ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-50 text-slate-600"
+                                                isSelected ? "bg-blue-600 text-white shadow-md lg:scale-[1.02]" : "hover:bg-slate-50 text-slate-600"
                                               )}
                                               style={{ marginLeft: `${depth * 1.5}rem` }}
                                             >
@@ -476,7 +486,7 @@ export default function SurveysPage() {
                                                    <Badge variant="outline" className={cn(
                                                      "text-[8px] font-black h-4 px-1 border-none",
                                                      isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
-                                                   )}>LV{p.level}</Badge>
+                                                   )}>{p.level === 3 ? "PARTNER" : p.level === 4 ? "PROG" : `LV${p.level}`}</Badge>
                                                 </div>
                                                 <div className={cn("text-[9px] font-bold flex items-center gap-1", isSelected ? "text-blue-100" : "text-slate-400")}>
                                                    <Calendar className="size-2.5" /> {p.startDate} ~ {p.endDate}
@@ -619,98 +629,143 @@ export default function SurveysPage() {
                                   <th className="p-6 text-center">관리</th>
                                </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-50">
-                               {mergedResponses.length === 0 ? (
-                                  <tr><td colSpan={100} className="p-20 text-center opacity-30 font-black">데이터가 없습니다.</td></tr>
-                               ) : (
-                                  mergedResponses.map((res, rIdx) => {
-                                    const satAnswers = res.satResponses[0]?.answers || [];
-                                    const compAnswers = res.compResponses[0]?.answers || [];
-                                    
-                                    const satScores = satQuestions.map(q => satAnswers.find(a => a.questionId === q.id)?.score || 0);
-                                    const satAvg = satScores.length > 0 ? satScores.reduce((a,b)=>a+b,0)/satScores.length : 0;
-                                    const compScaleAns = compQuestions.map(q => compAnswers.find(a => a.questionId === q.id));
-                                    const preScores = compScaleAns.map(a => a?.preScore || 0);
-                                    const postScores = compScaleAns.map(a => a?.score || 0);
-                                    const compAvgPost = postScores.length > 0 ? postScores.reduce((a,b)=>a+b,0)/postScores.length : 0;
-                                    const compAvgPre = preScores.length > 0 ? preScores.reduce((a,b)=>a+b,0)/preScores.length : 0;
-                                    const hake = calculateHakeGain(compAvgPre, compAvgPost);
-                                    const cohen = calculateCohensD(preScores, postScores);
-                                    const tStat = calculatePairedTTest(preScores, postScores);
-                                    const pVal = getPValueFromT(tStat, compQuestions.length - 1);
+                               <tbody className="divide-y divide-slate-50">
+                               {(() => {
+                                 // 필터로 선택된 사업을 루트로 설정, 없으면 날짜 기간 내의 모든 LV1 노출
+                                 const rootProjects = targetIdForData 
+                                   ? projects.filter(p => p.id === targetIdForData)
+                                   : projects.filter(p => p.level === 1 && (!dataDateRange.start || p.endDate >= dataDateRange.start));
 
-                                    return (
-                                      <tr key={res.respondentId} className="hover:bg-slate-50/50 transition-colors group text-xs font-black">
-                                         <td className="p-6 text-center text-slate-300">{rIdx + 1}</td>
-                                         <td className="p-6 text-slate-700">{res.respondentId}</td>
-                                         {satQuestions.map(q => (
-                                           <td key={q.id} className="p-4 text-center">
-                                              <Badge className="bg-emerald-50 text-emerald-600 border-none">{satAnswers.find(a => a.questionId === q.id)?.score || 0}</Badge>
+                                 if (rootProjects.length === 0) {
+                                   return (
+                                     <tr>
+                                       <td colSpan={100} className="p-20 text-center text-slate-300 font-black">
+                                          조회된 사업 데이터가 없습니다. 상단 필터를 확인해 주세요.
+                                       </td>
+                                     </tr>
+                                   );
+                                 }
+
+                                 const renderTree = (rows: typeof projects, depth = 0): React.ReactNode[] => {
+                                   return rows.map(p => {
+                                     const isExpanded = expandedTableIds.has(p.id);
+                                     const hasChildren = projects.some(c => c.parentId === p.id);
+                                     const pResponses = responses.filter(r => r.projectId === p.id);
+                                     
+                                     // 해당 계층의 통계 합산
+                                     const stats = getAggregatedStats(projects, p.id, undefined, 'COMPETENCY');
+                                     const satStats = getAggregatedStats(projects, p.id, undefined, 'SATISFACTION');
+
+                                     const childRows = projects.filter(c => c.parentId === p.id);
+
+                                     return (
+                                       <React.Fragment key={p.id}>
+                                         <tr className={cn(
+                                           "border-b border-slate-50 transition-colors group",
+                                           depth === 0 ? "bg-slate-50/50" : "bg-transparent",
+                                           "hover:bg-blue-50/40"
+                                         )}>
+                                           <td className="p-4 text-center">
+                                              <Badge variant="outline" className="bg-slate-100 text-slate-400 border-none font-black text-[9px]">LV{p.level}</Badge>
                                            </td>
-                                         ))}
-                                         {satTmpl && <td className="p-6 text-center text-emerald-700 bg-emerald-50/10">{satAvg.toFixed(2)}</td>}
-                                         {compQuestions.map(q => {
-                                            const ans = compAnswers.find(a => a.questionId === q.id);
-                                            return (
-                                              <td key={q.id} className="p-4 text-center">
-                                                 <div className="flex flex-col items-center gap-1">
-                                                    <span className="text-[9px] text-slate-300">사전 {ans?.preScore || 0}</span>
-                                                    <Badge className="bg-blue-600 text-white border-none text-[10px]">사후 {ans?.score || 0}</Badge>
-                                                 </div>
+                                           <td className="p-4">
+                                              <div className="flex items-center gap-3" style={{ paddingLeft: `${depth * 1.5}rem` }}>
+                                                 {(hasChildren || pResponses.length > 0) && (
+                                                   <button onClick={() => toggleTableExpand(p.id)} className="p-1 rounded hover:bg-white shadow-sm transition-all">
+                                                      {isExpanded ? <ChevronDown className="size-3.5 text-blue-500" /> : <ChevronRight className="size-3.5 text-slate-400" />}
+                                                   </button>
+                                                 )}
+                                                 {!hasChildren && pResponses.length === 0 && <div className="size-5.5" />}
+                                                 <span className={cn("text-xs font-black", depth === 0 ? "text-slate-900" : "text-slate-600")}>
+                                                   {p.level === 3 ? <span className="text-blue-500 mr-2 text-[10px] uppercase font-black tracking-tight">[PARTNER]</span> : null}
+                                                   {p.name}
+                                                 </span>
+                                              </div>
+                                           </td>
+                                           {/* 만족도 질문별 합산 평균 */}
+                                           {satQuestions.map((_, qIdx) => (
+                                              <td key={qIdx} className="p-4 text-center font-black text-[11px] text-emerald-600/70">
+                                                 {satStats.questionStats[qIdx]?.average.toFixed(2) || '-'}
                                               </td>
+                                           ))}
+                                           {satTmpl && (
+                                              <td className="p-4 text-center font-black text-xs text-slate-900 bg-emerald-50/20">
+                                                 {satStats.totalAverage.toFixed(2)}
+                                              </td>
+                                           )}
+                                           {/* 역량 질문별 합산 평균 */}
+                                           {compQuestions.map((_, qIdx) => (
+                                              <td key={qIdx} className="p-4 text-center font-black text-[11px] text-blue-600/70">
+                                                 {stats.questionStats[qIdx]?.average.toFixed(2) || '-'}
+                                              </td>
+                                           ))}
+                                           {compTmpl && (
+                                              <>
+                                                 <td className="p-4 text-center font-black text-xs text-blue-700 bg-blue-50/20">{stats.postAverage.toFixed(2)}</td>
+                                                 <td className="p-4 text-center font-black text-xs text-emerald-600 bg-emerald-50/10">
+                                                    <Badge className={cn("border-none text-[10px]", stats.hakeGain >= 0.3 ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400")}>{stats.hakeGain.toFixed(2)}</Badge>
+                                                 </td>
+                                                 <td className="p-4 text-center font-black text-xs text-amber-600 bg-amber-50/10">{stats.cohensD.toFixed(2)}</td>
+                                                 <td className="p-4 text-center font-black text-xs text-purple-600 bg-purple-50/10">{stats.pValue.toFixed(3)}</td>
+                                                 <td className="p-4 text-center">
+                                                   <span className="text-slate-300">-</span>
+                                                 </td>
+                                              </>
+                                           )}
+                                         </tr>
+                                         {isExpanded && childRows.length > 0 && renderTree(childRows, depth + 1)}
+                                         {isExpanded && p.level === 4 && pResponses.map((r, rIdx) => {
+                                            const rTotalSat = r.answers.filter(a => satQuestions.some(q => q.id === a.questionId)).length > 0
+                                              ? r.answers.filter(a => satQuestions.some(q => q.id === a.questionId)).reduce((sum, a) => sum + (Number(a.value) || 0), 0) / satQuestions.length
+                                              : 0;
+                                            const rPostTotal = r.answers.filter(a => a.type === 'POST' && compQuestions.some(q => q.id === a.questionId)).reduce((sum, a) => sum + (Number(a.value) || 0), 0) / compQuestions.length;
+
+                                            return (
+                                              <tr key={r.id} className="border-b border-slate-50/50 bg-white hover:bg-slate-50 transition-colors animate-in fade-in slide-in-from-left-1">
+                                                <td className="p-4 text-center text-[10px] text-slate-400 font-bold opacity-50">{rIdx + 1}</td>
+                                                <td className="p-4" style={{ paddingLeft: `${(depth + 1) * 1.5}rem` }}>
+                                                  <div className="flex items-center gap-3">
+                                                    <div className="size-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-400 border border-slate-50">{r.respondentName?.charAt(0) || '?'}</div>
+                                                    <div className="flex flex-col">
+                                                       <span className="text-xs font-bold text-slate-600">{r.respondentName || '익명'}</span>
+                                                       <span className="text-[8px] font-black text-slate-300 uppercase tracking-tighter">INDIVIDUAL DATA</span>
+                                                    </div>
+                                                  </div>
+                                                </td>
+                                                {satQuestions.map(q => {
+                                                  const ans = r.answers.find(a => a.questionId === q.id);
+                                                  return <td key={q.id} className="p-4 text-center text-xs font-bold text-emerald-600/50">{ans?.value || '-'}</td>
+                                                })}
+                                                {satTmpl && <td className="p-4 text-center font-black text-xs text-slate-900 bg-emerald-50/20">{rTotalSat.toFixed(2)}</td>}
+                                                {compQuestions.map(q => {
+                                                   const postAns = r.answers.find(a => a.questionId === q.id && a.type === 'POST');
+                                                   const preAns = r.answers.find(a => a.questionId === q.id && a.type === 'PRE');
+                                                   return (
+                                                      <td key={q.id} className="p-4 text-center">
+                                                         <div className="flex flex-col items-center gap-0.5 opacity-80">
+                                                            <div className="px-1.5 py-0.5 rounded-full bg-blue-500 text-[9px] font-black text-white">{postAns?.value || '-'}</div>
+                                                            <div className="text-[8px] font-black text-slate-300">PRE {preAns?.value || '-'}</div>
+                                                         </div>
+                                                      </td>
+                                                   );
+                                                })}
+                                                {compTmpl && (
+                                                   <>
+                                                      <td className="p-4 text-center font-black text-xs text-blue-700 bg-blue-50/20">{rPostTotal.toFixed(2)}</td>
+                                                      <td className="p-4 text-center text-slate-200">-</td>
+                                                      <td className="p-4 text-center text-slate-200">-</td>
+                                                      <td className="p-4 text-center text-slate-200">-</td>
+                                                      <td className="p-4 text-center">
+                                                         <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                                            <Button onClick={() => { setEditingResponse(r); setIsEditDialogOpen(true); }} variant="ghost" size="icon" className="size-8 rounded-xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Edit className="size-4" /></Button>
+                                                            <Button onClick={() => { if(confirm('응답을 삭제하시겠습니까?')) useSurveyStore.getState().deleteResponse(r.id); }} variant="ghost" size="icon" className="size-8 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 className="size-4" /></Button>
+                                                         </div>
+                                                      </td>
+                                                   </>
+                                                )}
+                                              </tr>
                                             );
                                          })}
-                                         {compTmpl && (
-                                           <>
-                                             <td className="p-4 text-center bg-blue-50/10">{compAvgPost.toFixed(2)}</td>
-                                             <td className="p-4 text-center bg-blue-50/10"><Badge className={cn("border-none text-[10px]", hake >= 0.3 ? "bg-blue-500 text-white" : "bg-slate-200")}>{hake.toFixed(2)}</Badge></td>
-                                             <td className="p-4 text-center bg-blue-50/10 text-slate-500">{cohen.toFixed(2)}</td>
-                                             <td className="p-4 text-center bg-blue-50/10 text-[9px]">{tStat.toFixed(2)} (p={pVal.toFixed(3)})</td>
-                                           </>
-                                         )}
-                                         <td className="p-6 text-center">
-                                            <div className="flex justify-center gap-2">
-                                               <Button onClick={() => { setEditingResponse(res.satResponses[0] || res.compResponses[0]); setIsEditDialogOpen(true); }} variant="ghost" size="icon" className="size-8 text-slate-200 hover:text-blue-600"><Edit className="size-4" /></Button>
-                                               <Button onClick={() => { if(confirm('삭제하시겠습니까?')) { if(res.satResponses[0]) deleteResponse(res.satResponses[0].id); if(res.compResponses[0]) deleteResponse(res.compResponses[0].id); } }} variant="ghost" size="icon" className="size-8 text-slate-200 hover:text-red-500"><Trash2 className="size-4" /></Button>
-                                            </div>
-                                         </td>
-                                      </tr>
-                                    );
-                                  })
-                               )}
-                               {mergedResponses.length > 0 && (
-                                  <tr className="bg-slate-900 text-white font-black text-xs">
-                                     <td colSpan={2} className="p-6 text-center uppercase tracking-widest text-slate-500">Overall Avg.</td>
-                                     {satQuestions.map(q => {
-                                        const avg = mergedResponses.reduce((s,r)=>s+(r.satResponses[0]?.answers.find(a=>a.questionId===q.id)?.score||0),0)/mergedResponses.length;
-                                        return <td key={q.id} className="p-4 text-center text-emerald-400">{avg.toFixed(2)}</td>;
-                                     })}
-                                     {satTmpl && <td className="p-6 text-center text-emerald-500 bg-white/5">{(mergedResponses.reduce((s,r)=>{
-                                        const ans = r.satResponses[0]?.answers || [];
-                                        return s + (ans.reduce((a,b)=>a+b.score,0)/(ans.length||1));
-                                     },0)/mergedResponses.length).toFixed(2)}</td>}
-                                     {compQuestions.map(q => {
-                                        const avg = mergedResponses.reduce((s,r)=>s+(r.compResponses[0]?.answers.find(a=>a.questionId===q.id)?.score||0),0)/mergedResponses.length;
-                                        return <td key={q.id} className="p-4 text-center text-blue-400">{avg.toFixed(2)}</td>;
-                                     })}
-                                     {compTmpl && (
-                                       <>
-                                         <td className="p-4 text-center text-blue-600 bg-white/5">{(mergedResponses.reduce((s,r)=>{
-                                            const ans = r.compResponses[0]?.answers || [];
-                                            const postScores = ans.map(a => a.score || 0);
-                                            return s + (postScores.length > 0 ? postScores.reduce((a,b)=>a+b,0)/postScores.length : 0);
-                                         },0)/mergedResponses.length).toFixed(2)}</td>
-                                         <td className="p-4 text-center text-blue-400 bg-white/5">{(mergedResponses.reduce((s,r)=>{
-                                            const ans = r.compResponses[0]?.answers || [];
-                                            const postScores = ans.map(a => a.score || 0);
-                                            const preScores = ans.map(a => a.preScore || 0);
-                                            const postAvg = postScores.length > 0 ? postScores.reduce((a,b)=>a+b,0)/postScores.length : 0;
-                                            const preAvg = preScores.length > 0 ? preScores.reduce((a,b)=>a+b,0)/preScores.length : 0;
-                                            return s + calculateHakeGain(preAvg, postAvg);
-                                         },0)/mergedResponses.length).toFixed(2)}</td>
-                                         <td className="p-4 text-center text-blue-400 bg-white/5">{(mergedResponses.reduce((s,r)=>{
-                                            const ans = r.compResponses[0]?.answers || [];
-                                            const postScores = ans.map(a => a.score || 0);
                                             const preScores = ans.map(a => a.preScore || 0);
                                             return s + calculateCohensD(preScores, postScores);
                                          },0)/mergedResponses.length).toFixed(2)}</td>
