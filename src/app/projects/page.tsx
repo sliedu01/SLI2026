@@ -11,7 +11,6 @@ import {
   Calendar,
   Layers,
   Search,
-  Users,
   LayoutGrid,
   GanttChartSquare,
   Copy,
@@ -20,7 +19,6 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { 
@@ -35,7 +33,6 @@ import { useProjectStore, Project } from '@/store/use-project-store';
 import { usePartnerStore } from '@/store/use-partner-store';
 import { useSurveyStore } from '@/store/use-survey-store';
 import { ProjectDialog } from '@/components/project-dialog';
-import { PartnerDialog } from '@/components/partner-dialog';
 import { SurveyEntryDialog } from '@/components/survey-entry-dialog';
 import { cn } from '@/lib/utils';
 import { SurveyType } from '@/store/use-survey-store';
@@ -55,11 +52,9 @@ export default function ProjectsPage() {
 
   const [mounted, setMounted] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
-  const [partnerDialogOpen, setPartnerDialogOpen] = React.useState(false);
   const [dialogMode, setDialogMode] = React.useState<'add' | 'edit'>('add');
   const [selectedProject, setSelectedProject] = React.useState<Project | undefined>();
   const [parentProject, setParentProject] = React.useState<Project | undefined>();
-  const [selectedProjectForPartner, setSelectedProjectForPartner] = React.useState<Project | undefined>();
   const [currentLevel, setCurrentLevel] = React.useState(1);
   const [currentParentId, setCurrentParentId] = React.useState<string | null>(null);
   const [viewMode, setViewMode] = React.useState<'list' | 'gantt'>('list');
@@ -115,7 +110,6 @@ export default function ProjectsPage() {
   // 개별 프로젝트 행 컴포넌트 (중첩 방지 및 성능 최적화)
   const ProjectRow = ({ p, depth }: { p: Project, depth: number }) => {
     const { partners } = usePartnerStore();
-    const { responses: surveys } = useSurveyStore();
 
     // 프로젝트의 모든 하위 ID를 무한 깊이로 가져오는 헬퍼
     const getAllDescendantIds = (parentId: string): string[] => {
@@ -457,7 +451,7 @@ export default function ProjectsPage() {
     const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (1000 * 60 * 60 * 24);
     
     const months: Date[] = [];
-    let curr = new Date(viewStart);
+    const curr = new Date(viewStart);
     while (curr <= viewEnd) {
       months.push(new Date(curr));
       curr.setMonth(curr.getMonth() + 1);
@@ -598,7 +592,7 @@ export default function ProjectsPage() {
             onValueChange={(val) => {
               if (!val) return;
               const [key, dir] = val.split('-');
-              setSort(key as any, dir as any);
+              setSort(key as 'name' | 'date', dir as 'asc' | 'desc');
             }}
           >
             <SelectTrigger className="w-[160px] h-10 bg-white shadow-sm font-bold text-xs uppercase tracking-wider">
@@ -651,12 +645,6 @@ export default function ProjectsPage() {
         parentProject={parentProject}
         parentId={currentParentId}
         level={currentLevel}
-      />
-
-      <PartnerDialog 
-        open={partnerDialogOpen}
-        onOpenChange={setPartnerDialogOpen}
-        project={selectedProjectForPartner}
       />
 
       {selectedSurveyProject && (

@@ -7,26 +7,20 @@ import {
   Trash2, 
   Settings2,
   Table as TableIcon,
-  Save,
   Wand2,
   ArrowRight,
   TrendingUp,
-  Target,
   Users,
   MessageSquare,
   Activity,
-  ChevronRight,
-  ChevronDown,
-  Upload,
-  Download,
-  Check,
-  Layout,
-  FileSpreadsheet,
+  Download, 
+  Check, 
+  FileSpreadsheet, 
   AlertCircle
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Select, 
   SelectContent, 
@@ -41,7 +35,6 @@ import {
 } from "@/components/ui/popover";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   Dialog, 
@@ -55,32 +48,18 @@ import { useProjectStore } from '@/store/use-project-store';
 import { useSurveyStore, SurveyTemplate, SurveyResponse, Answer, Question, SurveyType } from '@/store/use-survey-store';
 import { cn } from '@/lib/utils';
 import { 
-  calculateHakeGain, 
-  calculateCohensD, 
-  calculatePairedTTest, 
-  getAchievementLevel,
   generateAIExpertReport 
 } from '@/lib/stat-utils';
 
 // Charts
 import { 
-  Radar, 
-  RadarChart, 
-  PolarGrid, 
-  PolarAngleAxis, 
-  PolarRadiusAxis, 
   ResponsiveContainer,
   BarChart,
   Bar,
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
-  Cell,
-  LineChart,
-  Line,
-  Scatter,
-  ComposedChart
+  Cell
 } from 'recharts';
 
 export default function SurveysPage() {
@@ -92,17 +71,15 @@ export default function SurveysPage() {
     addTemplate, 
     updateTemplate,
     deleteTemplate,
-    addResponse, 
-    clearProjectResponses 
+    addResponse,
+    clearProjectResponses
   } = useSurveyStore();
 
   const [activeTab, setActiveTab] = React.useState('templates');
   const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string | null>(null);
-  const [surveyType, setSurveyType] = React.useState<SurveyType>('COMPETENCY');
   
   const [selectedPartnerId, setSelectedPartnerId] = React.useState<string | null>(null);
-  const [dateRange, setDateRange] = React.useState<{ start: string; end: string }>({ start: '', end: '' });
 
   const [editingTemplate, setEditingTemplate] = React.useState<SurveyTemplate | null>(null);
   const [pasteContent, setPasteContent] = React.useState('');
@@ -111,11 +88,15 @@ export default function SurveysPage() {
   const [aiSummary, setAiSummary] = React.useState<string | null>(null);
   const aiResultRef = React.useRef<HTMLDivElement>(null);
 
-  // 유니크한 협력업체 목록 추출
-  const partners = Array.from(new Set(projects.map(p => p.partnerId).filter(Boolean)));
+  // New states for V2 functional recovery
+  const [dateRange, setDateRange] = React.useState({ start: '', end: '' });
+  const [surveyType, setSurveyType] = React.useState<SurveyType>('COMPETENCY');
 
   const { getAggregatedStats, createDefaultQuestions } = useSurveyStore();
-  const aggregatedStats = getAggregatedStats(projects, selectedProjectId, selectedPartnerId || undefined);
+  const aggregatedStats = getAggregatedStats(projects, selectedProjectId, selectedPartnerId || undefined, surveyType);
+
+  const partners = Array.from(new Set(projects.map(p => p.partnerId).filter((id): id is string => !!id)));
+  const projectResponses = responses.filter(r => r.projectId === selectedProjectId);
 
   React.useEffect(() => {
     setMounted(true);
@@ -127,12 +108,12 @@ export default function SurveysPage() {
           questions: createDefaultQuestions('COMPETENCY')
        });
     }
-  }, [mounted, templates.length]);
+  }, [mounted, templates.length, addTemplate, createDefaultQuestions]);
 
   React.useEffect(() => {
     if (selectedTemplateId) {
-      const t = templates.find(i => i.id === selectedTemplateId);
-      if (t) setEditingTemplate({...t, questions: t.questions.map(q => ({...q}))});
+      const t = templates.find((i: SurveyTemplate) => i.id === selectedTemplateId);
+      if (t) setEditingTemplate({...t, questions: t.questions.map((q: Question) => ({...q}))});
     } else if (templates.length > 0) {
       // 초기 선택 로직
       const t = templates[0];
@@ -142,8 +123,7 @@ export default function SurveysPage() {
 
   if (!mounted) return null;
 
-  const selectedTemplate = templates.find(t => t.id === selectedTemplateId) || templates[0];
-  const projectResponses = selectedProjectId ? responses.filter(r => r.projectId === selectedProjectId && r.templateId === selectedTemplate?.id) : [];
+  const selectedTemplate = templates.find((t: SurveyTemplate) => t.id === selectedTemplateId) || templates[0];
 
   // --- 템플릿 편집 핸들러 ---
   const handleSaveTemplate = async () => {
@@ -172,7 +152,7 @@ export default function SurveysPage() {
     }
   };
 
-  const handleUpdateQuestion = (qId: string, field: keyof Question, value: any) => {
+  const handleUpdateQuestion = (qId: string, field: keyof Question, value: string | number) => {
     if (!editingTemplate) return;
     setEditingTemplate({
       ...editingTemplate,
@@ -213,7 +193,7 @@ export default function SurveysPage() {
     const rows = pasteContent.trim().split('\n');
     const newResponses: SurveyResponse[] = [];
     
-    rows.forEach((row, idx) => {
+    rows.forEach((row) => {
       const cols = row.split('\t').map(c => c.trim());
       if (cols.length < 2) return;
 
@@ -272,44 +252,13 @@ export default function SurveysPage() {
     alert(`${newResponses.length}명의 데이터를 성공적으로 연동했습니다.`);
   };
 
-  // --- 통계 분석 데이터 생성 ---
-  const getAnalysisStats = () => {
-    if (!selectedTemplate || projectResponses.length === 0) return [];
-    const divisions = Array.from(new Set(selectedTemplate.questions.map(q => q.division)));
-    return divisions.map(div => {
-      const divQuestions = selectedTemplate.questions.filter(q => q.division === div);
-      const preList: number[] = [];
-      const postList: number[] = [];
-      projectResponses.forEach(res => {
-        divQuestions.forEach(q => {
-          const ans = res.answers.find(a => a.questionId === q.id);
-          if (ans) {
-            preList.push(ans.preScore || 0);
-            postList.push(ans.score || 0);
-          }
-        });
-      });
-      const avgPre = preList.length > 0 ? preList.reduce((a, b) => a + b, 0) / preList.length : 0;
-      const avgPost = postList.length > 0 ? postList.reduce((a, b) => a + b, 0) / postList.length : 0;
-      const gain = calculateHakeGain(avgPre, avgPost);
-      const cohensD = calculateCohensD(preList, postList);
-      return {
-        division: div,
-        pre: Number(avgPre.toFixed(2)),
-        post: Number(avgPost.toFixed(2)),
-        gain: Number(gain.toFixed(2)),
-        cohensD: Number(cohensD.toFixed(2)),
-        level: getAchievementLevel(gain)
-      };
-    });
-  };
-
-  const analysisStats = getAnalysisStats();
+  // const getAnalysisStats = () => { ... } // Removed unused function logic for Zero Problems
+  // const analysisStats = ...
 
   const handleRunAIAnalysis = () => {
     setIsAnalyzing(true);
     setTimeout(() => {
-      const summary = generateAIExpertReport(projects, aggregatedStats, responses);
+      const summary = generateAIExpertReport(projects, aggregatedStats);
       setAiSummary(summary);
       setIsAnalyzing(false);
       setTimeout(() => {
@@ -400,7 +349,7 @@ export default function SurveysPage() {
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Available Formats</p>
                    </CardHeader>
                    <CardContent className="space-y-3">
-                      {templates.map(t => (
+                      {templates.map((t: SurveyTemplate) => (
                         <div 
                            key={t.id} 
                            onClick={() => { setSelectedTemplateId(t.id); setSurveyType(t.type); }}
@@ -506,7 +455,7 @@ export default function SurveysPage() {
                                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">문항 유형</label>
                                     <Select 
                                       value={q.type || 'SCALE'} 
-                                      onValueChange={(val: any) => handleUpdateQuestion(q.id, 'type', val)}
+                                      onValueChange={(val: 'SCALE' | 'TEXT' | null) => val && handleUpdateQuestion(q.id, 'type', val)}
                                     >
                                       <SelectTrigger className={cn(
                                         "h-10 rounded-xl border-none font-black text-[10px] transition-colors",
@@ -611,7 +560,7 @@ export default function SurveysPage() {
                             <tr>
                                <th className="p-6 text-[10px] font-black text-slate-400 uppercase w-20 text-center">No.</th>
                                <th className="p-6 text-[10px] font-black text-slate-900 uppercase min-w-[140px]">학습자 식별자</th>
-                               {selectedTemplate?.questions.map((q, i) => (
+                               {selectedTemplate?.questions.map((q: Question, i: number) => (
                                  <th key={q.id} className="p-6 text-[10px] font-black text-slate-500 uppercase min-w-[180px]">
                                     <div className="flex flex-col gap-0.5">
                                        <span className="text-blue-500">Q{i+1}</span>
@@ -622,12 +571,12 @@ export default function SurveysPage() {
                             </tr>
                          </thead>
                          <tbody className="divide-y divide-slate-50">
-                            {projectResponses.map((res, rIdx) => (
+                            {projectResponses.map((res: SurveyResponse, rIdx: number) => (
                               <tr key={res.id} className="hover:bg-slate-50/50 transition-colors group">
                                  <td className="p-6 text-center text-xs font-black text-slate-300">{rIdx + 1}</td>
                                  <td className="p-6 font-black text-slate-700">{res.respondentId}</td>
-                                 {selectedTemplate?.questions.map(q => {
-                                    const ans = res.answers.find(a => a.questionId === q.id);
+                                 {selectedTemplate?.questions.map((q: Question) => {
+                                    const ans = res.answers.find((a: Answer) => a.questionId === q.id);
                                     return (
                                       <td key={q.id} className="p-6">
                                          {selectedTemplate.type === 'COMPETENCY' ? (
@@ -698,7 +647,7 @@ export default function SurveysPage() {
                         className="w-full h-12 px-4 bg-slate-50 rounded-xl font-bold"
                       >
                          <option value="">전체 업체</option>
-                         {partners.map(p => <option key={p} value={p}>{p}</option>)}
+                         {partners.map((p: string) => <option key={p} value={p}>{p}</option>)}
                       </select>
                    </div>
                    <Button 
@@ -748,7 +697,7 @@ export default function SurveysPage() {
                    </div>
                    <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                       {Object.entries(aggregatedStats)
-                        .filter(([_, score]) => (score < 3.0 && score > 0) || score > 4.8)
+                        .filter(([, score]) => (score < 3.0 && score > 0) || score > 4.8)
                         .map(([id, score], i) => (
                            <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
                               <div className="flex justify-between items-center">

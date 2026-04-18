@@ -1,9 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Plus, Trash2, CalendarIcon, Clock, Users } from 'lucide-react';
+import { Plus, Trash2, CalendarIcon, Users } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -19,11 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { Project, ProjectSession, useProjectStore } from '@/store/use-project-store';
 import { usePartnerStore } from '@/store/use-partner-store';
@@ -54,7 +50,7 @@ export function ProjectDialog({
   parentId = null,
   level = 1,
 }: ProjectDialogProps) {
-  const { addProject, updateProject, projects } = useProjectStore();
+  const { addProject, updateProject } = useProjectStore();
   const { partners } = usePartnerStore();
   
   const [name, setName] = React.useState('');
@@ -67,9 +63,6 @@ export function ProjectDialog({
   const [participantCount, setParticipantCount] = React.useState(0);
   const [partnerId, setPartnerId] = React.useState<string>('none');
   const [sessions, setSessions] = React.useState<ProjectSession[]>([]);
-
-  const hasChildren = project ? projects.some(p => p.parentId === project.id) : false;
-  const isReadOnly = (level < 4 && hasChildren);
 
   React.useEffect(() => {
     if (open) {
@@ -200,7 +193,7 @@ export function ProjectDialog({
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">협력업체</Label>
-                  <Select value={partnerId} onValueChange={(val: string | null) => setPartnerId(val || 'none')}>
+                  <Select value={partnerId} onValueChange={(val) => setPartnerId(val || 'none')}>
                     <SelectTrigger className="h-12 rounded-xl font-bold">
                       <SelectValue placeholder="협력업체 선택" />
                     </SelectTrigger>

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { Project } from './use-project-store';
 
 // UI(surveys/page.tsx) 요구 규격에 맞춘 타입 리네임
 export type SurveyType = 'COMPETENCY' | 'SATISFACTION';
@@ -53,7 +54,7 @@ interface SurveyState {
   
   // Helpers
   createDefaultQuestions: (type: SurveyType) => Question[];
-  getAggregatedStats: (projects: any[], projectId: string | null, partnerId?: string, type?: SurveyType) => Record<string, number>;
+  getAggregatedStats: (projects: Project[], projectId: string | null, partnerId?: string, type?: SurveyType) => Record<string, number>;
 }
 
 export const useSurveyStore = create<SurveyState>((set, get) => ({

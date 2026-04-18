@@ -7,7 +7,7 @@ import { useBudgetStore } from '@/store/use-budget-store';
 import { useSurveyStore } from '@/store/use-survey-store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Printer, ArrowLeft, TrendingUp, Target, Activity } from 'lucide-react';
+import { Printer, ArrowLeft, TrendingUp, Activity } from 'lucide-react';
 import { 
   BarChart, 
   Bar, 
@@ -15,12 +15,7 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis
+  ResponsiveContainer
 } from 'recharts';
 import { calculateHakeGain, calculateCohensD } from '@/lib/stat-utils';
 
@@ -31,7 +26,7 @@ export default function ReportPage() {
 
   const { projects } = useProjectStore();
   const { executions } = useBudgetStore();
-  const { responses: surveys, templates } = useSurveyStore();
+  const { responses: surveys } = useSurveyStore();
 
   const project = projects.find(p => p.id === projectId);
   const [mounted, setMounted] = React.useState(false);
@@ -55,7 +50,7 @@ export default function ReportPage() {
     return ids;
   };
 
-  const allRelevantProjectIds = [project.id, ...getAllChildIds(project.id)];
+  // const allRelevantProjectIds = ... // Removed unused variable
 
   // 데이터 가공 및 통계 산출
   const getProjectStats = (pId: string, deep = false) => {
@@ -163,11 +158,11 @@ export default function ReportPage() {
                  <p className="text-3xl font-black text-slate-900">{projectStats.execRate.toFixed(1)}%</p>
               </div>
               <div className="p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
-                 <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">Hake's Gain</p>
+                 <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">Hake&apos;s Gain</p>
                  <p className="text-3xl font-black text-indigo-700">{projectStats.hakeGain.toFixed(2)}</p>
               </div>
               <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100">
-                 <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Cohen's d</p>
+                 <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Cohen&apos;s d</p>
                  <p className="text-3xl font-black text-emerald-700">{projectStats.cohensD.toFixed(2)}</p>
               </div>
            </div>
@@ -200,13 +195,13 @@ export default function ReportPage() {
                           <Activity className="size-4 text-orange-500" /> 통계적 유의성 및 효과 크기
                        </h4>
                        <p className="text-sm font-bold text-slate-600 leading-relaxed">
-                          본 사업의 대응표본 분석 결과, Cohen's d 지수는 <span className="text-blue-600 font-black">{projectStats.cohensD.toFixed(2)}</span>로 산출되었습니다. 
-                          이는 전통적인 기준에 따라 <span className="underline decoration-blue-200 decoration-4 font-black">'{projectStats.cohensD >= 0.8 ? "매우 강력한" : projectStats.cohensD >= 0.5 ? "우수한" : "보통 수준의"}'</span> 교육 효과가 있음을 나타냅니다.
+                          본 사업의 대응표본 분석 결과, Cohen&apos;s d 지수는 <span className="text-blue-600 font-black">{projectStats.cohensD.toFixed(2)}</span>로 산출되었습니다. 
+                          이는 전통적인 기준에 따라 <span className="underline decoration-blue-200 decoration-4 font-black">&apos;{projectStats.cohensD >= 0.8 ? "매우 강력한" : projectStats.cohensD >= 0.5 ? "우수한" : "보통 수준의"}&apos;</span> 교육 효과가 있음을 나타냅니다.
                        </p>
                     </div>
                     <div className="space-y-2">
                        <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                          <TrendingUp className="size-4 text-blue-500" /> 잠재력 대비 성취도 (Hake's Gain)
+                          <TrendingUp className="size-4 text-blue-500" /> 잠재력 대비 성취도 (Hake&apos;s Gain)
                        </h4>
                        <p className="text-sm font-bold text-slate-600 leading-relaxed">
                           학습자가 도달할 수 있는 최대 성장 폭 대비 실무 역량 향상도는 <span className="text-indigo-600 font-black">{(projectStats.hakeGain * 100).toFixed(1)}%</span>로 집계되었습니다. 

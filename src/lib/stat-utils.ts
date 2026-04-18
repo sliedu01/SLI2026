@@ -1,4 +1,5 @@
 import * as ss from 'simple-statistics';
+import { Project } from '@/store/use-project-store';
 
 /**
  * 하이크 게인 (Hake's Gain / Normalized Gain) 계산
@@ -74,9 +75,8 @@ export function getAchievementLevel(gain: number): 'High' | 'Medium' | 'Low' {
  * 15년차 교육 컨설턴트 페르소나 기반의 분석 보고서 생성 프롬프트
  */
 export function generateAIExpertReport(
-  projectList: any[],
-  aggregatedData: Record<string, number>,
-  responses: any[]
+  projectList: Project[],
+  aggregatedData: Record<string, number>
 ): string {
   const lv1s = projectList.filter(p => p.level === 1);
   

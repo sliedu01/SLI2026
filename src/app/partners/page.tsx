@@ -8,20 +8,16 @@ import {
   Pencil, 
   Trash2, 
   Building2, 
-  Briefcase, 
-  Mail, 
-  Phone, 
-  MapPin,
   FileCheck2,
   AlertCircle,
-  ExternalLink,
+  Briefcase,
   ChevronRight,
   Download,
   Upload
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -82,7 +78,10 @@ export default function PartnersPage() {
       
       // 만족도 집계
       const avgSatisfaction = projectResponses.length > 0
-        ? (projectResponses.reduce((acc, r) => acc + (Object.values(r.answers).reduce((s: any, a: any) => s + (typeof a === 'number' ? a : 0), 0) / Object.keys(r.answers).length), 0) / projectResponses.length).toFixed(1)
+        ? (projectResponses.reduce((acc, r) => {
+            const sum = r.answers.reduce((s, a) => s + (a.score || 0), 0);
+            return acc + (sum / (r.answers.length || 1));
+          }, 0) / projectResponses.length).toFixed(1)
         : '-';
 
       return {
@@ -125,10 +124,10 @@ export default function PartnersPage() {
         }
 
         // 데이터 복구 및 정규화 로직 (Repair)
-        const repairedPartners = json.partners.map((p: any) => ({
+        const repairedPartners = json.partners.map((p: Record<string, unknown>) => ({
           ...p,
           id: String(p.id || crypto.randomUUID()),
-          documents: (p.documents || []).map((d: any) => ({
+          documents: (Array.isArray(p.documents) ? p.documents : []).map((d: Record<string, unknown>) => ({
             ...d,
             id: String(d.id || crypto.randomUUID())
           }))
@@ -140,14 +139,14 @@ export default function PartnersPage() {
              // 1. 파트너 데이터 업로드
              const { error: pError } = await supabase
                .from('partners')
-               .upsert(repairedPartners.map((p: any) => ({
-                 id: p.id,
-                 name: p.name,
-                 manager: p.manager,
-                 phone1: p.phone1,
-                 phone2: p.phone2,
-                 email: p.email,
-                 address: p.address,
+               .upsert(repairedPartners.map((p: Record<string, unknown>) => ({
+                 id: p.id as string,
+                 name: p.name as string,
+                 manager: p.manager as string,
+                 phone1: p.phone1 as string,
+                 phone2: p.phone2 as string,
+                 email: p.email as string,
+                 address: p.address as string,
                  documents: p.documents
                })));
 
@@ -157,7 +156,7 @@ export default function PartnersPage() {
              if (json.projects && Array.isArray(json.projects)) {
                const { error: projError } = await supabase
                  .from('projects')
-                 .upsert(json.projects.map((p: any) => ({
+                 .upsert(json.projects.map((p: Record<string, unknown>) => ({
                    id: p.id,
                    name: p.name,
                    start_date: p.startDate,

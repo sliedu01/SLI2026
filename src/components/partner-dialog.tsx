@@ -3,27 +3,24 @@
 import * as React from 'react';
 import { 
   X, 
-  Upload, 
   Plus, 
-  FileText, 
   Trash2,
-  Info,
-  RefreshCw
+  RefreshCw,
+  Info
 } from 'lucide-react';
 
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
+  DialogTitle,
+  DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePartnerStore, PartnerDocument } from '@/store/use-partner-store';
-import { useProjectStore, Project } from '@/store/use-project-store';
-import { cn } from '@/lib/utils';
+import { Project } from '@/store/use-project-store';
 import { FileUploadZone } from './file-upload-zone';
 import { Separator } from '@/components/ui/separator';
 
@@ -77,8 +74,8 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
           setEmail(p.email);
           setAddress(p.address);
           
-          const docMap: any = {};
-          const contractList: any[] = [];
+          const docMap: Record<string, { originalName: string, fileName: string, fileUrl: string }> = {};
+          const contractList: {id: string, name: string, originalName?: string, fileUrl?: string}[] = [];
           p.documents.forEach(d => {
             if (d.type.includes('계약서')) {
               contractList.push({ id: d.id, name: d.fileName, originalName: d.originalName, fileUrl: d.fileUrl });
@@ -139,9 +136,10 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
       }
 
       onOpenChange(false);
-    } catch (err: any) {
-      console.error('Submit error:', err);
-      alert(`데이터 저장 중 오류가 발생했습니다: ${err.message || '알 수 없는 오류'}`);
+    } catch (err) {
+      const error = err as Error;
+      console.error('Submit error:', error);
+      alert(`데이터 저장 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
     } finally {
       setIsSubmitting(false);
     }

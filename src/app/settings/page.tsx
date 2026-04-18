@@ -11,7 +11,6 @@ import {
   ShieldAlert,
   HardDrive,
   Info,
-  CheckCircle2,
   Trash2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -19,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useSettingsStore } from '@/store/use-settings-store';
-import { cn } from '@/lib/utils';
+// import { cn } from '@/lib/utils'; // Removed unused import
 
 export default function SettingsPage() {
   const [mounted, setMounted] = React.useState(false);
@@ -76,7 +75,7 @@ export default function SettingsPage() {
           alert('데이터 복원이 완료되었습니다. 시스템을 재시작합니다.');
           window.location.reload();
         }
-      } catch (err) {
+      } catch {
         alert('올바르지 않은 백업 파일입니다.');
       }
     };

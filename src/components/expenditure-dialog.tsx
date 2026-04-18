@@ -5,10 +5,7 @@ import {
   X, 
   DollarSign, 
   Calendar as CalendarIcon, 
-  Building2,
-  CheckCircle2,
-  Trash2,
-  Plus
+  Building2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { FileUploadZone } from './file-upload-zone';
@@ -26,7 +23,6 @@ import { Label } from '@/components/ui/label';
 import { usePartnerStore } from '@/store/use-partner-store';
 import { useBudgetStore, BudgetExecution } from '@/store/use-budget-store';
 import { useProjectStore } from '@/store/use-project-store';
-import { cn } from '@/lib/utils';
 
 interface ExpenditureDialogProps {
   open: boolean;
@@ -46,11 +42,7 @@ export function ExpenditureDialog({ open, onOpenChange, executionItem }: Expendi
   const [description, setDescription] = React.useState('');
   const [uploadFile, setUploadFile] = React.useState<{ originalName: string, fileName: string, fileUrl: string } | null>(null);
 
-  // 현재 실행항목(LV3)에 연결된 프로젝트가 있으면 해당 프로젝트 파트너 우선 표시
   const project = projects.find(p => p.id === executionItem.projectId);
-  const relevantPartners = executionItem.projectId 
-    ? partners.filter(p => projects.find(pro => pro.id === executionItem.projectId)?.partnerId === p.id) 
-    : [];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

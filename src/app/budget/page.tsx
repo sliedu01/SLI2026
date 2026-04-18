@@ -5,14 +5,10 @@ import {
   ChevronDown, 
   ChevronRight, 
   Plus, 
-  Trash2, 
   Wallet,
   Receipt,
-  Search,
   FileText,
   PlusCircle,
-  MoreVertical,
-  CheckCircle2,
   Clock,
   Download,
   Building2,
@@ -21,15 +17,13 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { useBudgetStore, BudgetExecution, Expenditure } from '@/store/use-budget-store';
+import { useBudgetStore } from '@/store/use-budget-store';
 import { useProjectStore } from '@/store/use-project-store';
 import { ExpenditureDialog } from '@/components/expenditure-dialog';
 import { cn } from '@/lib/utils';
-import { exportToExcel } from '@/lib/excel-export';
+// import { exportToExcel } from '@/lib/excel-export'; // Unused in this file
 import { generateSettlementPDF } from '@/lib/pdf-settlement';
 
 export default function BudgetPage() {
@@ -42,7 +36,6 @@ export default function BudgetPage() {
     addCategory, 
     addManagement, 
     addExecution, 
-    deleteExecution,
     syncBudgets 
   } = useBudgetStore();
   const { projects } = useProjectStore();

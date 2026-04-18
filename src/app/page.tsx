@@ -40,7 +40,7 @@ export default function Home() {
   
   // Stores
   const { projects } = useProjectStore();
-  const { categories, executions, expenditures } = useBudgetStore();
+  const { categories, executions } = useBudgetStore();
   const { responses } = useSurveyStore();
   const { partners } = usePartnerStore();
 
@@ -58,10 +58,11 @@ export default function Home() {
   const totalPartners = partners.length;
   
   // 설문 만족도 집계
-  const allSatisfactionScores = responses.flatMap(r => {
-    const scores = Object.values(r.answers).filter(v => typeof v === 'number') as number[];
-    return scores;
-  });
+  const allSatisfactionScores = responses.flatMap(r => 
+    r.answers
+      .map(a => a.score)
+      .filter((v): v is number => typeof v === 'number' && v > 0)
+  );
   
   const avgSatisfaction = allSatisfactionScores.length > 0 
     ? (allSatisfactionScores.reduce((a, b) => a + b, 0) / allSatisfactionScores.length) 
@@ -205,9 +206,9 @@ export default function Home() {
              <div className="space-y-6 text-indigo-100/90 leading-relaxed font-medium text-sm">
                 <div className="p-5 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
                    <p className="italic">
-                      "시스템 분석 결과, 현재 통합 예산 집행률은 {budgetExecutionRate.toFixed(1)}%입니다. 
+                      &quot;시스템 분석 결과, 현재 통합 예산 집행률은 {budgetExecutionRate.toFixed(1)}%입니다. 
                       성과 지수 측면에서는 주요 사업군에서 안정적인 ROI를 기록 중입니다. 
-                      차세대 DX 역량 강화 교육 사업의 성과가 전주 대비 향상되었습니다."
+                      차세대 DX 역량 강화 교육 사업의 성과가 전주 대비 향상되었습니다.&quot;
                    </p>
                 </div>
                 <ul className="space-y-4">

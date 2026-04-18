@@ -3,14 +3,8 @@
 import * as React from 'react';
 import { 
   ClipboardCheck, 
-  Table as TableIcon,
-  Plus,
-  Trash2,
   FileSpreadsheet,
-  AlertCircle,
   CheckCircle2,
-  Layout,
-  MessageSquare,
   Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,7 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { useSurveyStore, SurveyTemplate, SurveyResponse, Answer, SurveyType } from '@/store/use-survey-store';
+import { useSurveyStore, SurveyResponse, Answer, SurveyType } from '@/store/use-survey-store';
 import { cn } from '@/lib/utils';
 
 interface SurveyEntryDialogProps {
@@ -81,10 +75,12 @@ export function SurveyEntryDialog({
           if (selectedTemplate.type === 'COMPETENCY') {
             if (q.type === 'SCALE') {
               // 역량진단 객관식: 사전(pre), 사후(post) 2개 컬럼 필요
+              const preVal = cols[colIdx];
+              const postVal = cols[colIdx + 1];
               answers.push({
                 questionId: q.id,
-                preScore: Number(cols[colIdx]) || 0,
-                score: Number(cols[colIdx + 1]) || 0
+                preScore: preVal !== undefined ? Number(preVal) || 0 : 0,
+                score: postVal !== undefined ? Number(postVal) || 0 : 0
               });
               colIdx += 2;
             } else {
@@ -99,9 +95,10 @@ export function SurveyEntryDialog({
           } else {
             if (q.type === 'SCALE') {
               // 만족도 객관식: 1개 컬럼(score)
+              const scoreVal = cols[colIdx];
               answers.push({
                 questionId: q.id,
-                score: Number(cols[colIdx]) || 0
+                score: scoreVal !== undefined ? Number(scoreVal) || 0 : 0
               });
               colIdx += 1;
             } else {

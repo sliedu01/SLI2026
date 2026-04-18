@@ -4,7 +4,6 @@ import * as React from 'react';
 import { 
   Upload, 
   FileText, 
-  X, 
   Download, 
   RefreshCw, 
   Trash2,
@@ -28,7 +27,6 @@ interface FileUploadZoneProps {
 }
 
 export function FileUploadZone({ 
-  id, 
   label, 
   value, 
   onChange, 
@@ -73,7 +71,7 @@ export function FileUploadZone({
     
     try {
       await downloadFile(value.fileUrl, value.originalName);
-    } catch (error) {
+    } catch {
       alert("파일 다운로드 중 오류가 발생했습니다.");
     }
   };
