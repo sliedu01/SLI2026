@@ -102,15 +102,7 @@ export default function SurveysPage() {
 
   React.useEffect(() => {
     setMounted(true);
-    // 샘플 템플릿 (V2)
-    if (templates.length === 0 && mounted) {
-       addTemplate({
-          name: '디지털 신기술 역량 진단 (기본)',
-          type: 'COMPETENCY',
-          questions: createDefaultQuestions('COMPETENCY')
-       });
-    }
-  }, [mounted, templates.length, addTemplate, createDefaultQuestions]);
+  }, []);
 
   React.useEffect(() => {
     if (selectedTemplateId) {
