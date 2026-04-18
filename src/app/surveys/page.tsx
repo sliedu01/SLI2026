@@ -17,7 +17,11 @@ import {
   Check, 
   FileSpreadsheet, 
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  BarChart2,
+  PieChart as PieChartIcon,
+  Edit,
+  Info
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -45,11 +49,22 @@ import {
   DialogFooter,
   DialogDescription
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 import { useProjectStore } from '@/store/use-project-store';
 import { useSurveyStore, SurveyTemplate, SurveyResponse, Answer, Question, SurveyType } from '@/store/use-survey-store';
 import { cn } from '@/lib/utils';
 import { 
-  generateAIExpertReport 
+  generateAIExpertReport,
+  calculateHakeGain,
+  calculateCohensD,
+  calculatePairedTTest,
+  getPValueFromT
 } from '@/lib/stat-utils';
 
 // Charts
@@ -59,8 +74,13 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Tooltip,
-  Cell
+  Tooltip as RechartsTooltip,
+  Cell,
+  PieChart,
+  Pie,
+  Line,
+  ComposedChart,
+  CartesianGrid
 } from 'recharts';
 
 export default function SurveysPage() {
@@ -75,28 +95,40 @@ export default function SurveysPage() {
     addResponse,
     clearProjectResponses,
     getAggregatedStats,
-    createDefaultQuestions
+    createDefaultQuestions,
+    updateResponse,
+    deleteResponse
   } = useSurveyStore();
 
   const [activeTab, setActiveTab] = React.useState('templates');
   const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string | null>(null);
-  
   const [selectedPartnerId, setSelectedPartnerId] = React.useState<string | null>(null);
+  const [selectedProgramId, setSelectedProgramId] = React.useState<string | null>(null);
 
   const [editingTemplate, setEditingTemplate] = React.useState<SurveyTemplate | null>(null);
+  const [editingResponse, setEditingResponse] = React.useState<SurveyResponse | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [pasteContent, setPasteContent] = React.useState('');
   const [isPasteDialogOpen, setIsPasteDialogOpen] = React.useState(false);
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
   const [aiSummary, setAiSummary] = React.useState<string | null>(null);
   const aiResultRef = React.useRef<HTMLDivElement>(null);
 
-  // New states for V2 functional recovery
   const [dateRange, setDateRange] = React.useState({ start: '', end: '' });
   const [surveyType, setSurveyType] = React.useState<SurveyType>('COMPETENCY');
 
-  const aggregatedStats = getAggregatedStats(projects, selectedProjectId, selectedPartnerId || undefined, surveyType);
+  const { mergedResponses, templates: projectTemplates } = React.useMemo(() => 
+    useSurveyStore.getState().getUnifiedProjectData(selectedProgramId || selectedProjectId || ''),
+    [selectedProgramId, selectedProjectId, responses, templates]
+  );
+  
+  const satTmpl = projectTemplates.sat[0];
+  const compTmpl = projectTemplates.comp[0];
+  const satQuestions = satTmpl?.questions.filter(q => q.type === 'SCALE') || [];
+  const compQuestions = compTmpl?.questions.filter(q => q.type === 'SCALE') || [];
 
+  const aggregatedStats = getAggregatedStats(projects, selectedProjectId, selectedPartnerId || undefined, surveyType);
   const partners = Array.from(new Set(projects.map(p => p.partnerId).filter((id): id is string => !!id)));
   const projectResponses = responses.filter(r => r.projectId === selectedProjectId);
 
@@ -109,7 +141,6 @@ export default function SurveysPage() {
       const t = templates.find((i: SurveyTemplate) => i.id === selectedTemplateId);
       if (t) setEditingTemplate({...t, questions: t.questions.map((q: Question) => ({...q}))});
     } else if (templates.length > 0) {
-      // 초기 선택 로직
       const t = templates[0];
       setSelectedTemplateId(t.id);
     }
@@ -119,7 +150,6 @@ export default function SurveysPage() {
 
   const selectedTemplate = templates.find((t: SurveyTemplate) => t.id === selectedTemplateId) || templates[0];
 
-  // --- 템플릿 편집 핸들러 ---
   const handleSaveTemplate = async () => {
     if (!editingTemplate) return;
     try {
@@ -136,7 +166,7 @@ export default function SurveysPage() {
 
   const handleDeleteTemplate = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('정말로 이 템플릿을 삭제하시겠습니까? 관련 데이터는 유지되지만 템플릿은 사라집니다.')) return;
+    if (!confirm('정말로 이 템플릿을 삭제하시겠습니까?')) return;
     try {
       await deleteTemplate(id);
       if (selectedTemplateId === id) setSelectedTemplateId(null);
@@ -156,14 +186,6 @@ export default function SurveysPage() {
     });
   };
 
-  const handleDeleteQuestion = (qId: string) => {
-    if (!editingTemplate) return;
-    setEditingTemplate({
-      ...editingTemplate,
-      questions: editingTemplate.questions.filter(q => q.id !== qId)
-    });
-  };
-
   const handleAddQuestion = (type: 'SCALE' | 'TEXT' = 'SCALE') => {
     if (!editingTemplate) return;
     const newQ: Question = {
@@ -180,122 +202,90 @@ export default function SurveysPage() {
     });
   };
 
-  // --- 데이터 파싱 로직 (Excel Paste) ---
-  const handlePasteProcess = () => {
-    if (!pasteContent.trim() || !selectedProjectId || !selectedTemplate) return;
+  const handlePasteProcess = async () => {
+    const targetId = selectedProgramId || selectedProjectId;
+    if (!pasteContent.trim() || !targetId) {
+      alert('사업 및 프로그램을 먼저 선택해주세요.');
+      return;
+    }
+    
+    const { templates: projectTemplates } = useSurveyStore.getState().getUnifiedProjectData(targetId);
+    const targetSatTmpl = projectTemplates.sat[0];
+    const targetCompTmpl = projectTemplates.comp[0];
+
+    if (!targetSatTmpl && !targetCompTmpl) {
+      alert('현재 선택된 프로그램에 연결된 설문 템플릿이 없습니다. 템플릿에서 사업을 먼저 할당해주세요.');
+      return;
+    }
 
     const rows = pasteContent.trim().split('\n');
-    const newResponses: Array<Omit<SurveyResponse, 'id' | 'createdAt'>> = [];
+    let successCount = 0;
     
-    rows.forEach((row) => {
-      const cols = row.split('\t').map(c => c.trim());
-      if (cols.length < 2) return;
+    try {
+      for (const row of rows) {
+        const cols = row.split('\t').map(c => c.trim());
+        if (cols.length < 2) continue;
+        const respondentId = cols[0];
+        let currentIdx = 1;
 
-      const respondentId = cols[0]; 
-      const answers: Answer[] = [];
-      let colIdx = 1;
-
-      selectedTemplate.questions.forEach(q => {
-        if (selectedTemplate.type === 'COMPETENCY') {
-          if (q.type === 'SCALE') {
-            answers.push({
-              questionId: q.id,
-              preScore: Number(cols[colIdx]) || 0,
-              score: Number(cols[colIdx + 1]) || 0
-            });
-            colIdx += 2;
-          } else {
-            answers.push({
-              questionId: q.id,
-              score: 0,
-              text: cols[colIdx] || ''
-            });
-            colIdx += 1;
-          }
-        } else {
-          if (q.type === 'SCALE') {
-            answers.push({
-              questionId: q.id,
-              score: Number(cols[colIdx]) || 0,
-            });
-            colIdx += 1;
-          } else {
-            answers.push({
-              questionId: q.id,
-              score: 0,
-              text: cols[colIdx] || ''
-            });
-            colIdx += 1;
-          }
+        // 만족도 데이터 처리
+        if (targetSatTmpl) {
+          const satAnswers: Answer[] = targetSatTmpl.questions.map(q => {
+            const val = cols[currentIdx++];
+            return q.type === 'SCALE' ? { questionId: q.id, score: Number(val) || 0 } : { questionId: q.id, score: 0, text: val || '' };
+          });
+          await addResponse({ projectId: targetId, templateId: targetSatTmpl.id, respondentId, answers: satAnswers });
         }
-      });
 
-      newResponses.push({
-        projectId: selectedProjectId,
-        templateId: selectedTemplate.id,
-        respondentId,
-        answers,
-      });
-    });
-
-    Promise.all(newResponses.map(res => addResponse(res)))
-      .then(() => {
-        setPasteContent('');
-        setIsPasteDialogOpen(false);
-        alert(`${newResponses.length}명의 데이터를 성공적으로 연동했습니다.`);
-      })
-      .catch(err => {
-        console.error(err);
-        alert('데이터 연동 중 오류가 발생했습니다.');
-      });
+        // 역량 진단 데이터 처리 (사전/사후)
+        if (targetCompTmpl) {
+          const compAnswers: Answer[] = targetCompTmpl.questions.map(q => {
+            if (q.type === 'SCALE') {
+              const pre = Number(cols[currentIdx++]) || 0;
+              const post = Number(cols[currentIdx++]) || 0;
+              return { questionId: q.id, preScore: pre, score: post };
+            }
+            return { questionId: q.id, score: 0, text: cols[currentIdx++] || '' };
+          });
+          await addResponse({ projectId: targetId, templateId: targetCompTmpl.id, respondentId, answers: compAnswers });
+        }
+        successCount++;
+      }
+      setPasteContent('');
+      setIsPasteDialogOpen(false);
+      alert(`${successCount}명의 데이터를 [${targetId}] 프로그램으로 연동했습니다.`);
+    } catch (err) {
+      console.error(err);
+      alert('데이터 연동 중 오류가 발생했습니다. 포맷을 확인해주세요.');
+    }
   };
 
   const handleRunAIAnalysis = () => {
     setIsAnalyzing(true);
     setTimeout(() => {
-      const summary = generateAIExpertReport(projects, aggregatedStats, surveyType);
+      const summary = generateAIExpertReport(projects, aggregatedStats, 'UNIFIED');
       setAiSummary(summary);
       setIsAnalyzing(false);
-      setTimeout(() => {
-        aiResultRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+      setTimeout(() => aiResultRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }, 1500);
-  };
-
-  const handleAddDefaultTemplate = (type: SurveyType) => {
-    const name = type === 'SATISFACTION' ? '공통 교육 만족도 설문' : '핵심 역량 성취도 진단';
-    addTemplate({
-      name,
-      type,
-      questions: createDefaultQuestions(type)
-    });
   };
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
-      {/* 1. 글로벌 헤더 & 탭 제어 */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white/50 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/20">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white/50 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 shadow-2xl">
         <div className="space-y-1">
           <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
             <ClipboardCheck className="size-8 text-blue-600" /> 설문 및 성과 관리
           </h1>
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest font-mono">Statistical Analysis & Survey Intelligence</p>
+          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest font-mono">Expert Analytics Dashboard</p>
         </div>
-        
         <div className="flex bg-slate-100 p-1.5 rounded-2xl">
           {[
             { id: 'templates', label: '템플릿 설계', icon: Settings2 },
             { id: 'data', label: '데이터 연동', icon: TableIcon },
             { id: 'analysis', label: '성과 분석 리포트', icon: TrendingUp },
           ].map(tab => (
-            <button 
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2",
-                activeTab === tab.id ? "bg-white text-blue-600 shadow-lg" : "text-slate-500 hover:text-slate-700"
-              )}
-            >
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cn("px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2", activeTab === tab.id ? "bg-white text-blue-600 shadow-lg" : "text-slate-500 hover:text-slate-700")}>
               <tab.icon className="size-3.5" /> {tab.label}
             </button>
           ))}
@@ -303,7 +293,6 @@ export default function SurveysPage() {
       </div>
 
       <main className="min-h-[700px]">
-        {/* --- 템플릿 설계 탭 --- */}
         {activeTab === 'templates' && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
              <div className="lg:col-span-1 space-y-6">
@@ -311,80 +300,30 @@ export default function SurveysPage() {
                    <CardHeader>
                       <CardTitle className="text-lg font-black flex justify-between items-center">
                          템플릿 레지스트리
-                          <Popover>
-                            <PopoverTrigger 
-                              render={
-                                <Button variant="ghost" className="size-8 p-1 hover:bg-slate-100 rounded-lg flex items-center justify-center transition-colors">
-                                   <Plus className="size-4 text-slate-600" />
-                                </Button>
-                              }
-                            />
-                            <PopoverContent className="w-56 p-2 rounded-2xl shadow-2xl bg-white border border-slate-100 z-50">
-                               <div className="grid gap-1">
-                                  <Button 
-                                    variant="ghost" 
-                                    className="justify-start font-bold gap-2 text-emerald-600 hover:bg-emerald-50"
-                                    onClick={() => {
-                                      const name = prompt('만족도 조사 템플릿 이름을 입력하세요:');
-                                      if(name) addTemplate({ name, type: 'SATISFACTION', questions: [] });
-                                    }}
-                                  >
-                                    <ClipboardCheck className="size-4" /> 만족도 조사 생성
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    className="justify-start font-bold gap-2 text-blue-600 hover:bg-blue-50"
-                                    onClick={() => {
-                                      const name = prompt('역량 진단 템플릿 이름을 입력하세요:');
-                                      if(name) addTemplate({ name, type: 'COMPETENCY', questions: [] });
-                                    }}
-                                  >
-                                    <Activity className="size-4" /> 사전사후 역량 진단 생성
-                                  </Button>
-                               </div>
-                            </PopoverContent>
-                          </Popover>
+                         <Popover>
+                           <PopoverTrigger>
+                             <Button variant="ghost" className="size-8 p-0"><Plus className="size-4" /></Button>
+                           </PopoverTrigger>
+                           <PopoverContent className="w-56 p-2 rounded-2xl shadow-2xl bg-white">
+                              <div className="grid gap-1">
+                                 <Button variant="ghost" className="justify-start font-bold gap-2 text-emerald-600" onClick={() => addTemplate({ name: '신규 만족도 조사', type: 'SATISFACTION', questions: createDefaultQuestions('SATISFACTION') })}><ClipboardCheck className="size-4" /> 만족도 조사 생성</Button>
+                                 <Button variant="ghost" className="justify-start font-bold gap-2 text-blue-600" onClick={() => addTemplate({ name: '신규 역량 진단', type: 'COMPETENCY', questions: createDefaultQuestions('COMPETENCY') })}><Activity className="size-4" /> 역량 진단 생성</Button>
+                              </div>
+                           </PopoverContent>
+                         </Popover>
                       </CardTitle>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Available Formats</p>
                    </CardHeader>
                    <CardContent className="space-y-6">
                       {['SATISFACTION', 'COMPETENCY'].map((type) => (
                         <div key={type} className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                            {type === 'SATISFACTION' ? '교육 만족도 조사' : '사전사후 역량진단'}
-                          </label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{type === 'SATISFACTION' ? '교육 만족도' : '역량 진단'}</label>
                           <div className="space-y-2">
-                            {templates.filter(t => t.type === type).map((t: SurveyTemplate) => (
-                              <div 
-                                 key={t.id} 
-                                 onClick={() => { setSelectedTemplateId(t.id); setSurveyType(t.type); }}
-                                 className={cn(
-                                   "p-4 rounded-2xl cursor-pointer border transition-all group relative",
-                                   selectedTemplateId === t.id ? (t.type === 'SATISFACTION' ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100" : "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100") : "bg-slate-50 border-transparent text-slate-600 hover:bg-slate-100"
-                                 )}
-                              >
-                                 <div className="flex justify-between items-start pr-8">
-                                   <div>
-                                     <p className="text-sm font-black truncate">{t.name}</p>
-                                     <div className="flex items-center gap-2 mt-1 opacity-60">
-                                        <Badge className="text-[8px] h-4 px-1.5 bg-white/20 text-white border-none">{t.type}</Badge>
-                                        <span className="text-[9px] font-bold uppercase">{t.questions?.length || 0} Questions</span>
-                                      </div>
-                                   </div>
-                                 </div>
-                                 <Button 
-                                   onClick={(e) => handleDeleteTemplate(t.id, e)}
-                                   variant="ghost" 
-                                   size="icon" 
-                                   className="absolute top-4 right-2 size-7 text-white/40 hover:text-white hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all rounded-lg"
-                                 >
-                                   <Trash2 className="size-3.5" />
-                                 </Button>
+                            {templates.filter(t => t.type === type).map((t) => (
+                              <div key={t.id} onClick={() => setSelectedTemplateId(t.id)} className={cn("p-4 rounded-2xl cursor-pointer border transition-all group relative", selectedTemplateId === t.id ? "bg-slate-900 border-slate-900 text-white shadow-lg" : "bg-slate-50 border-transparent text-slate-600 hover:bg-slate-100")}>
+                                 <p className="text-sm font-black truncate">{t.name}</p>
+                                 <Button onClick={(e) => handleDeleteTemplate(t.id, e)} variant="ghost" size="icon" className="absolute top-2 right-2 text-white/40 hover:text-white opacity-0 group-hover:opacity-100"><Trash2 className="size-3" /></Button>
                               </div>
                             ))}
-                            {templates.filter(t => t.type === type).length === 0 && (
-                              <p className="text-[10px] font-bold text-slate-300 text-center py-4 border border-dashed border-slate-100 rounded-2xl">등록된 템플릿이 없습니다.</p>
-                            )}
                           </div>
                         </div>
                       ))}
@@ -394,443 +333,296 @@ export default function SurveysPage() {
 
              <div className="lg:col-span-3">
                 <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden">
-                    <CardHeader className="p-10 pb-6 border-b border-slate-50 flex flex-row items-center justify-between">
-                       <div className="flex-1 mr-8">
-                          <Input 
-                            value={editingTemplate?.name || ''} 
-                            onChange={(e) => setEditingTemplate(prev => prev ? {...prev, name: e.target.value} : null)}
-                            className="text-2xl font-black bg-transparent border-none p-0 focus-visible:ring-0 h-auto"
-                          />
-                          <div className="flex items-center gap-3 mt-4">
-                             <Button 
-                                onClick={() => handleAddDefaultTemplate('SATISFACTION')}
-                                variant="outline" 
-                                size="sm" 
-                                className="text-[10px] font-black h-7 rounded-lg border-emerald-100 text-emerald-600 hover:bg-emerald-50"
-                             >
-                                만족도 문항 자동구성
-                             </Button>
-                             <Button 
-                                onClick={() => handleAddDefaultTemplate('COMPETENCY')}
-                                variant="outline" 
-                                size="sm" 
-                                className="text-[10px] font-black h-7 rounded-lg border-blue-100 text-blue-600 hover:bg-blue-50"
-                             >
-                                역량진단 문항 자동구성
-                             </Button>
+                    <CardHeader className="p-10 border-b border-slate-50 flex flex-row items-center justify-between">
+                       <Input value={editingTemplate?.name || ''} onChange={(e) => setEditingTemplate(prev => prev ? {...prev, name: e.target.value} : null)} className="text-2xl font-black bg-transparent border-none p-0 focus-visible:ring-0 w-1/2" />
+                       <Button onClick={handleSaveTemplate} className="rounded-xl h-12 px-8 bg-blue-600 text-white font-black">저장</Button>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                       <div className="divide-y divide-slate-100">
+                          {editingTemplate?.questions.map((q, idx) => (
+                            <div key={q.id} className="p-8 group hover:bg-slate-50/50 transition-all flex gap-6">
+                               <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 font-black text-xs text-slate-400">{idx+1}</div>
+                               <div className="flex-1 grid grid-cols-3 gap-4">
+                                  <Input value={q.division} onChange={(e) => handleUpdateQuestion(q.id, 'division', e.target.value)} className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs" />
+                                  <Input value={q.theme} onChange={(e) => handleUpdateQuestion(q.id, 'theme', e.target.value)} className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs" />
+                                  <Input value={q.content} onChange={(e) => handleUpdateQuestion(q.id, 'content', e.target.value)} className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs" />
+                               </div>
+                               <Button onClick={() => handleUpdateQuestion(q.id, 'type', q.type === 'SCALE' ? 'TEXT' : 'SCALE')} variant="ghost" className="text-[10px] font-black uppercase text-blue-600">{q.type}</Button>
+                               <Button onClick={() => setEditingTemplate(prev => prev ? {...prev, questions: prev.questions.filter(qu => qu.id !== q.id)} : null)} variant="ghost" size="icon" className="text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100"><Trash2 className="size-4" /></Button>
+                            </div>
+                          ))}
+                          <div className="p-10 flex justify-center gap-4">
+                             <Button onClick={() => handleAddQuestion('SCALE')} variant="outline" className="h-12 border-dashed border-2 px-8 rounded-xl font-black text-blue-600">+ 객관식 추가</Button>
+                             <Button onClick={() => handleAddQuestion('TEXT')} variant="outline" className="h-12 border-dashed border-2 px-8 rounded-xl font-black text-emerald-600">+ 주관식 추가</Button>
                           </div>
                        </div>
-                       <div className="flex gap-2">
-                          <Button variant="outline" className="rounded-xl h-12 font-black border-slate-200">데이터 구조화</Button>
-                          <Button 
-                            onClick={handleSaveTemplate}
-                            className="rounded-xl h-12 px-8 bg-slate-900 font-black text-white"
-                          >
-                            최종 저장
-                          </Button>
-                       </div>
-                    </CardHeader>
-                   <CardContent className="p-0">
-                      <div className="divide-y divide-slate-100">
-                         {editingTemplate?.questions.map((q, idx) => (
-                           <div key={q.id} className="p-8 group hover:bg-slate-50/50 transition-all flex gap-8">
-                              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center shrink-0">
-                                 <span className="text-xs font-black text-slate-400">{idx + 1}</span>
-                              </div>
-                              <div className="flex-1 grid grid-cols-4 gap-4">
-                                 <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">구분</label>
-                                    <Input 
-                                      value={q.division} 
-                                      onChange={(e) => handleUpdateQuestion(q.id, 'division', e.target.value)}
-                                      className="h-10 rounded-xl bg-slate-100 border-none font-bold text-xs" 
-                                    />
-                                 </div>
-                                 <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">주제</label>
-                                    <Input 
-                                      value={q.theme} 
-                                      onChange={(e) => handleUpdateQuestion(q.id, 'theme', e.target.value)}
-                                      className="h-10 rounded-xl bg-slate-100 border-none font-bold text-xs" 
-                                    />
-                                 </div>
-                                 <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">문항 내용</label>
-                                    <Input 
-                                      value={q.content} 
-                                      onChange={(e) => handleUpdateQuestion(q.id, 'content', e.target.value)}
-                                      className="h-10 rounded-xl bg-slate-100 border-none font-bold text-xs" 
-                                    />
-                                 </div>
-                                 <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">문항 유형</label>
-                                    <Select 
-                                      value={q.type || 'SCALE'} 
-                                      onValueChange={(val: 'SCALE' | 'TEXT' | null) => {
-                                        if (val) handleUpdateQuestion(q.id, 'type', val)
-                                      }}
-                                    >
-                                      <SelectTrigger className={cn(
-                                        "h-10 rounded-xl border-none font-black text-[10px] transition-colors",
-                                        q.type === 'TEXT' ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
-                                      )}>
-                                         <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent className="rounded-xl border-none shadow-xl bg-white">
-                                         <SelectItem value="SCALE" className="font-bold text-xs">객관식 (5점척도)</SelectItem>
-                                         <SelectItem value="TEXT" className="font-bold text-xs text-emerald-600">주관식 (서술형)</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                 </div>
-                              </div>
-                              <Button 
-                                onClick={() => handleDeleteQuestion(q.id)}
-                                variant="ghost" 
-                                size="icon" 
-                                className="self-center text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all font-black"
-                              >
-                                 <Trash2 className="size-4" />
-                              </Button>
-                           </div>
-                         ))}
-                         <div className="p-10 flex flex-col items-center gap-6">
-                            <div className="flex items-center gap-4 w-full max-w-2xl">
-                               <Button 
-                                 onClick={() => handleAddQuestion('SCALE')}
-                                 variant="ghost" 
-                                 className="flex-1 h-20 rounded-2xl border-2 border-dashed border-blue-200 text-blue-600 font-black gap-3 hover:bg-blue-50 hover:border-blue-300 transition-all flex flex-col items-center justify-center"
-                               >
-                                  <div className="flex items-center gap-2">
-                                     <Plus className="size-5" /> <span className="text-sm">객관식 문항 추가</span>
-                                  </div>
-                                  <span className="text-[10px] opacity-60 font-bold uppercase tracking-tight">5-Point Likert Scale</span>
-                               </Button>
-                               <Button 
-                                 onClick={() => handleAddQuestion('TEXT')}
-                                 variant="ghost" 
-                                 className="flex-1 h-20 rounded-2xl border-2 border-dashed border-emerald-200 text-emerald-600 font-black gap-3 hover:bg-emerald-50 hover:border-emerald-300 transition-all flex flex-col items-center justify-center"
-                               >
-                                  <div className="flex items-center gap-2">
-                                     <MessageSquare className="size-5" /> <span className="text-sm">주관식 문항 추가</span>
-                                  </div>
-                                  <span className="text-[10px] opacity-60 font-bold uppercase tracking-tight">Descriptive Text Input</span>
-                               </Button>
-                            </div>
-                            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em] flex items-center gap-2">
-                               <AlertCircle className="size-3" /> 유형에 따라 데이터 연동을 위한 엑셀 컬럼 구성이 달라집니다
-                            </p>
-                         </div>
-                      </div>
-                   </CardContent>
+                    </CardContent>
                 </Card>
              </div>
           </div>
         )}
 
-        {/* --- 데이터 연동 탭 --- */}
         {activeTab === 'data' && (
           <div className="space-y-8 animate-in slide-in-from-bottom-5">
              <div className="flex flex-wrap items-center gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl">
-                 <div className="space-y-1 min-w-[300px]">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">사업 대상 선택</label>
-                    <select 
-                      value={selectedProjectId || ''} 
-                      onChange={(e) => setSelectedProjectId(e.target.value)}
-                      className="w-full h-14 px-6 bg-slate-50 border-none rounded-2xl text-base font-black text-slate-700 outline-none ring-1 ring-slate-100 focus:ring-blue-600"
-                    >
-                       <option value="">사업을 선택해 주세요...</option>
-                       {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                 </div>
-                 
-                 {selectedProjectId && (
-                    <div className="flex gap-4 ml-auto">
-                       <Button 
-                         variant="outline" 
-                         onClick={() => setIsPasteDialogOpen(true)}
-                         className="h-14 px-8 rounded-2xl border-blue-100 text-blue-600 font-black gap-3 group"
-                       >
-                          <FileSpreadsheet className="size-5 group-hover:rotate-12 transition-transform" /> 엑셀 붙여넣기 연동
-                       </Button>
-                       <Button 
-                         onClick={() => {
-                            if(confirm('데이터를 초기화하시겠습니까?')) clearProjectResponses(selectedProjectId);
-                         }}
-                         variant="outline"
-                         className="h-14 rounded-2xl border-slate-200 text-slate-400 font-black"
-                       >
-                          <Trash2 className="size-5" />
-                       </Button>
-                    </div>
-                 )}
+                  <div className="space-y-1 min-w-[240px]">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">사업 선택</label>
+                     <select value={selectedProjectId || ''} onChange={(e) => { setSelectedProjectId(e.target.value); setSelectedProgramId(null); }} className="w-full h-12 px-4 bg-slate-50 rounded-xl font-black">
+                        <option value="">사업을 선택하세요...</option>
+                        {projects.filter(p => p.level <= 3).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                     </select>
+                  </div>
+
+                  <div className="space-y-1 min-w-[180px]">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">협력업체 필터</label>
+                     <select value={selectedPartnerId || ''} onChange={(e) => { setSelectedPartnerId(e.target.value || null); setSelectedProgramId(null); }} className="w-full h-12 px-4 bg-slate-50 rounded-xl font-black">
+                        <option value="">전체 업체</option>
+                        {partners.map(id => <option key={id} value={id}>{id}</option>)}
+                     </select>
+                  </div>
+
+                  <div className="space-y-1 min-w-[240px]">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">세부 프로그램(일자)</label>
+                     <select value={selectedProgramId || ''} onChange={(e) => setSelectedProgramId(e.target.value || null)} className="w-full h-12 px-4 bg-slate-50 rounded-xl font-black" disabled={!selectedProjectId}>
+                        <option value="">프로그램을 선택하세요...</option>
+                        {projects.filter(p => p.level === 4 && (!selectedProjectId || p.parentId === selectedProjectId || projects.find(parent => parent.id === p.parentId && parent.parentId === selectedProjectId)) && (!selectedPartnerId || p.partnerId === selectedPartnerId)).map(p => (
+                          <option key={p.id} value={p.id}>{p.startDate} - {p.name}</option>
+                        ))}
+                     </select>
+                  </div>
+
+                  {selectedProgramId && (
+                     <div className="flex gap-4 ml-auto">
+                        <Badge className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl border-none">
+                          {projectTemplates.all.length}개의 설문 연결됨
+                        </Badge>
+                        <Button variant="outline" onClick={() => setIsPasteDialogOpen(true)} className="h-12 px-6 rounded-xl border-blue-100 text-blue-600 font-black"><FileSpreadsheet className="size-4 mr-2" /> 엑셀 연동</Button>
+                        <Button onClick={() => { if(confirm('초기화하시겠습니까?')) clearProjectResponses(selectedProgramId); }} variant="outline" className="h-12 px-6 rounded-xl text-red-500"><Trash2 className="size-4" /></Button>
+                     </div>
+                  )}
              </div>
 
-             {selectedProjectId ? (
-                <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden">
-                   <div className="overflow-x-auto custom-scrollbar">
-                      <table className="w-full text-left">
-                         <thead className="bg-slate-50 border-b border-slate-100">
-                            <tr>
-                               <th className="p-6 text-[10px] font-black text-slate-400 uppercase w-20 text-center">No.</th>
-                               <th className="p-6 text-[10px] font-black text-slate-900 uppercase min-w-[140px]">학습자 식별자</th>
-                               {selectedTemplate?.questions.map((q: Question, i: number) => (
-                                 <th key={q.id} className="p-6 text-[10px] font-black text-slate-500 uppercase min-w-[180px]">
-                                    <div className="flex flex-col gap-0.5">
-                                       <span className="text-blue-500">Q{i+1}</span>
-                                       <span className="truncate w-32">{q.content}</span>
-                                    </div>
-                                 </th>
-                               ))}
-                            </tr>
-                         </thead>
-                         <tbody className="divide-y divide-slate-50">
-                            {projectResponses.map((res: SurveyResponse, rIdx: number) => (
-                              <tr key={res.id} className="hover:bg-slate-50/50 transition-colors group">
-                                 <td className="p-6 text-center text-xs font-black text-slate-300">{rIdx + 1}</td>
-                                 <td className="p-6 font-black text-slate-700">{res.respondentId}</td>
-                                 {selectedTemplate?.questions.map((q: Question) => {
-                                    const ans = res.answers.find((a: Answer) => a.questionId === q.id);
+             <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden">
+                <div className="overflow-x-auto custom-scrollbar">
+                   <TooltipProvider delay={0}>
+                          <table className="w-full border-collapse">
+                            <thead>
+                               <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase">
+                                  <th className="p-6 text-center">No.</th>
+                                  <th className="p-6 text-left">학습자</th>
+                                  {satQuestions.map((q, idx) => (
+                                    <th key={q.id} className="p-4 text-center">
+                                      <Tooltip><TooltipTrigger className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full">SAT Q{idx+1}</TooltipTrigger>
+                                      <TooltipContent className="bg-slate-900 text-white p-4 rounded-xl shadow-2xl max-w-xs">{q.content}</TooltipContent></Tooltip>
+                                    </th>
+                                  ))}
+                                  {satTmpl && <th className="p-6 text-center bg-emerald-50/30">개인평균</th>}
+                                  {compQuestions.map((q, idx) => (
+                                    <th key={q.id} className="p-4 text-center">
+                                      <Tooltip><TooltipTrigger className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full">COMP Q{idx+1}</TooltipTrigger>
+                                      <TooltipContent className="bg-slate-900 text-white p-4 rounded-xl shadow-2xl max-w-xs">{q.content}</TooltipContent></Tooltip>
+                                    </th>
+                                  ))}
+                                  {compTmpl && (
+                                    <>
+                                      <th className="p-6 text-center bg-blue-50/30">Avg(Post)</th>
+                                      <th className="p-6 text-center bg-blue-50/30">Hake Gain</th>
+                                      <th className="p-6 text-center bg-blue-50/30">Cohen's d</th>
+                                      <th className="p-6 text-center bg-blue-50/30">t-test</th>
+                                    </>
+                                  )}
+                                  <th className="p-6 text-center">관리</th>
+                               </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                               {mergedResponses.length === 0 ? (
+                                  <tr><td colSpan={100} className="p-20 text-center opacity-30 font-black">데이터가 없습니다.</td></tr>
+                               ) : (
+                                  mergedResponses.map((res, rIdx) => {
+                                    const satAnswers = res.satResponses[0]?.answers || [];
+                                    const compAnswers = res.compResponses[0]?.answers || [];
+                                    
+                                    const satScores = satQuestions.map(q => satAnswers.find(a => a.questionId === q.id)?.score || 0);
+                                    const satAvg = satScores.length > 0 ? satScores.reduce((a,b)=>a+b,0)/satScores.length : 0;
+                                    const compScaleAns = compQuestions.map(q => compAnswers.find(a => a.questionId === q.id));
+                                    const preScores = compScaleAns.map(a => a?.preScore || 0);
+                                    const postScores = compScaleAns.map(a => a?.score || 0);
+                                    const compAvgPost = postScores.length > 0 ? postScores.reduce((a,b)=>a+b,0)/postScores.length : 0;
+                                    const compAvgPre = preScores.length > 0 ? preScores.reduce((a,b)=>a+b,0)/preScores.length : 0;
+                                    const hake = calculateHakeGain(compAvgPre, compAvgPost);
+                                    const cohen = calculateCohensD(preScores, postScores);
+                                    const tStat = calculatePairedTTest(preScores, postScores);
+                                    const pVal = getPValueFromT(tStat, compQuestions.length - 1);
+
                                     return (
-                                      <td key={q.id} className="p-6">
-                                         {selectedTemplate.type === 'COMPETENCY' ? (
-                                           <div className="flex items-center gap-3">
-                                              <div className="flex flex-col items-center">
-                                                 <span className="text-[8px] font-black text-slate-400">PRE</span>
-                                                 <Badge className="bg-slate-100 text-slate-500 border-none font-black">{ans?.preScore || 0}</Badge>
-                                              </div>
-                                              <ArrowRight className="size-3 text-slate-300" />
-                                              <div className="flex flex-col items-center">
-                                                 <span className="text-[8px] font-black text-blue-400">POST</span>
-                                                 <Badge className="bg-blue-600 text-white border-none font-black">{ans?.score || 0}</Badge>
-                                              </div>
-                                           </div>
-                                         ) : (
-                                           <div className="flex flex-col gap-1">
-                                              <Badge className="bg-emerald-100 text-emerald-600 border-none font-black w-fit">{ans?.score || 0}</Badge>
-                                              {ans?.text && <p className="text-[10px] text-slate-400 truncate w-32">{ans.text}</p>}
-                                           </div>
+                                      <tr key={res.respondentId} className="hover:bg-slate-50/50 transition-colors group text-xs font-black">
+                                         <td className="p-6 text-center text-slate-300">{rIdx + 1}</td>
+                                         <td className="p-6 text-slate-700">{res.respondentId}</td>
+                                         {satQuestions.map(q => (
+                                           <td key={q.id} className="p-4 text-center">
+                                              <Badge className="bg-emerald-50 text-emerald-600 border-none">{satAnswers.find(a => a.questionId === q.id)?.score || 0}</Badge>
+                                           </td>
+                                         ))}
+                                         {satTmpl && <td className="p-6 text-center text-emerald-700 bg-emerald-50/10">{satAvg.toFixed(2)}</td>}
+                                         {compQuestions.map(q => {
+                                            const ans = compAnswers.find(a => a.questionId === q.id);
+                                            return (
+                                              <td key={q.id} className="p-4 text-center">
+                                                 <div className="flex flex-col items-center gap-1">
+                                                    <span className="text-[9px] text-slate-300">PRE {ans?.preScore || 0}</span>
+                                                    <Badge className="bg-blue-600 text-white border-none text-[10px]">POST {ans?.score || 0}</Badge>
+                                                 </div>
+                                              </td>
+                                            );
+                                         })}
+                                         {compTmpl && (
+                                           <>
+                                             <td className="p-4 text-center bg-blue-50/10">{compAvgPost.toFixed(2)}</td>
+                                             <td className="p-4 text-center bg-blue-50/10"><Badge className={cn("border-none text-[10px]", hake >= 0.3 ? "bg-blue-500 text-white" : "bg-slate-200")}>{hake.toFixed(2)}</Badge></td>
+                                             <td className="p-4 text-center bg-blue-50/10 text-slate-500">{cohen.toFixed(2)}</td>
+                                             <td className="p-4 text-center bg-blue-50/10 text-[9px]">{tStat.toFixed(2)} (p={pVal.toFixed(3)})</td>
+                                           </>
                                          )}
-                                      </td>
-                                    )
-                                 })}
-                              </tr>
-                            ))}
-                            {projectResponses.length === 0 && (
-                              <tr>
-                                 <td colSpan={100} className="p-24 text-center">
-                                    <div className="flex flex-col items-center gap-4 opacity-30">
-                                       <Activity className="size-16" />
-                                       <p className="font-black uppercase tracking-widest text-sm">연동된 데이터가 없습니다. 상단의 엑셀 연동 기능을 사용하세요.</p>
-                                    </div>
-                                 </td>
-                              </tr>
-                            )}
-                         </tbody>
-                      </table>
-                   </div>
-                </Card>
-             ) : (
-                <div className="h-[500px] flex flex-col items-center justify-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
-                   <Users className="size-20 text-slate-100 mb-6" />
-                   <p className="text-slate-300 font-black uppercase tracking-[0.3em]">먼저 대상을 선정해 주세요</p>
-                </div>
-             )}
-          </div>
-        )}
-
-        {/* --- 성과 분석 대시보드 탭 --- */}
-        {activeTab === 'analysis' && (
-          <div className="space-y-12 animate-in slide-in-from-bottom-5">
-             {/* 1. 고도화된 필터바 */}
-             <Card className="rounded-[2.5rem] border-none shadow-xl bg-white p-8">
-                <div className="flex flex-col gap-8">
-                   <div className="flex bg-slate-100 p-1.5 rounded-2xl w-fit">
-                      <button 
-                        onClick={() => setSurveyType('SATISFACTION')}
-                        className={cn(
-                          "px-8 py-3 rounded-xl text-sm font-black transition-all flex items-center gap-2",
-                          surveyType === 'SATISFACTION' ? "bg-emerald-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-700"
-                        )}
-                      >
-                         <CheckCircle2 className="size-4" /> 만족도 성과 분석
-                      </button>
-                      <button 
-                        onClick={() => setSurveyType('COMPETENCY')}
-                        className={cn(
-                          "px-8 py-3 rounded-xl text-sm font-black transition-all flex items-center gap-2",
-                          surveyType === 'COMPETENCY' ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-700"
-                        )}
-                      >
-                         <Activity className="size-4" /> 사전사후 역량 성과
-                      </button>
-                   </div>
-
-                   <div className="flex flex-wrap items-end gap-6 border-t border-slate-50 pt-8">
-                      <div className="flex-1 min-w-[200px] space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">교육 기간 범위</label>
-                         <div className="flex items-center gap-2">
-                            <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none px-4 font-bold" />
-                            <span className="text-slate-300">~</span>
-                            <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none px-4 font-bold" />
-                         </div>
-                      </div>
-                      <div className="flex-1 min-w-[200px] space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">협력업체별 조회</label>
-                         <select 
-                           value={selectedPartnerId || ''} 
-                           onChange={(e) => setSelectedPartnerId(e.target.value || null)}
-                           className="w-full h-12 px-4 bg-slate-50 rounded-xl font-bold"
-                         >
-                            <option value="">전체 업체</option>
-                            {partners.map((p: string) => <option key={p} value={p}>{p}</option>)}
-                         </select>
-                      </div>
-                      <Button 
-                        onClick={handleRunAIAnalysis}
-                        disabled={isAnalyzing}
-                        className={cn(
-                          "h-12 px-8 rounded-xl font-black gap-2 shadow-lg text-white",
-                          surveyType === 'SATISFACTION' ? "bg-emerald-600 shadow-emerald-100" : "bg-blue-600 shadow-blue-100"
-                        )}
-                      >
-                         {isAnalyzing ? <Activity className="size-4 animate-spin" /> : <Wand2 className="size-4" />} AI 통합 리포트 생성
-                      </Button>
-                   </div>
+                                         <td className="p-6 text-center">
+                                            <div className="flex justify-center gap-2">
+                                               <Button onClick={() => { setEditingResponse(res.satResponses[0] || res.compResponses[0]); setIsEditDialogOpen(true); }} variant="ghost" size="icon" className="size-8 text-slate-200 hover:text-blue-600"><Edit className="size-4" /></Button>
+                                               <Button onClick={() => { if(confirm('삭제하시겠습니까?')) { if(res.satResponses[0]) deleteResponse(res.satResponses[0].id); if(res.compResponses[0]) deleteResponse(res.compResponses[0].id); } }} variant="ghost" size="icon" className="size-8 text-slate-200 hover:text-red-500"><Trash2 className="size-4" /></Button>
+                                            </div>
+                                         </td>
+                                      </tr>
+                                    );
+                                  })
+                               )}
+                               {mergedResponses.length > 0 && (
+                                  <tr className="bg-slate-900 text-white font-black text-xs">
+                                     <td colSpan={2} className="p-6 text-center uppercase tracking-widest text-slate-500">Overall Avg.</td>
+                                     {satQuestions.map(q => {
+                                        const avg = mergedResponses.reduce((s,r)=>s+(r.satResponses[0]?.answers.find(a=>a.questionId===q.id)?.score||0),0)/mergedResponses.length;
+                                        return <td key={q.id} className="p-4 text-center text-emerald-400">{avg.toFixed(2)}</td>;
+                                     })}
+                                     {satTmpl && <td className="p-6 text-center text-emerald-500 bg-white/5">{(mergedResponses.reduce((s,r)=>{
+                                        const ans = r.satResponses[0]?.answers || [];
+                                        return s + (ans.reduce((a,b)=>a+b.score,0)/(ans.length||1));
+                                     },0)/mergedResponses.length).toFixed(2)}</td>}
+                                     {compQuestions.map(q => {
+                                        const avg = mergedResponses.reduce((s,r)=>s+(r.compResponses[0]?.answers.find(a=>a.questionId===q.id)?.score||0),0)/mergedResponses.length;
+                                        return <td key={q.id} className="p-4 text-center text-blue-400">{avg.toFixed(2)}</td>;
+                                     })}
+                                     {compTmpl && (
+                                       <>
+                                         <td className="p-4 text-center text-blue-600 bg-white/5">{(mergedResponses.reduce((s,r)=>{
+                                            const ans = r.compResponses[0]?.answers || [];
+                                            return s + (ans.reduce((a,b)=>a+b.score,0)/(ans.length||1));
+                                         },0)/mergedResponses.length).toFixed(2)}</td>
+                                         <td colSpan={4} className="bg-white/5"></td>
+                                       </>
+                                     )}
+                                  </tr>
+                               )}
+                            </tbody>
+                          </table>
+                   </TooltipProvider>
                 </div>
              </Card>
 
-             {/* 2. 시각화 섹션 */}
-             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <Card className="lg:col-span-2 rounded-[3rem] border-none shadow-xl bg-white p-10 h-[500px]">
-                   <CardHeader className="p-0 mb-8">
-                      <CardTitle className="text-xl font-black flex items-center gap-2">
-                         <TrendingUp className="size-5 text-blue-600" /> {surveyType === 'SATISFACTION' ? '교육 만족도 지수' : '역량 향상 성과 지수'} (LV1-4)
-                      </CardTitle>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Performance Visualization</p>
-                   </CardHeader>
-                   <div className="h-[350px]">
-                       <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={Object.entries(aggregatedStats).slice(0, 10).map(([id, stats]) => ({
-                            name: (projects.find(p => p.id === id)?.name || 'Unknown').slice(0, 10) + '...',
-                            score: Number(stats.avg.toFixed(2)),
-                            preScore: Number((stats.preAvg || 0).toFixed(2)),
-                            postScore: Number((stats.postAvg || 0).toFixed(2))
-                          }))}>
-                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
-                             <YAxis domain={[0, 5]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
-                             <Tooltip contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                             {surveyType === 'COMPETENCY' ? (
-                               <>
-                                 <Bar dataKey="preScore" name="사전 점수" fill="#94a3b8" radius={[8, 8, 0, 0]} barSize={20} />
-                                 <Bar dataKey="postScore" name="사후 점수" fill="#3b82f6" radius={[8, 8, 0, 0]} barSize={20} />
-                               </>
-                             ) : (
-                               <Bar dataKey="score" name="만족도 평균" radius={[8, 8, 0, 0]} barSize={40}>
-                                  {Object.entries(aggregatedStats).map((_, i) => (
-                                    <Cell key={i} fill={i % 2 === 0 ? '#10b981' : '#34d399'} />
-                                  ))}
-                               </Bar>
-                             )}
-                          </BarChart>
-                       </ResponsiveContainer>
-                    </div>
-                </Card>
-
-                <Card className="rounded-[3rem] border-none shadow-xl bg-slate-900 text-white p-10 h-[500px] flex flex-col">
-                   <div className="mb-8">
-                      <CardTitle className="text-xl font-black flex items-center gap-2">
-                         <Activity className="size-5 text-blue-400" /> 주요 이상치 탐지
-                      </CardTitle>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Anomalies Detected</p>
-                   </div>
-                   <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                      {Object.entries(aggregatedStats)
-                        .filter(([, stats]) => (stats.avg < 3.0 && stats.avg > 0) || stats.avg > 4.8)
-                        .map(([id, stats], i) => (
-                           <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-                              <div className="flex justify-between items-center">
-                                 <Badge className={cn("text-[8px] font-black border-none", stats.avg < 3.0 ? "bg-red-500" : "bg-emerald-500")}>
-                                    {stats.avg < 3.0 ? "주의" : "최우수"}
-                                 </Badge>
-                                 <span className="text-xs font-black">{stats.avg.toFixed(2)}점</span>
-                              </div>
-                              <p className="text-xs font-bold text-slate-300 truncate">{projects.find(p => p.id === id)?.name}</p>
+             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="max-w-2xl rounded-[2.5rem] p-10 bg-white shadow-3xl">
+                   <DialogHeader><DialogTitle className="text-2xl font-black">데이터 수정</DialogTitle></DialogHeader>
+                   <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                      {editingResponse?.answers.map((ans, idx) => (
+                        <div key={idx} className="p-6 rounded-2xl bg-slate-50 space-y-3">
+                           <p className="text-xs font-black">Q. {editingResponse.templateId === projectTemplates.sat[0]?.id ? projectTemplates.sat[0].questions.find(q=>q.id===ans.questionId)?.content : projectTemplates.comp[0]?.questions.find(q=>q.id===ans.questionId)?.content}</p>
+                           <div className="flex gap-4">
+                              {ans.preScore !== undefined && <Input type="number" value={ans.preScore} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, preScore: Number(e.target.value)}:a)})} className="bg-white h-12 rounded-xl" placeholder="Pre" />}
+                              <Input type="number" value={ans.score} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, score: Number(e.target.value)}:a)})} className="bg-white h-12 rounded-xl" placeholder="Score/Post" />
                            </div>
-                        ))}
-                      {Object.values(aggregatedStats).filter(s => (s.avg < 3.0 && s.avg > 0) || s.avg > 4.8).length === 0 && (
-                        <div className="h-full flex flex-col items-center justify-center opacity-30 text-center">
-                           <Check className="size-10 mb-2" />
-                           <p className="text-[11px] font-black uppercase">현재 감지된<br/>이상치가 없습니다</p>
                         </div>
-                      )}
+                      ))}
+                   </div>
+                   <DialogFooter className="pt-6">
+                      <Button onClick={() => setIsEditDialogOpen(false)} variant="ghost">취소</Button>
+                      <Button onClick={async () => { if(editingResponse) { const { id, createdAt, ...updates } = editingResponse as any; await updateResponse(id, updates); setIsEditDialogOpen(false); alert('수정되었습니다.'); } }} className="bg-blue-600 text-white px-10 rounded-xl font-black">저장</Button>
+                   </DialogFooter>
+                </DialogContent>
+             </Dialog>
+          </div>
+        )}
+
+        {activeTab === 'analysis' && (
+          <div className="space-y-12 animate-in slide-in-from-bottom-5">
+             <Card className="rounded-[2.5rem] border-none shadow-xl bg-white p-8">
+                <div className="flex flex-wrap items-end gap-6">
+                   <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+                      <button onClick={() => setSurveyType('SATISFACTION')} className={cn("px-8 py-3 rounded-xl text-sm font-black transition-all", surveyType === 'SATISFACTION' ? "bg-emerald-600 text-white shadow-lg" : "text-slate-500")}>만족도 분석</button>
+                      <button onClick={() => setSurveyType('COMPETENCY')} className={cn("px-8 py-3 rounded-xl text-sm font-black transition-all", surveyType === 'COMPETENCY' ? "bg-blue-600 text-white shadow-lg" : "text-slate-500")}>역량 분석</button>
+                   </div>
+                   <div className="flex-1 min-w-[300px] flex gap-2">
+                     <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} className="h-12 bg-slate-50 border-none rounded-xl" />
+                     <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} className="h-12 bg-slate-50 border-none rounded-xl" />
+                   </div>
+                   <Button onClick={handleRunAIAnalysis} className="h-12 px-8 rounded-xl bg-slate-900 text-white font-black ml-auto shadow-xl"><Wand2 className="size-4 mr-2" /> AI 분석 리포트</Button>
+                </div>
+             </Card>
+
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <Card className="lg:col-span-2 rounded-[3rem] p-10 bg-white shadow-xl h-[500px]">
+                   <CardTitle className="text-xl font-black mb-8 flex items-center gap-2"><BarChart2 className="size-5 text-blue-600" /> 종합 교육 성과 지수</CardTitle>
+                   <ResponsiveContainer width="100%" height="85%">
+                      <ComposedChart data={projects.filter(p => aggregatedStats[p.id]?.count > 0).map(p => ({
+                        name: p.name,
+                        satisfaction: Number(aggregatedStats[p.id].satAvg.toFixed(2)),
+                        gain: Number(calculateHakeGain(aggregatedStats[p.id].preAvg, aggregatedStats[p.id].postAvg).toFixed(2)) * 5
+                      }))}>
+                         <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f1f5f9" />
+                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
+                         <YAxis domain={[0, 5]} axisLine={false} tickLine={false} />
+                         <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
+                         <Bar dataKey="satisfaction" name="만족도" fill="#dbeafe" radius={[10, 10, 0, 0]} barSize={40} />
+                         <Line type="monotone" dataKey="gain" name="역량향상도" stroke="#10b981" strokeWidth={4} />
+                      </ComposedChart>
+                   </ResponsiveContainer>
+                </Card>
+                <Card className="rounded-[3rem] p-10 bg-white shadow-xl h-[500px]">
+                   <CardTitle className="text-xl font-black mb-8 flex items-center gap-2"><PieChartIcon className="size-5 text-emerald-600" /> 향상도 분포</CardTitle>
+                   <ResponsiveContainer width="100%" height="70%">
+                      <PieChart>
+                         <Pie data={[
+                           { name: 'High', value: 30, fill: '#10b981' },
+                           { name: 'Mid', value: 50, fill: '#3b82f6' },
+                           { name: 'Low', value: 20, fill: '#ef4444' }
+                         ]} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
+                            <Cell fill="#10b981" /><Cell fill="#3b82f6" /><Cell fill="#ef4444" />
+                         </Pie>
+                      </PieChart>
+                   </ResponsiveContainer>
+                   <div className="space-y-2 mt-4">
+                      <div className="flex justify-between items-center text-xs font-black p-3 bg-emerald-50 rounded-xl"><span>High Gain</span><span>최우수 (0.7+)</span></div>
+                      <div className="flex justify-between items-center text-xs font-black p-3 bg-blue-50 rounded-xl"><span>Medium Gain</span><span>양호 (0.3+)</span></div>
                    </div>
                 </Card>
              </div>
 
-             {/* 3. AI 전문가 리포트 섹션 */}
              {aiSummary && (
-                <div ref={aiResultRef} className="animate-in slide-in-from-bottom-5">
-                   <Card className="rounded-[3rem] border-none shadow-2xl bg-white p-12 overflow-hidden relative">
-                      <div className="absolute top-0 right-0 p-12 opacity-5">
-                         <ClipboardCheck className="size-40" />
-                      </div>
-                      <div className="flex items-center justify-between mb-8 pb-8 border-b border-slate-50">
-                         <div className="flex items-center gap-3">
-                            <MessageSquare className="size-6 text-blue-600" />
-                            <CardTitle className="text-2xl font-black">15년차 시니어 컨설턴트 성과 보고서</CardTitle>
-                         </div>
-                         <Badge className="bg-slate-900 text-white font-black px-6 h-10 rounded-full text-[10px] tracking-widest uppercase">Expert Analysis</Badge>
-                      </div>
-                      
-                      <div className="prose prose-slate max-w-none prose-h3:text-blue-600 prose-h3:font-black prose-p:font-bold prose-p:text-slate-600 pb-10">
-                         <div className="whitespace-pre-wrap leading-relaxed text-slate-600 font-medium text-lg italic">
-                            {aiSummary}
-                         </div>
-                      </div>
-
-                      <div className="pt-8 border-t border-slate-50 flex justify-end gap-3">
-                         <Button variant="ghost" className="h-14 px-8 rounded-2xl font-black text-slate-400">데이터 내보내기</Button>
-                         <Button className="h-14 px-10 rounded-2xl bg-slate-900 font-black shadow-xl shadow-slate-900/20 gap-2 text-white">
-                           <Download className="size-4" /> PDF 리포트 저장
-                         </Button>
-                      </div>
-                   </Card>
-                </div>
+                <Card ref={aiResultRef} className="rounded-[3rem] p-12 bg-white shadow-2xl border-t-8 border-blue-600 animate-in slide-in-from-bottom-10">
+                   <div className="flex items-center gap-3 mb-8"><MessageSquare className="size-6 text-blue-600" /><CardTitle className="text-2xl font-black">AI 전문가 성과 리포트</CardTitle></div>
+                   <div className="prose prose-slate max-w-none prose-p:font-bold prose-p:text-slate-600 whitespace-pre-wrap leading-relaxed text-slate-700 text-lg">{aiSummary}</div>
+                   <div className="pt-10 flex justify-end gap-4"><Button variant="ghost" className="h-14 px-8 rounded-2xl font-black text-slate-400">CSV 내보내기</Button><Button className="h-14 px-10 rounded-2xl bg-slate-900 text-white font-black shadow-xl gap-2"><Download className="size-4" /> 리포트 PDF 저장</Button></div>
+                </Card>
              )}
           </div>
         )}
       </main>
 
-      {/* --- Excel Paste Dialog --- */}
       <Dialog open={isPasteDialogOpen} onOpenChange={setIsPasteDialogOpen}>
          <DialogContent className="max-w-2xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
             <DialogHeader className="bg-blue-600 text-white p-8">
-               <DialogTitle className="text-2xl font-black">엑셀 데이터 직접 붙여넣기</DialogTitle>
-               <DialogDescription className="text-blue-100 font-medium">
-                  엑셀(Excel)에서 데이터를 선택하여 복사한 후, 아래 입력창에 붙여넣어 주세요.<br/>
-                  순서: <span className="underline">[학습자명] | [사전] | [사후]</span> 나열 구조 지원
-               </DialogDescription>
+               <DialogTitle className="text-2xl font-black">데이터 복사/붙여넣기 연동</DialogTitle>
+               <DialogDescription className="text-blue-100 font-medium italic">엑셀 데이터를 [학습자명] [만족도순] [역량 사전/사후순]으로 복사해 주세요.</DialogDescription>
             </DialogHeader>
-            <div className="p-8 space-y-6">
-               <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                  <AlertCircle className="size-5 text-blue-600 shrink-0 mt-1" />
-                  <div className="text-[11px] font-bold text-blue-700 leading-relaxed">
-                     • 헤더행 없이 실제 데이터만 복사해 주세요.<br/>
-                     • 현재 템플릿(문항 {selectedTemplate?.questions?.length || 0}개)에 맞춰 문항당 사전/사후 2개 컬럼씩 필요합니다.<br/>
-                     • 탭 구분(Tab-separated) 형식을 자동으로 감지합니다.
-                  </div>
-               </div>
-               <Textarea 
-                 placeholder="여기에 붙여넣어 주세요..."
-                 value={pasteContent}
-                 onChange={(e) => setPasteContent(e.target.value)}
-                 className="h-64 rounded-2xl border-slate-200 font-mono text-xs p-6 shadow-inner bg-slate-50/50 focus-visible:ring-blue-100"
-               />
+            <div className="p-8 space-y-4">
+               <Textarea placeholder="여기에 붙여넣으세요..." value={pasteContent} onChange={(e) => setPasteContent(e.target.value)} className="h-64 rounded-2xl border-slate-200 font-mono text-xs p-6 bg-slate-50/50" />
+               <Button className="w-full h-16 rounded-2xl bg-blue-600 font-black text-white shadow-xl hover:bg-blue-700" onClick={handlePasteProcess}>연동 데이터 처리</Button>
             </div>
-            <DialogFooter className="p-8 bg-slate-50 flex gap-3">
-               <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black text-slate-400" onClick={() => setIsPasteDialogOpen(false)}>취소</Button>
-               <Button className="flex-[2] h-14 rounded-2xl bg-blue-600 font-black shadow-xl shadow-blue-100 hover:bg-blue-700 active:scale-95 transition-all text-white" onClick={handlePasteProcess}>연동 데이터 처리 실행</Button>
-            </DialogFooter>
          </DialogContent>
       </Dialog>
     </div>
