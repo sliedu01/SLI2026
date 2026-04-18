@@ -130,7 +130,19 @@ export default function SurveysPage() {
   const compQuestions = compTmpl?.questions.filter(q => q.type === 'SCALE') || [];
 
   const aggregatedStats = getAggregatedStats(projects, selectedProjectId, selectedPartnerId || undefined, surveyType);
-  const partners = Array.from(new Set(projects.map(p => p.partnerId).filter((id): id is string => !!id)));
+  
+  // 협력업체 목록 추출: partnerId가 해시코드(UUID)일 경우 가독성을 위해 프로젝트 이름으로 매핑
+  const partners = React.useMemo(() => {
+    const uniqueIds = Array.from(new Set(projects.map(p => p.partnerId).filter((id): id is string => !!id)));
+    return uniqueIds.map(id => {
+      const partnerProj = projects.find(p => p.id === id);
+      return {
+        id,
+        name: partnerProj ? partnerProj.name : id
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [projects]);
+
   const projectResponses = responses.filter(r => r.projectId === selectedProjectId);
 
   React.useEffect(() => {
@@ -305,7 +317,7 @@ export default function SurveysPage() {
                            <PopoverTrigger>
                              <Button variant="ghost" className="size-8 p-0"><Plus className="size-4" /></Button>
                            </PopoverTrigger>
-                           <PopoverContent className="w-56 p-2 rounded-2xl shadow-2xl bg-white">
+                           <PopoverContent className="size-56 p-2 rounded-2xl shadow-2xl bg-white border-none">
                               <div className="grid gap-1">
                                  <Button variant="ghost" className="justify-start font-bold gap-2 text-emerald-600" onClick={() => addTemplate({ name: '신규 만족도 조사', type: 'SATISFACTION', questions: createDefaultQuestions('SATISFACTION') })}><ClipboardCheck className="size-4" /> 만족도 조사 생성</Button>
                                  <Button variant="ghost" className="justify-start font-bold gap-2 text-blue-600" onClick={() => addTemplate({ name: '신규 역량 진단', type: 'COMPETENCY', questions: createDefaultQuestions('COMPETENCY') })}><Activity className="size-4" /> 역량 진단 생성</Button>
@@ -378,7 +390,7 @@ export default function SurveysPage() {
                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">협력업체 필터</label>
                      <select value={selectedPartnerId || ''} onChange={(e) => { setSelectedPartnerId(e.target.value || null); setSelectedProgramId(null); }} className="w-full h-12 px-4 bg-slate-50 rounded-xl font-black">
                         <option value="">전체 업체</option>
-                        {partners.map(id => <option key={id} value={id}>{id}</option>)}
+                        {partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                      </select>
                   </div>
 
@@ -436,7 +448,7 @@ export default function SurveysPage() {
                                                 </div>
                                                 <div className="space-y-3 text-[11px] leading-relaxed">
                                                    <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>교육 직후 역량 수준을 정량화한 수치입니다.</div>
-                                                   <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>교육 목표 수준(Pass/Fail) 도달 여부와 집단의 평균 성성을 진단합니다.</div>
+                                                   <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>교육 목표 수준(Pass/Fail) 도달 여부와 집단의 평균 성숙도를 진단합니다.</div>
                                                    <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>4.0 이상 (우수), 3.0 ~ 4.0 (양호), 3.0 미만 (보충 필요)</div>
                                                    <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-blue-200">산식: Σ(사후 점수) / 질문 수</div>
                                                 </div>
