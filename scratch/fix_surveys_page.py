@@ -1,4 +1,6 @@
-'use client';
+import sys
+
+content = """'use client';
 
 import * as React from 'react';
 import { 
@@ -73,9 +75,7 @@ export default function SurveysPage() {
     updateTemplate,
     deleteTemplate,
     addResponse,
-    clearProjectResponses,
-    getAggregatedStats,
-    createDefaultQuestions
+    clearProjectResponses
   } = useSurveyStore();
 
   const [activeTab, setActiveTab] = React.useState('templates');
@@ -95,6 +95,7 @@ export default function SurveysPage() {
   const [dateRange, setDateRange] = React.useState({ start: '', end: '' });
   const [surveyType, setSurveyType] = React.useState<SurveyType>('COMPETENCY');
 
+  const { getAggregatedStats, createDefaultQuestions } = useSurveyStore();
   const aggregatedStats = getAggregatedStats(projects, selectedProjectId, selectedPartnerId || undefined, surveyType);
 
   const partners = Array.from(new Set(projects.map(p => p.partnerId).filter((id): id is string => !!id)));
@@ -193,7 +194,7 @@ export default function SurveysPage() {
     if (!pasteContent.trim() || !selectedProjectId || !selectedTemplate) return;
 
     const rows = pasteContent.trim().split('\n');
-    const newResponses: Array<Omit<SurveyResponse, 'id' | 'createdAt'>> = [];
+    const newResponses: SurveyResponse[] = [];
     
     rows.forEach((row) => {
       const cols = row.split('\t').map(c => c.trim());
@@ -239,23 +240,19 @@ export default function SurveysPage() {
       });
 
       newResponses.push({
+        id: crypto.randomUUID(),
         projectId: selectedProjectId,
         templateId: selectedTemplate.id,
         respondentId,
         answers,
+        createdAt: Date.now()
       });
     });
 
-    Promise.all(newResponses.map(res => addResponse(res)))
-      .then(() => {
-        setPasteContent('');
-        setIsPasteDialogOpen(false);
-        alert(`${newResponses.length}명의 데이터를 성공적으로 연동했습니다.`);
-      })
-      .catch(err => {
-        console.error(err);
-        alert('데이터 연동 중 오류가 발생했습니다.');
-      });
+    newResponses.forEach(res => addResponse(res));
+    setPasteContent('');
+    setIsPasteDialogOpen(false);
+    alert(`${newResponses.length}명의 데이터를 성공적으로 연동했습니다.`);
   };
 
   const handleRunAIAnalysis = () => {
@@ -320,13 +317,9 @@ export default function SurveysPage() {
                       <CardTitle className="text-lg font-black flex justify-between items-center">
                          템플릿 레지스트리
                           <Popover>
-                            <PopoverTrigger 
-                              render={
-                                <Button variant="ghost" className="size-8 p-1 hover:bg-slate-100 rounded-lg flex items-center justify-center transition-colors">
-                                   <Plus className="size-4 text-slate-600" />
-                                </Button>
-                              }
-                            />
+                            <PopoverTrigger className="size-8 p-1 hover:bg-slate-100 rounded-lg flex items-center justify-center transition-colors">
+                               <Plus className="size-4 text-slate-600" />
+                            </PopoverTrigger>
                             <PopoverContent className="w-56 p-2 rounded-2xl shadow-2xl bg-white border border-slate-100 z-50">
                                <div className="grid gap-1">
                                   <Button 
@@ -376,7 +369,7 @@ export default function SurveysPage() {
                                      <p className="text-sm font-black truncate">{t.name}</p>
                                      <div className="flex items-center gap-2 mt-1 opacity-60">
                                         <Badge className="text-[8px] h-4 px-1.5 bg-white/20 text-white border-none">{t.type}</Badge>
-                                        <span className="text-[9px] font-bold uppercase">{t.questions?.length || 0} Questions</span>
+                                        <span className="text-[9px] font-bold uppercase">{t.questions.length || 0} Questions</span>
                                       </div>
                                    </div>
                                  </div>
@@ -432,7 +425,7 @@ export default function SurveysPage() {
                           <Button variant="outline" className="rounded-xl h-12 font-black border-slate-200">데이터 구조화</Button>
                           <Button 
                             onClick={handleSaveTemplate}
-                            className="rounded-xl h-12 px-8 bg-slate-900 font-black text-white"
+                            className="rounded-xl h-12 px-8 bg-slate-900 font-black"
                           >
                             최종 저장
                           </Button>
@@ -474,9 +467,7 @@ export default function SurveysPage() {
                                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">문항 유형</label>
                                     <Select 
                                       value={q.type || 'SCALE'} 
-                                      onValueChange={(val: 'SCALE' | 'TEXT' | null) => {
-                                        if (val) handleUpdateQuestion(q.id, 'type', val)
-                                      }}
+                                      onValueChange={(val: 'SCALE' | 'TEXT' | null) => val && handleUpdateQuestion(q.id, 'type', val)}
                                     >
                                       <SelectTrigger className={cn(
                                         "h-10 rounded-xl border-none font-black text-[10px] transition-colors",
@@ -697,7 +688,7 @@ export default function SurveysPage() {
                         onClick={handleRunAIAnalysis}
                         disabled={isAnalyzing}
                         className={cn(
-                          "h-12 px-8 rounded-xl font-black gap-2 shadow-lg text-white",
+                          "h-12 px-8 rounded-xl font-black gap-2 shadow-lg",
                           surveyType === 'SATISFACTION' ? "bg-emerald-600 shadow-emerald-100" : "bg-blue-600 shadow-blue-100"
                         )}
                       >
@@ -798,7 +789,7 @@ export default function SurveysPage() {
 
                       <div className="pt-8 border-t border-slate-50 flex justify-end gap-3">
                          <Button variant="ghost" className="h-14 px-8 rounded-2xl font-black text-slate-400">데이터 내보내기</Button>
-                         <Button className="h-14 px-10 rounded-2xl bg-slate-900 font-black shadow-xl shadow-slate-900/20 gap-2 text-white">
+                         <Button className="h-14 px-10 rounded-2xl bg-slate-900 font-black shadow-xl shadow-slate-900/20 gap-2">
                            <Download className="size-4" /> PDF 리포트 저장
                          </Button>
                       </div>
@@ -824,7 +815,7 @@ export default function SurveysPage() {
                   <AlertCircle className="size-5 text-blue-600 shrink-0 mt-1" />
                   <div className="text-[11px] font-bold text-blue-700 leading-relaxed">
                      • 헤더행 없이 실제 데이터만 복사해 주세요.<br/>
-                     • 현재 템플릿(문항 {selectedTemplate?.questions?.length || 0}개)에 맞춰 문항당 사전/사후 2개 컬럼씩 필요합니다.<br/>
+                     • 현재 템플릿(문항 {selectedTemplate?.questions.length || 0}개)에 맞춰 문항당 사전/사후 2개 컬럼씩 필요합니다.<br/>
                      • 탭 구분(Tab-separated) 형식을 자동으로 감지합니다.
                   </div>
                </div>
@@ -837,10 +828,13 @@ export default function SurveysPage() {
             </div>
             <DialogFooter className="p-8 bg-slate-50 flex gap-3">
                <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black text-slate-400" onClick={() => setIsPasteDialogOpen(false)}>취소</Button>
-               <Button className="flex-[2] h-14 rounded-2xl bg-blue-600 font-black shadow-xl shadow-blue-100 hover:bg-blue-700 active:scale-95 transition-all text-white" onClick={handlePasteProcess}>연동 데이터 처리 실행</Button>
+               <Button className="flex-[2] h-14 rounded-2xl bg-blue-600 font-black shadow-xl shadow-blue-100 hover:bg-blue-700 active:scale-95 transition-all" onClick={handlePasteProcess}>연동 데이터 처리 실행</Button>
             </DialogFooter>
          </DialogContent>
       </Dialog>
     </div>
   );
-}
+}"""
+
+with open('c:/seoul2026/src/app/surveys/page.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)

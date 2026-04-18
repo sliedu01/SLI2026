@@ -76,27 +76,38 @@ export function getAchievementLevel(gain: number): 'High' | 'Medium' | 'Low' {
  */
 export function generateAIExpertReport(
   projectList: Project[],
-  aggregatedData: Record<string, number>
+  aggregatedData: Record<string, { avg: number; preAvg?: number; postAvg?: number; count: number }>,
+  type: 'COMPETENCY' | 'SATISFACTION' = 'COMPETENCY'
 ): string {
   const lv1s = projectList.filter(p => p.level === 1);
   
   const reportStructure = lv1s.map(lv1 => {
-    const lv1Score = aggregatedData[lv1.id] || 0;
+    const lv1Stats = aggregatedData[lv1.id];
+    const lv1Score = lv1Stats?.avg || 0;
     const children = projectList.filter(p => p.parentId === lv1.id);
     
+    let analysisTypeLabel = type === 'SATISFACTION' ? '교육 만족도' : '사전사후 역량 향상';
+    let metricDetails = type === 'COMPETENCY' && lv1Stats 
+      ? `(사전: ${lv1Stats.preAvg?.toFixed(2)}, 사후: ${lv1Stats.postAvg?.toFixed(2)}, 향상도 분석 포함)`
+      : `(평균 점수: ${lv1Score.toFixed(2)}점)`;
+
     return `
 ### [종합 분석] ${lv1.name} (LV1)
-- **성과 요약**: 기술적 달성도 및 학습 만족도 지점 분석 (전체 평균: ${lv1Score.toFixed(2)}점)
+- **분석 유형**: ${analysisTypeLabel}
+- **성과 요약**: ${metricDetails}
 - **Insight**: 15년차 컨설턴트 관점에서 본 사업의 거시적 성과와 목표 달성 여부 해석.
 
 ### [세부 사업 분석] 구성 요소별 연결성 (LV2)
 ${children.map(lv2 => {
-  const lv2Score = aggregatedData[lv2.id] || 0;
+  const lv2Stats = aggregatedData[lv2.id];
+  const lv2Score = lv2Stats?.avg || 0;
   return `- **${lv2.name}**: 하위 프로그램들과의 유기적 연결성 평가 (평균: ${lv2Score.toFixed(2)}점)`;
 }).join('\n')}
 
-### [핵심 인사이트] 만족도 대비 역량 향상 (LV3-4)
-- 만족도와 실제 역량 향상폭 간의 상관관계를 탐색하여 교육 내용의 적합성을 분석합니다.
+### [핵심 인사이트] ${type === 'SATISFACTION' ? '교육 품질 및 만족 지점' : '역량 향상 및 학습 전이'} (LV3-4)
+- ${type === 'SATISFACTION' 
+    ? '교육 인프라, 강사, 콘텐츠 중 어떤 요소가 만족도에 가장 큰 기여를 했는지 분석합니다.' 
+    : '만족도와 실제 역량 향상폭 간의 상관관계를 탐색하여 교육 내용의 적합성을 분석합니다.'}
 - 데이터 이상치(유난히 높거나 낮은 점수) 발생 원인 추론 포함.
 
 ### [제언 및 액션 아이템]

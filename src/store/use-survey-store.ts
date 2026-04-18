@@ -54,7 +54,7 @@ interface SurveyState {
   
   // Helpers
   createDefaultQuestions: (type: SurveyType) => Question[];
-  getAggregatedStats: (projects: Project[], projectId: string | null, partnerId?: string, type?: SurveyType) => Record<string, number>;
+  getAggregatedStats: (projects: Project[], projectId: string | null, partnerId?: string, type?: SurveyType) => Record<string, { avg: number; preAvg?: number; postAvg?: number; count: number }>;
 }
 
 export const useSurveyStore = create<SurveyState>((set, get) => ({
@@ -167,16 +167,16 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
   },
 
   getAggregatedStats: (projects, projectId, partnerId, type) => {
-    const { responses } = get();
+    const { responses, templates } = get();
     
-    // 1. 기초 데이터 확보: 프로젝트별 평균 점수 계산 (LV4, LV3 등 직접 입력 데이터)
-    const projectAverages: Record<string, { avg: number, count: number }> = {};
+    // 1. 기초 데이터 확보: 프로젝트별 평균 점수 계산
+    const projectAverages: Record<string, { avg: number, preAvg: number, postAvg: number, count: number }> = {};
     
     responses.forEach(res => {
       // 1-1. 유형별 필터 (만족도/역량진단)
       if (type) {
-        const tmpl = get().templates.find(t => t.id === res.templateId);
-        if (tmpl?.type !== type) return;
+        const tmpl = templates.find(t => t.id === res.templateId);
+        if (!tmpl || tmpl.type !== type) return;
       }
 
       // 1-2. 파트너 필터 적용
@@ -188,43 +188,54 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
       const validAnswers = res.answers.filter(a => a.score !== undefined);
       if (validAnswers.length === 0) return;
 
-      const resAvg = validAnswers.reduce((sum, a) => sum + (a.score || 0), 0) / validAnswers.length;
-      
+      const resPostTotal = validAnswers.reduce((sum, a) => sum + (a.score || 0), 0);
+      const resPreTotal = validAnswers.reduce((sum, a) => sum + (a.preScore || 0), 0);
+      const resAvg = resPostTotal / validAnswers.length;
+      const resPreAvg = resPreTotal / validAnswers.length;
+      const resPostAvg = resPostTotal / validAnswers.length;
+
       if (!projectAverages[res.projectId]) {
-        projectAverages[res.projectId] = { avg: resAvg, count: 1 };
+        projectAverages[res.projectId] = { avg: resAvg, preAvg: resPreAvg, postAvg: resPostAvg, count: 1 };
       } else {
         const current = projectAverages[res.projectId];
+        const newCount = current.count + 1;
         projectAverages[res.projectId] = { 
-          avg: (current.avg * current.count + resAvg) / (current.count + 1),
-          count: current.count + 1
+          avg: (current.avg * current.count + resAvg) / newCount,
+          preAvg: (current.preAvg * current.count + resPreAvg) / newCount,
+          postAvg: (current.postAvg * current.count + resPostAvg) / newCount,
+          count: newCount
         };
       }
     });
 
     // 2. 계층형 집계 (LV4 -> LV3 -> LV2 -> LV1)
-    const aggregatedData: Record<string, number> = {};
+    const aggregatedData: Record<string, { avg: number; preAvg?: number; postAvg?: number; count: number }> = {};
 
-    const calculateRecursive = (id: string): number => {
+    const calculateRecursive = (id: string): { avg: number; preAvg: number; postAvg: number; count: number } => {
       const children = projects.filter(p => p.parentId === id);
-      
-      // 직접 입력된 데이터가 있는 경우 (주로 LV4, LV3)
-      const directAvg = projectAverages[id]?.avg || 0;
+      const directData = projectAverages[id] || { avg: 0, preAvg: 0, postAvg: 0, count: 0 };
 
       if (children.length === 0) {
-        return directAvg;
+        return directData;
       }
 
-      // 하위 프로젝트들의 평균의 평균 계산
-      const childAvgs = children.map(c => calculateRecursive(c.id)).filter(v => v > 0);
+      const childStats = children.map(c => calculateRecursive(c.id)).filter(s => s.count > 0 || s.avg > 0);
       
-      if (childAvgs.length === 0) return directAvg;
+      if (childStats.length === 0) return directData;
       
-      // 본인이 점수가 있고 자식도 있는 경우 -> 가중치 없이 평균냄 (보통은 상위는 자식 합산이 원칙)
-      const childrenMean = childAvgs.reduce((a, b) => a + b, 0) / childAvgs.length;
-      return childrenMean;
+      const totalCount = childStats.reduce((acc, s) => acc + s.count, 0);
+      const avgSum = childStats.reduce((acc, s) => acc + s.avg, 0) / childStats.length;
+      const preAvgSum = childStats.reduce((acc, s) => acc + s.preAvg, 0) / childStats.length;
+      const postAvgSum = childStats.reduce((acc, s) => acc + s.postAvg, 0) / childStats.length;
+
+      return {
+        avg: avgSum,
+        preAvg: preAvgSum,
+        postAvg: postAvgSum,
+        count: totalCount
+      };
     };
 
-    // 타겟이 있으면 해당 타겟부터 시작, 없으면 루트(LV1)들 전체 집계
     if (projectId) {
       aggregatedData[projectId] = calculateRecursive(projectId);
     } else {

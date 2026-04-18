@@ -26,7 +26,7 @@ export default function ReportPage() {
 
   const { projects } = useProjectStore();
   const { executions } = useBudgetStore();
-  const { responses: surveys } = useSurveyStore();
+  const { responses: surveys, templates } = useSurveyStore();
 
   const project = projects.find(p => p.id === projectId);
   const [mounted, setMounted] = React.useState(false);
@@ -57,30 +57,50 @@ export default function ReportPage() {
     const targetIds = deep ? [pId, ...getAllChildIds(pId)] : [pId];
     const pSurveys = surveys.filter(s => targetIds.includes(s.projectId));
     
-    let preSum = 0;
-    let postSum = 0;
-    let scoreCount = 0;
+    // 1. 역량 진단 통계 (Pre/Post)
+    let compPreSum = 0;
+    let compPostSum = 0;
+    let compScoreCount = 0;
     const allPreScores: number[] = [];
     const allPostScores: number[] = [];
+    let compRespondentCount = 0;
+
+    // 2. 만족도 조사 통계 (Score only)
+    let satSum = 0;
+    let satScoreCount = 0;
+    let satRespondentCount = 0;
 
     pSurveys.forEach(s => {
+      const tmpl = templates.find(t => t.id === s.templateId);
+      const isComp = tmpl?.type === 'COMPETENCY';
+      
+      if (isComp) compRespondentCount++;
+      else satRespondentCount++;
+
       s.answers.forEach(ans => {
         if (ans.score !== undefined) {
-          preSum += ans.preScore || 0;
-          postSum += ans.score || 0;
-          allPreScores.push(ans.preScore || 0);
-          allPostScores.push(ans.score || 0);
-          scoreCount++;
+          if (isComp) {
+            compPreSum += ans.preScore || 0;
+            compPostSum += ans.score || 0;
+            allPreScores.push(ans.preScore || 0);
+            allPostScores.push(ans.score || 0);
+            compScoreCount++;
+          } else {
+            satSum += ans.score || 0;
+            satScoreCount++;
+          }
         }
       });
     });
 
-    const avgPost = scoreCount > 0 ? postSum / scoreCount : 0;
-    const avgPre = scoreCount > 0 ? preSum / scoreCount : 0;
-    const normalizedScore = (avgPost / 5) * 100;
-    const hakeGain = calculateHakeGain(avgPre, avgPost);
+    const avgCompPost = compScoreCount > 0 ? compPostSum / compScoreCount : 0;
+    const avgCompPre = compScoreCount > 0 ? compPreSum / compScoreCount : 0;
+    const hakeGain = calculateHakeGain(avgCompPre, avgCompPost);
     const cohensD = calculateCohensD(allPreScores, allPostScores);
     
+    const avgSat = satScoreCount > 0 ? satSum / satScoreCount : 0;
+    const normalizedSatScore = (avgSat / 5) * 100;
+
     // 예산 데이터 집계
     const projectExecutions = executions.filter(ex => ex.projectId && targetIds.includes(ex.projectId));
     const pBudget = projectExecutions.reduce((acc, ex) => acc + ex.budgetAmount, 0);
@@ -88,15 +108,18 @@ export default function ReportPage() {
     const execRate = pBudget > 0 ? (pSpent / pBudget) * 100 : 0;
 
     return { 
-      normalizedScore, 
+      normalizedSatScore,
+      avgSat,
       execRate, 
       pBudget, 
       pSpent, 
-      respondentCount: pSurveys.length,
+      compRespondentCount,
+      satRespondentCount,
+      totalRespondentCount: pSurveys.length,
       hakeGain,
       cohensD,
-      avgPre,
-      avgPost
+      avgCompPre,
+      avgCompPost
     };
   };
 
@@ -106,7 +129,8 @@ export default function ReportPage() {
     const stats = getProjectStats(p.id, true);
     return {
       name: p.name,
-      '성과지수(100)': stats.normalizedScore,
+      '만족도(100)': stats.normalizedSatScore,
+      '역량향상(Gain)': stats.hakeGain * 100,
       '집행률(%)': stats.execRate
     };
   });
@@ -150,20 +174,24 @@ export default function ReportPage() {
            
            <div className="grid grid-cols-4 gap-6 mb-10">
               <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">평균 성과점수</p>
-                 <p className="text-3xl font-black text-slate-900">{projectStats.normalizedScore.toFixed(1)}<span className="text-xs text-slate-400 ml-1">/100</span></p>
+                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">교육 만족도</p>
+                 <p className="text-3xl font-black text-slate-900">{projectStats.normalizedSatScore.toFixed(1)}<span className="text-xs text-slate-400 ml-1">/100</span></p>
+                 <p className="text-[10px] font-bold text-slate-400 mt-1">평균 {projectStats.avgSat.toFixed(2)}점</p>
               </div>
               <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">예산 집행률</p>
                  <p className="text-3xl font-black text-slate-900">{projectStats.execRate.toFixed(1)}%</p>
+                 <p className="text-[10px] font-bold text-slate-400 mt-1">₩{(projectStats.pSpent/10000).toLocaleString()}만 지출</p>
               </div>
               <div className="p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
                  <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">Hake&apos;s Gain</p>
                  <p className="text-3xl font-black text-indigo-700">{projectStats.hakeGain.toFixed(2)}</p>
+                 <p className="text-[10px] font-bold text-indigo-400 mt-1">잠재력 대비 성취도</p>
               </div>
               <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100">
                  <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Cohen&apos;s d</p>
                  <p className="text-3xl font-black text-emerald-700">{projectStats.cohensD.toFixed(2)}</p>
+                 <p className="text-[10px] font-bold text-emerald-400 mt-1">효과 크기 (Effect Size)</p>
               </div>
            </div>
 
@@ -174,8 +202,9 @@ export default function ReportPage() {
                    <XAxis dataKey="name" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
                    <YAxis fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                   <Bar dataKey="성과지수(100)" fill="#1e293b" radius={[4, 4, 0, 0]} barSize={20} />
-                   <Bar dataKey="집행률(%)" fill="#60a5fa" radius={[4, 4, 0, 0]} barSize={20} />
+                   <Bar dataKey="만족도(100)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={15} />
+                   <Bar dataKey="역량향상(Gain)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={15} />
+                   <Bar dataKey="집행률(%)" fill="#64748b" radius={[4, 4, 0, 0]} barSize={15} />
                  </BarChart>
               </ResponsiveContainer>
            </div>
@@ -210,18 +239,18 @@ export default function ReportPage() {
                     </div>
                  </div>
                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center">
-                    <p className="text-[10px] font-black text-slate-300 uppercase mb-4">Normalized Score Progress</p>
+                    <p className="text-[10px] font-black text-slate-300 uppercase mb-4">Competency Growth</p>
                     <div className="flex items-end gap-6 h-32">
                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-12 bg-slate-200 rounded-t-xl" style={{ height: `${projectStats.avgPre * 20}px` }}></div>
+                          <div className="w-12 bg-slate-200 rounded-t-xl" style={{ height: `${projectStats.avgCompPre * 20}px` }}></div>
                           <span className="text-[10px] font-black text-slate-400">PRE</span>
                        </div>
                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-12 bg-blue-600 rounded-t-xl" style={{ height: `${projectStats.avgPost * 20}px` }}></div>
+                          <div className="w-12 bg-blue-600 rounded-t-xl" style={{ height: `${projectStats.avgCompPost * 20}px` }}></div>
                           <span className="text-[10px] font-black text-blue-600">POST</span>
                        </div>
                     </div>
-                    <Badge className="mt-6 bg-blue-50 text-blue-600 border-none font-black px-4">+{(projectStats.avgPost - projectStats.avgPre).toFixed(2)} Point Up</Badge>
+                    <Badge className="mt-6 bg-blue-50 text-blue-600 border-none font-black px-4">+{(projectStats.avgCompPost - projectStats.avgCompPre).toFixed(2)} Point Up</Badge>
                  </div>
               </div>
            </div>
@@ -240,27 +269,27 @@ export default function ReportPage() {
                         <div key={p.id} className="p-8 bg-slate-50/50 rounded-3xl border border-slate-100 hover:bg-white hover:shadow-xl transition-all">
                            <div className="flex justify-between items-center mb-6">
                               <h3 className="font-black text-slate-800">{idx+1}. {p.name}</h3>
-                              <div className="flex gap-2">
-                                 <Badge className="bg-slate-200 text-slate-600 border-none">Gain: {stats.hakeGain.toFixed(2)}</Badge>
-                                 <Badge className="bg-slate-900 text-white">Score: {stats.normalizedScore.toFixed(1)}</Badge>
-                              </div>
                            </div>
-                           <div className="grid grid-cols-4 gap-4">
+                           <div className="grid grid-cols-5 gap-4">
+                              <div className="text-center">
+                                 <p className="text-[9px] font-black text-slate-400 uppercase mb-1">만족도</p>
+                                 <p className="text-base font-black text-emerald-600">{stats.normalizedSatScore.toFixed(1)}</p>
+                              </div>
+                              <div className="text-center">
+                                 <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Gain</p>
+                                 <p className="text-base font-black text-blue-600">{stats.hakeGain.toFixed(2)}</p>
+                              </div>
                               <div className="text-center">
                                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">집행률</p>
-                                 <p className="text-base font-black text-blue-600">{stats.execRate.toFixed(1)}%</p>
+                                 <p className="text-base font-black text-slate-700">{stats.execRate.toFixed(1)}%</p>
                               </div>
                               <div className="text-center">
                                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">투입예산</p>
                                  <p className="text-base font-black text-slate-700">₩{(stats.pBudget/10000).toLocaleString()}만</p>
                               </div>
                               <div className="text-center">
-                                 <p className="text-[9px] font-black text-slate-400 uppercase mb-1">조사인원</p>
-                                 <p className="text-base font-black text-slate-700">{stats.respondentCount}명</p>
-                              </div>
-                              <div className="text-center">
-                                 <p className="text-[9px] font-black text-slate-400 uppercase mb-1">효과크기</p>
-                                 <p className="text-base font-black text-emerald-600">{stats.cohensD.toFixed(2)}</p>
+                                 <p className="text-[9px] font-black text-slate-400 uppercase mb-1">총 인원</p>
+                                 <p className="text-base font-black text-slate-700">{stats.totalRespondentCount}명</p>
                               </div>
                            </div>
                         </div>

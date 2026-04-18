@@ -138,9 +138,9 @@ export default function ProjectsPage() {
     const satisfactionStats = getAggregatedStats(projects, p.id, undefined, 'SATISFACTION');
     const competencyStats = getAggregatedStats(projects, p.id, undefined, 'COMPETENCY');
 
-    const avgSatisfaction = satisfactionStats[p.id] || 0;
+    const avgSatisfaction = satisfactionStats[p.id]?.avg || 0;
     const satisfaction100 = avgSatisfaction * 20;
-    const avgScore = competencyStats[p.id] || 0;
+    const avgScore = competencyStats[p.id]?.avg || 0;
     
     // 역량 향상은 현재 로직상 '성취도'로 표시하거나, 
     // 기초 데이터(responses)에서 직접 gap을 계산해야 하므로 하위 호환을 위해 유지합니다.
