@@ -40,7 +40,7 @@ import {
   Lightbulb,
   ShieldCheck,
   Rocket
-} from '';
+} from 'lucide-react';
 
 import { Button } from 'components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from 'components/ui/card';
@@ -61,7 +61,7 @@ import { Badge } from 'components/ui/badge';
 import { Textarea } from 'components/ui/textarea';
 import { Separator } from 'components/ui/separator';
 import { Checkbox } from "@/components/ui/checkbox";
-import { format } from '';
+import { format } from 'date-fns';
 import { 
   Dialog, 
   DialogContent, 
@@ -111,7 +111,7 @@ import {
   Legend,
   Tooltip as ChartTooltip,
   LabelList
-} from '';
+} from 'recharts';
 
 export default function SurveysPage() {
   const [mounted, setMounted] = React.useState(false);
@@ -1087,10 +1087,10 @@ export default function SurveysPage() {
                             <Badge className="bg-emerald-600 text-white font-black text-[10px] px-3 py-1 rounded-full">500자 정밀 분석</Badge>
                         </div>
                         <p className="text-[15px] font-bold text-slate-800 leading-[1.8] text-pretty whitespace-pre-wrap">
-                          {ExpertReportGenerator.generateSatisfactionOpinion(
+                          {overallStats ? ExpertReportGenerator.generateSatisfactionOpinion(
                             projects.filter(p => selectedProjectIds.includes(p.id)), 
                             overallStats
-                          )}
+                          ) : '전체 요약 데이터를 불러오는 중입니다...'}
                         </p>
                       </div>
                     </Card>
@@ -1156,10 +1156,10 @@ export default function SurveysPage() {
                             <Badge className="bg-blue-600 text-white font-black text-[10px] px-3 py-1 rounded-full">500자 정밀 분석</Badge>
                         </div>
                         <p className="text-[15px] font-bold text-slate-800 leading-[1.8] text-pretty whitespace-pre-wrap">
-                          {ExpertReportGenerator.generateCompetencyOpinion(
+                          {overallStats ? ExpertReportGenerator.generateCompetencyOpinion(
                             projects.filter(p => selectedProjectIds.includes(p.id)), 
                             overallStats
-                          )}
+                          ) : '성장 분석 데이터를 불러오는 중입니다...'}
                         </p>
                       </div>
                     </Card>
@@ -1182,12 +1182,12 @@ export default function SurveysPage() {
                             <div className="flex items-center gap-6">
                                 <div className="text-right">
                                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Normalized Gain</p>
-                                    <p className="text-3xl font-black text-blue-400">{(overallStats.hakeGain * 100).toFixed(1)}%</p>
+                                    <p className="text-3xl font-black text-blue-400">{((overallStats?.hakeGain || 0) * 100).toFixed(1)}%</p>
                                 </div>
                                 <div className="h-12 w-px bg-white/10" />
                                 <div className="text-right">
                                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Overall Satisfaction</p>
-                                    <p className="text-3xl font-black text-emerald-400">{overallStats.satAvg.toFixed(2)}</p>
+                                    <p className="text-3xl font-black text-emerald-400">{(overallStats?.satAvg || 0).toFixed(2)}</p>
                                 </div>
                             </div>
                         </div>
@@ -1195,10 +1195,10 @@ export default function SurveysPage() {
                         <div className="relative z-10 grid grid-cols-1 gap-12">
                             <div className="space-y-10">
                                 <p className="text-[17px] font-medium leading-[2.2] text-slate-300 whitespace-pre-wrap selection:bg-blue-500/30">
-                                    {ExpertReportGenerator.generateConsultingReport(
+                                    {overallStats ? ExpertReportGenerator.generateConsultingReport(
                                         projects.filter(p => selectedProjectIds.includes(p.id)), 
                                         overallStats
-                                    )}
+                                    ) : '데이터 로딩 중...'}
                                 </p>
                             </div>
                         </div>
