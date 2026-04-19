@@ -440,7 +440,7 @@ export default function SurveysPage() {
                         <PopoverTrigger render={
                           <Button variant="outline" className={cn(
                             "w-full h-12 justify-start px-4 rounded-xl font-black text-sm gap-3 border-slate-100 bg-slate-50 hover:bg-slate-100 transition-all",
-                            targetIdForData ? "text-slate-900 shadow-sm" : "text-slate-400"
+                            selectedProjectIds.length > 0 ? "text-slate-900 shadow-sm" : "text-slate-400"
                           )}>
                              <Layers className="size-4 shrink-0 text-blue-500" />
                              <span className="truncate">{selectionPath}</span>
@@ -528,7 +528,11 @@ export default function SurveysPage() {
                                               
                                               <div className="flex flex-col gap-0.5 overflow-hidden">
                                                 <div className="flex items-center gap-2">
-                                                   <span className="text-xs font-black truncate">{p.name}</span>
+                                                   <span className="text-xs font-black truncate">
+                                                     {p.level === 3 && p.partnerId ? (partners.find(ptr => ptr.id === p.partnerId)?.name || p.name) : 
+                                                      p.level === 4 && p.partnerId ? `${partners.find(ptr => ptr.id === p.partnerId)?.name || '미지정'} (${p.name})` : 
+                                                      p.name}
+                                                   </span>
                                                    <Badge variant="outline" className={cn(
                                                      "text-[8px] font-black h-4 px-1 border-none",
                                                      isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
@@ -817,107 +821,189 @@ export default function SurveysPage() {
                                                <td className="p-4 text-center text-blue-600 bg-white/5">{overall?.postAvg?.toFixed(2) || '0.00'}</td>
                                                <td className="p-4 text-center text-emerald-400 bg-white/5">{overall?.hakeGain?.toFixed(2) || '0.00'}</td>
                                                <td className="p-4 text-center text-amber-400 bg-white/5">{overall?.cohensD?.toFixed(2) || '0.00'}</td>
-                                               <td className="p-4 text-center text-purple-400 bg-white/5">{overall?.pValue?.toFixed(3) || '1.000'}</td>
-                                               <td className="bg-white/5"></td>
+                                               <td className="p-4 text-center text-purple-400 bg-white/5">{overall?.pValue?.toFixed(3) || '0.00'}</td>
+                                               <td className="p-4 text-center">-</td>
                                              </>
                                            )}
                                         </tr>
                                       )}
                                     </>
                                   );
-                                })()}
+                               })()}
                              </tbody>
-                          </table>
-                   </TooltipProvider>
-                </div>
-             </Card>
+                           </table>
+                    </TooltipProvider>
+                 </div>
+              </Card>
 
-             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="max-w-2xl rounded-[2.5rem] p-10 bg-white shadow-3xl">
-                   <DialogHeader><DialogTitle className="text-2xl font-black">데이터 수정</DialogTitle></DialogHeader>
-                   <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                      {editingResponse?.answers.map((ans, idx) => (
-                        <div key={idx} className="p-6 rounded-2xl bg-slate-50 space-y-3">
-                           <p className="text-xs font-black">질문 {idx+1}. {editingResponse.templateId === projectTemplates.sat[0]?.id ? projectTemplates.sat[0].questions.find(q=>q.id===ans.questionId)?.content : projectTemplates.comp[0]?.questions.find(q=>q.id===ans.questionId)?.content}</p>
-                           <div className="flex gap-4">
-                              {ans.preScore !== undefined && <Input type="number" value={ans.preScore} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, preScore: Number(e.target.value)}:a)})} className="bg-white h-12 rounded-xl" placeholder="사전" />}
-                              <Input type="number" value={ans.score} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, score: Number(e.target.value)}:a)})} className="bg-white h-12 rounded-xl" placeholder="사후/점수" />
-                           </div>
-                        </div>
-                      ))}
-                   </div>
-                   <DialogFooter className="pt-6">
-                      <Button onClick={() => setIsEditDialogOpen(false)} variant="ghost">취소</Button>
-                      <Button onClick={async () => { if(editingResponse) { const { id, createdAt, ...updates } = editingResponse as any; await updateResponse(id, updates); setIsEditDialogOpen(false); alert('수정되었습니다.'); } }} className="bg-blue-600 text-white px-10 rounded-xl font-black">저장</Button>
-                   </DialogFooter>
-                </DialogContent>
-             </Dialog>
-          </div>
-        )}
+              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                 <DialogContent className="max-w-2xl rounded-[2.5rem] p-10 bg-white shadow-3xl">
+                    <DialogHeader><DialogTitle className="text-2xl font-black">데이터 수정</DialogTitle></DialogHeader>
+                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                       {editingResponse?.answers.map((ans, idx) => (
+                         <div key={idx} className="p-6 rounded-2xl bg-slate-50 space-y-3">
+                            <p className="text-xs font-black">질문 {idx+1}. {editingResponse.templateId === projectTemplates.sat[0]?.id ? projectTemplates.sat[0].questions.find(q=>q.id===ans.questionId)?.content : projectTemplates.comp[0]?.questions.find(q=>q.id===ans.questionId)?.content}</p>
+                            <div className="flex gap-4">
+                               {ans.preScore !== undefined && <Input type="number" value={ans.preScore} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, preScore: Number(e.target.value)}:a)})} className="bg-white h-12 rounded-xl" placeholder="사전" />}
+                               <Input type="number" value={ans.score} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, score: Number(e.target.value)}:a)})} className="bg-white h-12 rounded-xl" placeholder="사후/점수" />
+                            </div>
+                         </div>
+                       ))}
+                    </div>
+                       <DialogFooter className="pt-6">
+                          <Button onClick={() => setIsEditDialogOpen(false)} variant="ghost">취소</Button>
+                          <Button onClick={async () => { if(editingResponse) { const { id, createdAt, ...updates } = editingResponse as any; await updateResponse(id, updates); setIsEditDialogOpen(false); alert('수정되었습니다.'); } }} className="bg-blue-600 text-white px-10 rounded-xl font-black">저장</Button>
+                       </DialogFooter>
+                    </DialogContent>
+                 </Dialog>
+              </div>
+            )}
 
-        {activeTab === 'analysis' && (
-          <div className="space-y-12 animate-in slide-in-from-bottom-5">
-             <Card className="rounded-[2.5rem] border-none shadow-xl bg-white p-8">
-                <div className="flex flex-wrap items-end gap-6">
-                   <div className="flex bg-slate-100 p-1.5 rounded-2xl">
-                      <button onClick={() => setSurveyType('SATISFACTION')} className={cn("px-8 py-3 rounded-xl text-sm font-black transition-all", surveyType === 'SATISFACTION' ? "bg-emerald-600 text-white shadow-lg" : "text-slate-500")}>만족도 분석</button>
-                      <button onClick={() => setSurveyType('COMPETENCY')} className={cn("px-8 py-3 rounded-xl text-sm font-black transition-all", surveyType === 'COMPETENCY' ? "bg-blue-600 text-white shadow-lg" : "text-slate-500")}>역량 분석</button>
-                   </div>
-                   <div className="flex-1 min-w-[300px] flex gap-2">
-                     <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} className="h-12 bg-slate-50 border-none rounded-xl" />
-                     <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} className="h-12 bg-slate-50 border-none rounded-xl" />
-                   </div>
-                   <Button onClick={handleRunAIAnalysis} className="h-12 px-8 rounded-xl bg-slate-900 text-white font-black ml-auto shadow-xl"><Wand2 className="size-4 mr-2" /> AI 분석 리포트</Button>
-                </div>
-             </Card>
+            {activeTab === 'analysis' && (
+              <div className="space-y-12 animate-in slide-in-from-bottom-5">
+                 <Card className="rounded-[2.5rem] border-none shadow-xl bg-white p-8 overflow-visible">
+                 <div className="flex flex-wrap items-end gap-6">
+                    <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+                       <button onClick={() => setSurveyType('SATISFACTION')} className={cn("px-8 py-3 rounded-xl text-sm font-black transition-all", surveyType === 'SATISFACTION' ? "bg-emerald-600 text-white shadow-lg" : "text-slate-500")}>만족도 분석</button>
+                       <button onClick={() => setSurveyType('COMPETENCY')} className={cn("px-8 py-3 rounded-xl text-sm font-black transition-all", surveyType === 'COMPETENCY' ? "bg-blue-600 text-white shadow-lg" : "text-slate-500")}>역량 분석</button>
+                    </div>
+                    
+                    <div className="flex-1 min-w-[300px] space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">사업 / 프로그램 탐색기 (다중선택)</label>
+                       <Popover open={isProjectSelectorOpen} onOpenChange={setIsProjectSelectorOpen}>
+                          <PopoverTrigger render={
+                            <Button variant="outline" className={cn(
+                              "w-full h-12 justify-start px-4 rounded-xl font-black text-sm gap-3 border-slate-100 bg-slate-50 hover:bg-slate-100 transition-all",
+                              selectedProjectIds.length > 0 ? "text-slate-900 shadow-sm" : "text-slate-400"
+                            )}>
+                               <Layers className="size-4 shrink-0 text-blue-500" />
+                               <span className="truncate">{selectionPath}</span>
+                               {selectedProjectIds.length > 0 && (
+                                 <Badge className="ml-2 bg-blue-100 text-blue-600 border-none px-2 py-0.5 text-[9px] font-black">
+                                   {selectedProjectIds.length}
+                                 </Badge>
+                               )}
+                               <ChevronDown className="size-4 ml-auto opacity-50" />
+                            </Button>
+                          } />
+                          <PopoverContent className="w-[480px] p-0 rounded-[2rem] shadow-2xl border-none bg-white overflow-hidden max-h-[600px] flex flex-col" align="start">
+                             <div className="p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
+                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                                  <Search className="size-4 text-slate-400" /> 사업 탐색 및 다중 선택
+                                </h3>
+                                {selectedProjectIds.length > 0 && (
+                                  <Button variant="ghost" size="sm" onClick={() => setSelectedProjectIds([])} className="h-7 px-3 text-[10px] font-black text-red-500">전체 선택 해제</Button>
+                                )}
+                             </div>
+                             <div className="overflow-y-auto p-4 custom-scrollbar flex-1 bg-white">
+                                <div className="py-2 text-[10px] text-slate-400 font-bold mb-2 px-1 lowercase tracking-wider">조회할 사업들을 체크해 주세요.</div>
+                                {(() => {
+                                  const toggleId = (id: string, e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    setSelectedProjectIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+                                  };
 
-             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                <Card className="lg:col-span-2 rounded-[3rem] p-10 bg-white shadow-xl h-[500px]">
-                   <CardTitle className="text-xl font-black mb-8 flex items-center gap-2"><BarChart2 className="size-5 text-blue-600" /> 종합 교육 성과 지수</CardTitle>
-                   <ResponsiveContainer width="100%" height="85%">
-                      <ComposedChart data={projects.filter(p => (aggregatedStats[p.id]?.count || 0) > 0).map(p => ({
-                        name: p.name,
-                        satisfaction: Number((aggregatedStats[p.id]?.satAvg || 0).toFixed(2)),
-                        gain: Number((aggregatedStats[p.id]?.hakeGain || 0).toFixed(2)) * 5
-                       }))}>
-                         <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f1f5f9" />
-                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
-                         <YAxis domain={[0, 5]} axisLine={false} tickLine={false} />
-                         <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
-                         <Bar dataKey="satisfaction" name="만족도" fill="#dbeafe" radius={[10, 10, 0, 0]} barSize={40} />
-                         <Line type="monotone" dataKey="gain" name="역량향상도" stroke="#10b981" strokeWidth={4} />
-                      </ComposedChart>
-                   </ResponsiveContainer>
-                </Card>
-                <Card className="rounded-[3rem] p-10 bg-white shadow-xl h-[500px]">
-                   <CardTitle className="text-xl font-black mb-8 flex items-center gap-2"><PieChartIcon className="size-5 text-emerald-600" /> 향상도 분포</CardTitle>
-                   <ResponsiveContainer width="100%" height="70%">
-                      <PieChart>
-                         <Pie data={[
-                           { name: '대폭 향상', value: 30, fill: '#10b981' },
-                           { name: '보통 향상', value: 50, fill: '#3b82f6' },
-                           { name: '미미', value: 20, fill: '#ef4444' }
-                         ]} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
-                            <Cell fill="#10b981" /><Cell fill="#3b82f6" /><Cell fill="#ef4444" />
-                         </Pie>
-                      </PieChart>
-                   </ResponsiveContainer>
-                   <div className="space-y-2 mt-4">
-                      <div className="flex justify-between items-center text-xs font-black p-3 bg-emerald-50 rounded-xl"><span>High Gain</span><span>최우수 (0.7+)</span></div>
-                      <div className="flex justify-between items-center text-xs font-black p-3 bg-blue-50 rounded-xl"><span>Medium Gain</span><span>양호 (0.3+)</span></div>
-                   </div>
-                </Card>
-             </div>
+                                  const renderNodes = (parentId: string | null, depth: number = 0): React.ReactNode => {
+                                    const filteredRows = projects.filter(p => p.parentId === parentId);
+                                    if (filteredRows.length === 0) return null;
+                                    return (
+                                      <div className="flex flex-col gap-1">
+                                        {filteredRows.map(p => {
+                                          const isExpanded = expandedIds.has(p.id);
+                                          const isSelected = selectedProjectIds.includes(p.id);
+                                          const hasChildren = projects.some(child => child.parentId === p.id);
+                                          return (
+                                            <div key={p.id} className="flex flex-col">
+                                              <div onClick={(e) => toggleId(p.id, e)} className={cn("group flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all", isSelected ? "bg-blue-600 text-white shadow-md lg:scale-[1.02]" : "hover:bg-slate-50 text-slate-600")} style={{ marginLeft: `${depth * 1.5}rem` }}>
+                                                <div className="size-5 flex items-center justify-center shrink-0">
+                                                  {isSelected ? <div className="size-4 rounded border-2 border-white bg-white flex items-center justify-center"><Check className="size-3 text-blue-600 stroke-[4px]" /></div> : <div className="size-4 rounded border-2 border-slate-200 group-hover:border-blue-400 bg-white" />}
+                                                </div>
+                                                {hasChildren && <button onClick={(e) => toggleExpand(p.id, e)} className={cn("p-1 rounded hover:bg-white/20 transition-colors", isSelected ? "text-white" : "text-slate-400")}>{isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}</button>}
+                                                <span className="text-xs font-black truncate">
+                                                  {p.level === 3 && p.partnerId ? (partners.find(ptr => ptr.id === p.partnerId)?.name || p.name) : 
+                                                   p.level === 4 && p.partnerId ? `${partners.find(ptr => ptr.id === p.partnerId)?.name || '미지정'} (${p.name})` : 
+                                                   p.name}
+                                                </span>
+                                              </div>
+                                              {isExpanded && renderNodes(p.id, depth + 1)}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    );
+                                  };
+                                  return renderNodes(null);
+                                })()}
+                             </div>
+                             <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Tip: 노드 클릭 시 즉시 선택됩니다.</p>
+                                <Button size="sm" onClick={() => setIsProjectSelectorOpen(false)} className="h-8 rounded-lg bg-blue-600 font-black text-[10px]">확인</Button>
+                             </div>
+                          </PopoverContent>
+                       </Popover>
+                    </div>
 
-             {aiSummary && (
-                <Card ref={aiResultRef} className="rounded-[3rem] p-12 bg-white shadow-2xl border-t-8 border-blue-600 animate-in slide-in-from-bottom-10">
-                   <div className="flex items-center gap-3 mb-8"><MessageSquare className="size-6 text-blue-600" /><CardTitle className="text-2xl font-black">AI 전문가 성과 리포트</CardTitle></div>
-                   <div className="prose prose-slate max-w-none prose-p:font-bold prose-p:text-slate-600 whitespace-pre-wrap leading-relaxed text-slate-700 text-lg">{aiSummary}</div>
-                   <div className="pt-10 flex justify-end gap-4"><Button variant="ghost" className="h-14 px-8 rounded-2xl font-black text-slate-400">CSV 내보내기</Button><Button className="h-14 px-10 rounded-2xl bg-slate-900 text-white font-black shadow-xl gap-2"><Download className="size-4" /> 리포트 PDF 저장</Button></div>
-                </Card>
-             )}
-          </div>
-        )}
+                    <div className="flex gap-2">
+                       <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} className="h-12 bg-slate-50 border-none rounded-xl font-bold w-36" />
+                       <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} className="h-12 bg-slate-50 border-none rounded-xl font-bold w-36" />
+                    </div>
+                    <Button onClick={handleRunAIAnalysis} className="h-12 px-8 rounded-xl bg-slate-900 text-white font-black ml-auto shadow-xl transition-all hover:scale-105 active:scale-95"><Wand2 className="size-4 mr-2" /> AI 분석 리포트</Button>
+                 </div>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                 <Card className="lg:col-span-2 rounded-[3rem] p-10 bg-white shadow-xl h-[500px]">
+                    <CardTitle className="text-xl font-black mb-8 flex items-center gap-2"><BarChart2 className="size-5 text-blue-600" /> 종합 교육 성과 지수</CardTitle>
+                    <ResponsiveContainer width="100%" height="85%">
+                       <ComposedChart data={projects.filter(p => (aggregatedStats[p.id]?.count || 0) > 0 || (p.id === '_overall')).map(p => {
+                         const stats = aggregatedStats[p.id];
+                         return {
+                           name: p.id === '_overall' ? '전체 합계' : 
+                                 (p.level === 3 && p.partnerId ? (partners.find(ptr => ptr.id === p.partnerId)?.name || p.name) : 
+                                  p.level === 4 && p.partnerId ? `${partners.find(ptr => ptr.id === p.partnerId)?.name || '미지정'} (${p.name})` : 
+                                  p.name),
+                           satisfaction: Number((stats?.satAvg || 0).toFixed(2)),
+                           gain: Number((stats?.hakeGain || 0).toFixed(2)) * 5
+                         };
+                       })}>
+                          <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
+                          <YAxis domain={[0, 5]} axisLine={false} tickLine={false} />
+                          <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
+                          <Bar dataKey="satisfaction" name="만족도" fill="#dbeafe" radius={[10, 10, 0, 0]} barSize={40} />
+                          <Line type="monotone" dataKey="gain" name="역량향상도" stroke="#10b981" strokeWidth={4} />
+                       </ComposedChart>
+                    </ResponsiveContainer>
+                 </Card>
+                 <Card className="rounded-[3rem] p-10 bg-white shadow-xl h-[500px]">
+                    <CardTitle className="text-xl font-black mb-8 flex items-center gap-2"><PieChartIcon className="size-5 text-emerald-600" /> 향상도 분포</CardTitle>
+                    <ResponsiveContainer width="100%" height="70%">
+                       <PieChart>
+                          <Pie data={[
+                            { name: '대폭 향상', value: 30, fill: '#10b981' },
+                            { name: '보통 향상', value: 50, fill: '#3b82f6' },
+                            { name: '미미', value: 20, fill: '#ef4444' }
+                          ]} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
+                             <Cell fill="#10b981" /><Cell fill="#3b82f6" /><Cell fill="#ef4444" />
+                          </Pie>
+                       </PieChart>
+                    </ResponsiveContainer>
+                    <div className="space-y-2 mt-4">
+                       <div className="flex justify-between items-center text-xs font-black p-3 bg-emerald-50 rounded-xl"><span>High Gain</span><span>최우수 (0.7+)</span></div>
+                       <div className="flex justify-between items-center text-xs font-black p-3 bg-blue-50 rounded-xl"><span>Medium Gain</span><span>양호 (0.3+)</span></div>
+                    </div>
+                 </Card>
+              </div>
+
+              {aiSummary && (
+                 <Card ref={aiResultRef} className="rounded-[3rem] p-12 bg-white shadow-2xl border-t-8 border-blue-600 animate-in slide-in-from-bottom-10">
+                    <div className="flex items-center gap-3 mb-8"><MessageSquare className="size-6 text-blue-600" /><CardTitle className="text-2xl font-black">AI 전문가 성과 리포트</CardTitle></div>
+                    <div className="prose prose-slate max-w-none prose-p:font-bold prose-p:text-slate-600 whitespace-pre-wrap leading-relaxed text-slate-700 text-lg">{aiSummary}</div>
+                    <div className="pt-10 flex justify-end gap-4"><Button variant="ghost" className="h-14 px-8 rounded-2xl font-black text-slate-400">CSV 내보내기</Button><Button className="h-14 px-10 rounded-2xl bg-slate-900 text-white font-black shadow-xl gap-2"><Download className="size-4" /> 리포트 PDF 저장</Button></div>
+                 </Card>
+              )}
+           </div>
+         )}
       </main>
 
       <Dialog open={isPasteDialogOpen} onOpenChange={setIsPasteDialogOpen}>
