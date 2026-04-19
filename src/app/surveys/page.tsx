@@ -751,7 +751,7 @@ export default function SurveysPage() {
                                            )}
                                          </tr>
                                          {isExpanded && childRows.length > 0 && renderTree(childRows, depth + 1)}
-                                         {isExpanded && p.level === 4 && pResponses.map((r, rIdx) => {
+                                         {isExpanded && pResponses.length > 0 && pResponses.map((r, rIdx) => {
                                             const rSatStats = r.answers.filter(a => satQuestions.some(q => q.id === a.questionId));
                                             const rTotalSat = rSatStats.length > 0
                                               ? rSatStats.reduce((sum, a) => sum + (Number(a.score) || 0), 0) / satQuestions.length
@@ -762,7 +762,7 @@ export default function SurveysPage() {
                                               : 0;
 
                                             return (
-                                              <tr key={r.id} className="border-b border-slate-50/50 bg-slate-50/30 hover:bg-white transition-colors animate-in fade-in slide-in-from-left-1 border-l-4 border-l-blue-400">
+                                              <tr key={r.id} className="border-b border-slate-50/50 bg-blue-50/20 hover:bg-white transition-colors animate-in fade-in slide-in-from-left-1 border-l-4 border-l-blue-400">
                                                 <td className="p-4 text-center text-[10px] text-slate-400 font-bold opacity-50">{rIdx + 1}</td>
                                                 <td className="p-4" style={{ paddingLeft: `${(depth + 1) * 1.5}rem` }}>
                                                   <div className="flex items-center gap-3">
@@ -797,8 +797,22 @@ export default function SurveysPage() {
                                                       <td className="p-4 text-center text-slate-200">-</td>
                                                       <td className="p-4 text-center">
                                                          <div className="flex items-center justify-center gap-1 opacity-100 transition-all">
-                                                            <Button onClick={() => { setEditingResponse(r); setIsEditDialogOpen(true); }} variant="ghost" size="icon" className="size-8 rounded-xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Edit className="size-4" /></Button>
-                                                            <Button onClick={() => { if(confirm('응답을 삭제하시겠습니까?')) useSurveyStore.getState().deleteResponse(r.id); }} variant="ghost" size="icon" className="size-8 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 className="size-4" /></Button>
+                                                            <Button 
+                                                              onClick={(e) => { e.stopPropagation(); setEditingResponse(r); setIsEditDialogOpen(true); }} 
+                                                              variant="ghost" 
+                                                              size="icon" 
+                                                              className="size-8 rounded-xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                                            >
+                                                              <Edit className="size-4" />
+                                                            </Button>
+                                                            <Button 
+                                                              onClick={(e) => { e.stopPropagation(); if(confirm('응답을 삭제하시겠습니까?')) deleteResponse(r.id); }} 
+                                                              variant="ghost" 
+                                                              size="icon" 
+                                                              className="size-8 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                                            >
+                                                              <Trash2 className="size-4" />
+                                                            </Button>
                                                          </div>
                                                       </td>
                                                    </>
