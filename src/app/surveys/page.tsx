@@ -184,6 +184,8 @@ export default function SurveysPage() {
   const compQuestions = compTmpl?.questions.filter(q => q.type === 'SCALE') || [];
 
   const aggregatedStats = getAggregatedStats(projects, selectedProjectIds.length > 0 ? selectedProjectIds : undefined, undefined, 'UNIFIED');
+  const overallStats = aggregatedStats['_overall'];
+
   
   const visibleProjectIds = React.useMemo(() => {
     const start = dataDateRange.start;
@@ -304,22 +306,56 @@ export default function SurveysPage() {
         }
       }
       setPasteContent(''); setIsPasteDialogOpen(false); await fetchSurveys(); alert('데이터 연동 완료');
-    } catch (err) { alert('오류 발생'); }
+      setPasteContent(''); setIsPasteDialogOpen(false); await fetchSurveys(); alert('데이터 연동 완료');
+    } catch (err: any) { alert(`오류 발생: ${err.message || '데이터 형식을 확인해주세요.'}`); }
   };
+
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white/50 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 shadow-2xl">
         <div className="space-y-1">
           <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3"><ClipboardCheck className="size-8 text-blue-600" /> 통합 성과 및 설문 관리</h1>
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest font-mono">Expert Analytics Dashboard</p>
+          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest font-mono">Expert Analytics System</p>
         </div>
         <div className="flex bg-slate-100 p-1.5 rounded-2xl shadow-inner">
-          {[{ id: 'templates', label: '설문 설계', icon: Settings2 }, { id: 'data', label: '성과 리포트', icon: BarChart3 }].map(tab => (
+          {[{ id: 'templates', label: '디자인', icon: Settings2 }, { id: 'data', label: '성과 대시보드', icon: BarChart3 }].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cn("px-8 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2", activeTab === tab.id ? "bg-white text-blue-600 shadow-lg" : "text-slate-500 hover:text-slate-700")}><tab.icon className="size-3.5" /> {tab.label}</button>
           ))}
         </div>
       </div>
+
+      {activeTab === 'data' && overallStats && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-4 duration-1000">
+           <Card className="rounded-[2rem] border-none shadow-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 space-y-2">
+              <div className="flex justify-between items-center opacity-80"><span className="text-[10px] font-black uppercase tracking-widest">만족도 평균</span><PieChartIcon className="size-4" /></div>
+              <div className="text-4xl font-black">{overallStats.satAvg.toFixed(2)}</div>
+              <p className="text-[10px] font-bold opacity-70">전체 응답 {overallStats.count}건 기준</p>
+           </Card>
+           <Card className="rounded-[2rem] border-none shadow-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 space-y-2">
+              <div className="flex justify-between items-center opacity-80"><span className="text-[10px] font-black uppercase tracking-widest">역량 향상도 (Gain)</span><TrendingUp className="size-4" /></div>
+              <div className="text-4xl font-black">{overallStats.hakeGain.toFixed(2)}</div>
+              <div className="flex items-center gap-2">
+                 <Badge className={cn("text-[9px] border-none", overallStats.hakeGain >= 0.7 ? "bg-white text-blue-600" : "bg-blue-400/30 text-white")}>
+                   {overallStats.hakeGain >= 0.7 ? '높은 성과' : overallStats.hakeGain >= 0.3 ? '중간 성과' : '보통'}
+                 </Badge>
+              </div>
+           </Card>
+           <Card className="rounded-[2rem] border-none shadow-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 space-y-2">
+              <div className="flex justify-between items-center opacity-80"><span className="text-[10px] font-black uppercase tracking-widest">성과 크기 (Effect Size)</span><BarChart2 className="size-4" /></div>
+              <div className="text-4xl font-black">{overallStats.cohensD.toFixed(2)}</div>
+              <p className="text-[10px] font-bold opacity-70">Cohen's d 지표 (0.8 이상 강력)</p>
+           </Card>
+           <Card className="rounded-[2rem] border-none shadow-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 space-y-2">
+              <div className="flex justify-between items-center opacity-80"><span className="text-[10px] font-black uppercase tracking-widest">통계적 유의성</span><CheckCircle2 className="size-4" /></div>
+              <div className="text-4xl font-black">{overallStats.pValue < 0.001 ? '< .001' : overallStats.pValue.toFixed(3)}</div>
+              <Badge className={cn("text-[9px] border-none", overallStats.pValue < 0.05 ? "bg-white text-purple-600" : "bg-purple-400/30 text-white")}>
+                 {overallStats.pValue < 0.05 ? '유의미한 변화' : '유의미하지 않음'}
+              </Badge>
+           </Card>
+        </div>
+      )}
+
 
       <main className="min-h-[700px]">
         {activeTab === 'templates' && (
@@ -435,10 +471,11 @@ export default function SurveysPage() {
                                       <td className="p-4 text-center font-black text-xs bg-emerald-50/30">{stats?.satAvg?.toFixed(2) || '-'}</td>
                                       {compQuestions.map((_, i) => <td key={i} className="p-4 text-center font-black text-[10px] text-blue-600/60">{stats?.questionStats?.[i]?.postAvg?.toFixed(2) || '-'}</td>)}
                                       <td className="p-4 text-center font-black text-xs bg-blue-50/30">{stats?.postAvg?.toFixed(2) || '-'}</td>
-                                      <td className="p-4 text-center text-[10px] text-emerald-600 font-bold">{stats?.hakeGain?.toFixed(2) || '-'}</td>
-                                      <td className="p-4 text-center text-[10px] text-amber-600 font-bold">{stats?.cohensD?.toFixed(2) || '-'}</td>
-                                      <td className="p-4 text-center text-[10px] text-purple-600 font-bold">{stats?.pValue?.toFixed(3) || '-'}</td>
+                                      <td className={cn("p-4 text-center text-[10px] font-black", (stats?.hakeGain || 0) >= 0.7 ? "text-blue-600 bg-blue-50/50" : (stats?.hakeGain || 0) >= 0.3 ? "text-emerald-600" : "text-slate-400")}>{stats?.hakeGain?.toFixed(2) || '-'}</td>
+                                      <td className={cn("p-4 text-center text-[10px] font-black", (stats?.cohensD || 0) >= 0.8 ? "text-amber-600 bg-amber-50/50" : "text-slate-400")}>{stats?.cohensD?.toFixed(2) || '-'}</td>
+                                      <td className={cn("p-4 text-center text-[10px] font-black", (stats?.pValue || 1) < 0.05 ? "text-purple-600 font-black" : "text-slate-300")}>{stats?.pValue?.toFixed(3) || '-'}</td>
                                       <td className="p-4 text-center opacity-30 text-[9px] font-black">LV{p.level}</td>
+
                                     </tr>
                                     {isExpanded && childRows.length > 0 && renderTree(childRows, depth + 1)}
                                     {isExpanded && pResponses.map((r, rIdx) => {
@@ -494,17 +531,34 @@ export default function SurveysPage() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-xl rounded-[2.5rem] p-10 bg-white shadow-3xl">
           <DialogHeader><DialogTitle className="text-2xl font-black">데이터 수정</DialogTitle></DialogHeader>
-          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-             {editingResponse?.answers.map((ans, idx) => (
-               <div key={idx} className="p-6 rounded-2xl bg-slate-50 space-y-3">
-                  <p className="text-xs font-black">문항 {idx+1}</p>
-                  <div className="flex gap-4">
-                    {ans.preScore !== undefined && <Input type="number" value={ans.preScore} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, preScore: Number(e.target.value)}:a)})} className="bg-white rounded-xl" placeholder="사전" />}
-                    <Input type="number" value={ans.score} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, score: Number(e.target.value)}:a)})} className="bg-white rounded-xl" placeholder="점수" />
-                  </div>
-               </div>
-             ))}
+          <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+             {editingResponse?.answers.map((ans, idx) => {
+               const tmpl = templates.find(t => t.id === editingResponse.templateId);
+               const question = tmpl?.questions.find(q => q.id === ans.questionId);
+               return (
+                <div key={idx} className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                    <div className="flex justify-between items-start">
+                        <Badge variant="outline" className="text-[10px] font-black bg-white">{tmpl?.type === 'SATISFACTION' ? '만족도' : '역량 문항'} {idx + 1}</Badge>
+                        <span className="text-[10px] font-bold text-slate-400">{question?.theme}</span>
+                    </div>
+                    <p className="text-sm font-black text-slate-700 leading-relaxed">{question?.content || '삭제된 문항입니다.'}</p>
+                    <div className="flex gap-4">
+                      {ans.preScore !== undefined && (
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[9px] font-black text-slate-400 ml-1 uppercase">Pre (사전)</label>
+                          <Input type="number" min="0" max="100" value={ans.preScore} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, preScore: Number(e.target.value)}:a)})} className="bg-white rounded-xl h-11 border-none shadow-sm font-bold" />
+                        </div>
+                      )}
+                      <div className="flex-1 space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 ml-1 uppercase">{ans.preScore !== undefined ? 'Post (사후)' : '점수'}</label>
+                        <Input type="number" min="0" max="100" value={ans.score} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, score: Number(e.target.value)}:a)})} className="bg-white rounded-xl h-11 border-none shadow-sm font-bold" />
+                      </div>
+                    </div>
+                </div>
+               );
+             })}
           </div>
+
           <DialogFooter className="pt-6"><Button onClick={async () => { if(editingResponse) { await updateResponse(editingResponse.id, editingResponse); await fetchSurveys(); setIsEditDialogOpen(false); alert('수정됨'); } }} className="bg-blue-600 text-white px-10 rounded-xl font-black">저장</Button></DialogFooter>
         </DialogContent>
       </Dialog>

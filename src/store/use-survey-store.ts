@@ -210,9 +210,19 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
 
   getAggregatedStats: (projects, projectIds, partnerId, type) => {
     const { responses, templates } = get();
-    // Dynamic import to avoid circular dependency or issues during build
     const { calculateHakeGain, calculateCohensD, calculatePairedTTest, getPValueFromT } = require('@/lib/stat-utils');
 
+    // 1. 빠른 탐색을 위한 인덱스 생성 (O(1) 접근)
+    const templateMap = new Map(templates.map(t => [t.id, t]));
+    const projectMap = new Map(projects.map(p => [p.id, p]));
+    const childrenMap = new Map<string | null, Project[]>();
+    projects.forEach(p => {
+      const parent = p.parentId;
+      if (!childrenMap.has(parent)) childrenMap.set(parent, []);
+      childrenMap.get(parent)!.push(p);
+    });
+
+    // 2. 프로젝트별 RAW 데이터 수집 (O(R))
     const projectData: Record<string, { 
       preScores: number[][],
       postScores: number[][],
@@ -221,11 +231,12 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
     }> = {};
 
     responses.forEach(res => {
-      const tmpl = templates.find(t => t.id === res.templateId);
+      const tmpl = templateMap.get(res.templateId);
       if (!tmpl) return;
-      if (type && tmpl.type !== type) return;
+      if (type && type !== 'UNIFIED' && tmpl.type !== type) return;
+
       if (partnerId) {
-        const proj = projects.find(p => p.id === res.projectId);
+        const proj = projectMap.get(res.projectId);
         if (proj?.partnerId !== partnerId) return;
       }
 
@@ -255,19 +266,23 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
 
     const aggregated: Record<string, any> = {};
 
+    // 3. 재귀적 통계 합산 (Memoization 패턴)
     const calculateRecursive = (id: string) => {
-      const children = projects.filter(p => p.parentId === id);
+      if (aggregated[id]) return aggregated[id];
+
+      const children = childrenMap.get(id) || [];
+      const currentRaw = projectData[id] || { preScores: [], postScores: [], satScores: [], responses: [] };
       
       let combined = {
-        preScores: [...(projectData[id]?.preScores || [])],
-        postScores: [...(projectData[id]?.postScores || [])],
-        satScores: [...(projectData[id]?.satScores || [])],
-        count: projectData[id]?.responses.length || 0
+        preScores: currentRaw.preScores.map(s => [...s]),
+        postScores: currentRaw.postScores.map(s => [...s]),
+        satScores: currentRaw.satScores.map(s => [...s]),
+        count: currentRaw.responses.length
       };
 
       children.forEach(c => {
         const cStats = calculateRecursive(c.id);
-        if (!cStats) return;
+        if (!cStats || !cStats._raw) return;
         
         cStats._raw.preScores.forEach((scores: number[], idx: number) => {
           if (!combined.preScores[idx]) combined.preScores[idx] = [];
@@ -294,11 +309,6 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
       const postAvg = allPost.length > 0 ? allPost.reduce((a,b)=>a+b,0)/allPost.length : 0;
       const satAvg = allSat.length > 0 ? allSat.reduce((a,b)=>a+b,0)/allSat.length : 0;
 
-      const hakeGain = calculateHakeGain(preAvg, postAvg);
-      const cohensD = calculateCohensD(allPre, allPost);
-      const tValue = calculatePairedTTest(allPre, allPost);
-      const pValue = getPValueFromT(tValue, Math.max(1, allPost.length - 1));
-
       const questionStats = [];
       const maxQs = Math.max(combined.preScores.length, combined.satScores.length);
       for(let i=0; i<maxQs; i++) {
@@ -317,9 +327,9 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
         postAvg,
         satAvg,
         totalAverage: type === 'SATISFACTION' ? satAvg : postAvg,
-        hakeGain,
-        cohensD,
-        pValue,
+        hakeGain: calculateHakeGain(preAvg, postAvg),
+        cohensD: calculateCohensD(allPre, allPost),
+        pValue: getPValueFromT(calculatePairedTTest(allPre, allPost), Math.max(1, allPost.length - 1)),
         count: combined.count,
         questionStats,
         _raw: combined 
@@ -329,55 +339,34 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
       return result;
     };
 
+    // 4. 대상 프로젝트별 실행
     if (projectIds && projectIds.length > 0) {
       projectIds.forEach(id => calculateRecursive(id));
       
-      // 전체 통계 계산을 위한 가상 ID '_overall'
-      const overallCombined = {
-        preScores: [] as number[][],
-        postScores: [] as number[][],
-        satScores: [] as number[][],
-        count: 0
-      };
-
+      // 전체 요약 통계 계산 (_overall)
+      const overallCombined = { preScores: [] as number[][], postScores: [] as number[][], satScores: [] as number[][], count: 0 };
       projectIds.forEach(id => {
         const stats = aggregated[id];
-        if (!stats) return;
-        stats._raw.preScores.forEach((scores: number[], idx: number) => {
-          if (!overallCombined.preScores[idx]) overallCombined.preScores[idx] = [];
-          overallCombined.preScores[idx].push(...scores);
-        });
-        stats._raw.postScores.forEach((scores: number[], idx: number) => {
-          if (!overallCombined.postScores[idx]) overallCombined.postScores[idx] = [];
-          overallCombined.postScores[idx].push(...scores);
-        });
-        stats._raw.satScores.forEach((scores: number[], idx: number) => {
-          if (!overallCombined.satScores[idx]) overallCombined.satScores[idx] = [];
-          overallCombined.satScores[idx].push(...scores);
-        });
+        if (!stats?._raw) return;
+        stats._raw.preScores.forEach((s: any, i: any) => { if(!overallCombined.preScores[i]) overallCombined.preScores[i]=[]; overallCombined.preScores[i].push(...s); });
+        stats._raw.postScores.forEach((s: any, i: any) => { if(!overallCombined.postScores[i]) overallCombined.postScores[i]=[]; overallCombined.postScores[i].push(...s); });
+        stats._raw.satScores.forEach((s: any, i: any) => { if(!overallCombined.satScores[i]) overallCombined.satScores[i]=[]; overallCombined.satScores[i].push(...s); });
         overallCombined.count += stats.count;
       });
 
       if (overallCombined.count > 0) {
         const allPre = overallCombined.preScores.flat();
         const allPost = overallCombined.postScores.flat();
-        const preAvg = allPre.length > 0 ? allPre.reduce((a,b)=>a+b,0)/allPre.length : 0;
-        const postAvg = allPost.length > 0 ? allPost.reduce((a,b)=>a+b,0)/allPost.length : 0;
-        const satAvg = overallCombined.satScores.flat().length > 0 ? overallCombined.satScores.flat().reduce((a,b)=>a+b,0)/overallCombined.satScores.flat().length : 0;
-        
+        const pre = allPre.length > 0 ? allPre.reduce((a,b)=>a+b,0)/allPre.length : 0;
+        const post = allPost.length > 0 ? allPost.reduce((a,b)=>a+b,0)/allPost.length : 0;
         aggregated['_overall'] = {
-          preAvg,
-          postAvg,
-          satAvg,
-          hakeGain: calculateHakeGain(preAvg, postAvg),
+          preAvg: pre, 
+          postAvg: post,
+          satAvg: overallCombined.satScores.flat().length > 0 ? overallCombined.satScores.flat().reduce((a,b)=>a+b,0)/overallCombined.satScores.flat().length : 0,
+          hakeGain: calculateHakeGain(pre, post),
           cohensD: calculateCohensD(allPre, allPost),
           pValue: getPValueFromT(calculatePairedTTest(allPre, allPost), Math.max(1, allPost.length - 1)),
-          count: overallCombined.count,
-          questionStats: Array.from({ length: Math.max(overallCombined.preScores.length, overallCombined.satScores.length) }).map((_, i) => ({
-            preAvg: (overallCombined.preScores[i] || []).length > 0 ? overallCombined.preScores[i].reduce((a,b)=>a+b,0)/overallCombined.preScores[i].length : 0,
-            postAvg: (overallCombined.postScores[i] || []).length > 0 ? overallCombined.postScores[i].reduce((a,b)=>a+b,0)/overallCombined.postScores[i].length : 0,
-            average: (overallCombined.satScores[i] || []).length > 0 ? overallCombined.satScores[i].reduce((a,b)=>a+b,0)/overallCombined.satScores[i].length : 0
-          }))
+          count: overallCombined.count
         };
       }
     } else {
