@@ -623,11 +623,26 @@ export default function SurveysPage() {
                             </thead>
                              <tbody className="divide-y divide-slate-50">
                                {(() => {
-                                 const rootProjects = selectedProjectIds.length > 0
-                                   ? projects.filter(p => selectedProjectIds.includes(p.id))
-                                   : useProjectStore.getState().getSortedProjects(null).filter(p => (!dataDateRange.start || p.endDate >= dataDateRange.start));
+                                 const rootProjects = projects.filter(p => p.level === 1 && (selectedProjectIds.length === 0 || projects.some(child => selectedProjectIds.includes(child.id)) || selectedProjectIds.includes(p.id)))
+                                   .filter(p => (!dataDateRange.start || p.endDate >= dataDateRange.start));
+                                 
+                                 // 모든 프로젝트 데이터에서 필터링된 결과 (계층 유지하며 선택된 것 위주로 표시하기 위함)
+                                 // 만약 selectedProjectIds가 있으면 해당 ID들을 포함하는 부모들을 추적해서 rootProjects를 재구성
+                                 let filteredRoots = rootProjects;
+                                 if (selectedProjectIds.length > 0) {
+                                   const getAncestorIds = (id: string): string[] => {
+                                     const p = projects.find(proj => proj.id === id);
+                                     if (!p || !p.parentId) return [];
+                                     return [p.parentId, ...getAncestorIds(p.parentId)];
+                                   };
+                                   const allVisibleIds = new Set([...selectedProjectIds]);
+                                   selectedProjectIds.forEach(id => {
+                                     getAncestorIds(id).forEach(aid => allVisibleIds.add(aid));
+                                   });
+                                   filteredRoots = projects.filter(p => p.level === 1 && allVisibleIds.has(p.id));
+                                 }
 
-                                 if (rootProjects.length === 0) {
+                                 if (filteredRoots.length === 0) {
                                    return (
                                      <tr>
                                        <td colSpan={100} className="p-20 text-center text-slate-300 font-black">
@@ -670,7 +685,7 @@ export default function SurveysPage() {
                                                      depth === 0 ? "text-slate-900" : 
                                                      (p.level >= 3 ? "text-slate-900 font-bold" : "text-slate-600")
                                                    )}>
-                                                     {p.name}
+                                                     {p.level >= 3 && p.partnerId ? `${partners.find(ptr => ptr.id === p.partnerId)?.name || '미지정'} (${p.name})` : p.name}
                                                    </span>
                                                    <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400">
                                                      {p.startDate && (
@@ -781,7 +796,7 @@ export default function SurveysPage() {
                                     });
                                   };
 
-                                  const treeContent = renderTree(rootProjects);
+                                  const treeContent = renderTree(filteredRoots);
                                    const overall = aggregatedStats['_overall'] || null;
 
                                   return (
