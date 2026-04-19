@@ -187,6 +187,106 @@ export default function SurveysPage() {
 
   const aggregatedStats = getAggregatedStats(projects, selectedProjectIds.length > 0 ? selectedProjectIds : undefined, undefined, surveyType);
   
+  // 가시 노드 계산 (기간 필터링 및 부모 노드 포함)
+  const visibleProjectIds = React.useMemo(() => {
+    const start = dataDateRange.start;
+    const end = dataDateRange.end;
+    const set = new Set<string>();
+
+    const isMatch = (p: any) => {
+      if (!start || !end) return true;
+      // 시작일 또는 종료일이 지정된 범위 내에 있는 경우
+      return (p.startDate >= start && p.startDate <= end) || (p.endDate >= start && p.endDate <= end);
+    };
+
+    projects.forEach(p => {
+      if (isMatch(p)) {
+        let curr: any = p;
+        while (curr) {
+          set.add(curr.id);
+          curr = projects.find(parent => parent.id === curr.parentId);
+        }
+      }
+    });
+    return set;
+  }, [projects, dataDateRange]);
+
+  const renderNodes = React.useCallback((parentId: string | null, depth: number = 0): React.ReactNode => {
+    // visibleProjectIds에 포함된 노드만 표시
+    const filteredRows = projects.filter(p => p.parentId === parentId && visibleProjectIds.has(p.id));
+    if (filteredRows.length === 0) return null;
+
+    return (
+      <div className="flex flex-col gap-1">
+        {filteredRows.map(p => {
+          const isExpanded = expandedIds.has(p.id);
+          const isSelected = selectedProjectIds.includes(p.id);
+          // 자식 중 visibleProjectIds에 속한 하나라도 있는지 확인
+          const hasVisibleChildren = projects.some(child => child.parentId === p.id && visibleProjectIds.has(child.id));
+
+          return (
+            <div key={p.id} className="flex flex-col">
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedProjectIds(prev => prev.includes(p.id) ? prev.filter(i => i !== p.id) : [...prev, p.id]);
+                }}
+                className={cn(
+                  "group flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all",
+                  isSelected ? "bg-blue-600 text-white shadow-md lg:scale-[1.02]" : "hover:bg-slate-50 text-slate-600"
+                )}
+                style={{ marginLeft: `${depth * 1.5}rem` }}
+              >
+                <div className="size-5 flex items-center justify-center shrink-0">
+                  {isSelected ? (
+                    <div className="size-4 rounded border-2 border-white bg-white flex items-center justify-center">
+                      <Check className="size-3 text-blue-600 stroke-[4px]" />
+                    </div>
+                  ) : (
+                    <div className="size-4 rounded border-2 border-slate-200 group-hover:border-blue-400 bg-white" />
+                  )}
+                </div>
+
+                {hasVisibleChildren ? (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); toggleExpand(p.id, e); }}
+                    className={cn("p-1 rounded hover:bg-white/20 transition-colors", isSelected ? "text-white" : "text-slate-400")}
+                  >
+                    {isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                  </button>
+                ) : (
+                  <div className="size-5.5 shrink-0 ml-1 flex items-center justify-center">
+                    <div className={cn("size-1.5 rounded-full", isSelected ? "bg-blue-200" : "bg-slate-200")} />
+                  </div>
+                )}
+                
+                <div className="flex flex-col gap-0.5 overflow-hidden">
+                  <div className="flex items-center gap-2">
+                     <span className="text-xs font-black truncate">
+                       {p.level === 3 && p.partnerId ? (partners.find(ptr => ptr.id === p.partnerId)?.name || p.name) : 
+                        p.level === 4 && p.partnerId ? `${partners.find(ptr => ptr.id === p.partnerId)?.name || '미지정'} (${p.name})` : 
+                        p.name}
+                     </span>
+                     <Badge variant="outline" className={cn(
+                       "text-[8px] font-black h-4 px-1 border-none",
+                       isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
+                     )}>{p.level === 3 ? "PARTNER" : p.level === 4 ? "PROG" : `LV${p.level}`}</Badge>
+                  </div>
+                  <div className={cn("text-[9px] font-bold flex items-center gap-1", isSelected ? "text-blue-100" : "text-slate-400")}>
+                     < Calendar className="size-2.5" /> {p.startDate} ~ {p.endDate}
+                  </div>
+                </div>
+
+                {isSelected && <Badge className="ml-auto bg-blue-500 text-white shadow-sm border-none font-black text-[9px]">SELECTED</Badge>}
+              </div>
+              {isExpanded && renderNodes(p.id, depth + 1)}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }, [projects, visibleProjectIds, expandedIds, selectedProjectIds, partners, toggleExpand]);
+
   React.useEffect(() => {
     setMounted(true);
     fetchSurveys();
@@ -469,98 +569,12 @@ export default function SurveysPage() {
                               )}
                            </div>
                            <div className="overflow-y-auto p-4 custom-scrollbar flex-1 bg-white">
-                              {(() => {
-                                const toggleId = (id: string, e: React.MouseEvent) => {
-                                  e.stopPropagation();
-                                  setSelectedProjectIds(prev => 
-                                    prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-                                  );
-                                };
-
-                                const renderNodes = (parentId: string | null, depth: number = 0): React.ReactNode => {
-                                  const filteredRows = projects.filter(p => 
-                                    p.parentId === parentId && 
-                                    (!dataDateRange.start || p.endDate >= dataDateRange.start) && 
-                                    (!dataDateRange.end || p.startDate <= dataDateRange.end)
-                                  );
-
-                                  if (filteredRows.length === 0) return null;
-
-                                  return (
-                                    <div className="flex flex-col gap-1">
-                                      {filteredRows.map(p => {
-                                        const isExpanded = expandedIds.has(p.id);
-                                        const isSelected = selectedProjectIds.includes(p.id);
-                                        const hasChildren = projects.some(child => child.parentId === p.id);
-
-                                        return (
-                                          <div key={p.id} className="flex flex-col">
-                                            <div 
-                                              onClick={(e) => toggleId(p.id, e)}
-                                              className={cn(
-                                                "group flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all",
-                                                isSelected ? "bg-blue-600 text-white shadow-md lg:scale-[1.02]" : "hover:bg-slate-50 text-slate-600"
-                                              )}
-                                              style={{ marginLeft: `${depth * 1.5}rem` }}
-                                            >
-                                              <div className="size-5 flex items-center justify-center shrink-0">
-                                                {isSelected ? (
-                                                  <div className="size-4 rounded border-2 border-white bg-white flex items-center justify-center">
-                                                    <Check className="size-3 text-blue-600 stroke-[4px]" />
-                                                  </div>
-                                                ) : (
-                                                  <div className="size-4 rounded border-2 border-slate-200 group-hover:border-blue-400 bg-white" />
-                                                )}
-                                              </div>
-
-                                              {hasChildren ? (
-                                                <button 
-                                                  onClick={(e) => { e.stopPropagation(); toggleExpand(p.id, e); }}
-                                                  className={cn("p-1 rounded hover:bg-white/20 transition-colors", isSelected ? "text-white" : "text-slate-400")}
-                                                >
-                                                  {isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                                                </button>
-                                              ) : (
-                                                <div className="size-5.5 shrink-0 ml-1 flex items-center justify-center">
-                                                  <div className={cn("size-1.5 rounded-full", isSelected ? "bg-blue-200" : "bg-slate-200")} />
-                                                </div>
-                                              )}
-                                              
-                                              <div className="flex flex-col gap-0.5 overflow-hidden">
-                                                <div className="flex items-center gap-2">
-                                                   <span className="text-xs font-black truncate">
-                                                     {p.level === 3 && p.partnerId ? (partners.find(ptr => ptr.id === p.partnerId)?.name || p.name) : 
-                                                      p.level === 4 && p.partnerId ? `${partners.find(ptr => ptr.id === p.partnerId)?.name || '미지정'} (${p.name})` : 
-                                                      p.name}
-                                                   </span>
-                                                   <Badge variant="outline" className={cn(
-                                                     "text-[8px] font-black h-4 px-1 border-none",
-                                                     isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
-                                                   )}>{p.level === 3 ? "PARTNER" : p.level === 4 ? "PROG" : `LV${p.level}`}</Badge>
-                                                </div>
-                                                <div className={cn("text-[9px] font-bold flex items-center gap-1", isSelected ? "text-blue-100" : "text-slate-400")}>
-                                                   <Calendar className="size-2.5" /> {p.startDate} ~ {p.endDate}
-                                                </div>
-                                              </div>
-
-                                              {isSelected && <Badge className="ml-auto bg-blue-500 text-white shadow-sm border-none font-black text-[9px]">SELECTED</Badge>}
-                                            </div>
-                                            {isExpanded && renderNodes(p.id, depth + 1)}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  );
-                                };
-
-                                const rootNodes = renderNodes(null);
-                                return rootNodes || (
+                                {renderNodes(null) || (
                                   <div className="py-20 text-center space-y-3">
                                     <AlertCircle className="size-8 text-slate-200 mx-auto" />
                                     <p className="text-slate-400 font-black text-sm">해당 기간에 진행되는 사업이 없습니다.</p>
                                   </div>
-                                );
-                              })()}
+                                )}
                            </div>
                            <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Tip: 노드 클릭 시 즉시 선택됩니다.</p>
@@ -627,23 +641,20 @@ export default function SurveysPage() {
                             </thead>
                              <tbody className="divide-y divide-slate-50">
                                {(() => {
-                                 const rootProjects = projects.filter(p => p.level === 1 && (selectedProjectIds.length === 0 || projects.some(child => selectedProjectIds.includes(child.id)) || selectedProjectIds.includes(p.id)))
-                                   .filter(p => (!dataDateRange.start || p.endDate >= dataDateRange.start));
+                                 const rootProjects = projects.filter(p => p.level === 1 && visibleProjectIds.has(p.id));
                                  
-                                 // 모든 프로젝트 데이터에서 필터링된 결과 (계층 유지하며 선택된 것 위주로 표시하기 위함)
-                                 // 만약 selectedProjectIds가 있으면 해당 ID들을 포함하는 부모들을 추적해서 rootProjects를 재구성
                                  let filteredRoots = rootProjects;
+                                 
                                  if (selectedProjectIds.length > 0) {
-                                   const getAncestorIds = (id: string): string[] => {
-                                     const p = projects.find(proj => proj.id === id);
-                                     if (!p || !p.parentId) return [];
-                                     return [p.parentId, ...getAncestorIds(p.parentId)];
-                                   };
-                                   const allVisibleIds = new Set([...selectedProjectIds]);
+                                   const selectedAncestors = new Set<string>();
                                    selectedProjectIds.forEach(id => {
-                                     getAncestorIds(id).forEach(aid => allVisibleIds.add(aid));
+                                      let curr = projects.find(p => p.id === id);
+                                      while(curr) {
+                                        selectedAncestors.add(curr.id);
+                                        curr = projects.find(p => p.id === curr?.parentId);
+                                      }
                                    });
-                                   filteredRoots = projects.filter(p => p.level === 1 && allVisibleIds.has(p.id));
+                                   filteredRoots = rootProjects.filter(p => selectedAncestors.has(p.id));
                                  }
 
                                  if (filteredRoots.length === 0) {
@@ -897,43 +908,12 @@ export default function SurveysPage() {
                              </div>
                              <div className="overflow-y-auto p-4 custom-scrollbar flex-1 bg-white">
                                 <div className="py-2 text-[10px] text-slate-400 font-bold mb-2 px-1 lowercase tracking-wider">조회할 사업들을 체크해 주세요.</div>
-                                {(() => {
-                                  const toggleId = (id: string, e: React.MouseEvent) => {
-                                    e.stopPropagation();
-                                    setSelectedProjectIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-                                  };
-
-                                  const renderNodes = (parentId: string | null, depth: number = 0): React.ReactNode => {
-                                    const filteredRows = projects.filter(p => p.parentId === parentId);
-                                    if (filteredRows.length === 0) return null;
-                                    return (
-                                      <div className="flex flex-col gap-1">
-                                        {filteredRows.map(p => {
-                                          const isExpanded = expandedIds.has(p.id);
-                                          const isSelected = selectedProjectIds.includes(p.id);
-                                          const hasChildren = projects.some(child => child.parentId === p.id);
-                                          return (
-                                            <div key={p.id} className="flex flex-col">
-                                              <div onClick={(e) => toggleId(p.id, e)} className={cn("group flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all", isSelected ? "bg-blue-600 text-white shadow-md lg:scale-[1.02]" : "hover:bg-slate-50 text-slate-600")} style={{ marginLeft: `${depth * 1.5}rem` }}>
-                                                <div className="size-5 flex items-center justify-center shrink-0">
-                                                  {isSelected ? <div className="size-4 rounded border-2 border-white bg-white flex items-center justify-center"><Check className="size-3 text-blue-600 stroke-[4px]" /></div> : <div className="size-4 rounded border-2 border-slate-200 group-hover:border-blue-400 bg-white" />}
-                                                </div>
-                                                {hasChildren && <button onClick={(e) => toggleExpand(p.id, e)} className={cn("p-1 rounded hover:bg-white/20 transition-colors", isSelected ? "text-white" : "text-slate-400")}>{isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}</button>}
-                                                <span className="text-xs font-black truncate">
-                                                  {p.level === 3 && p.partnerId ? (partners.find(ptr => ptr.id === p.partnerId)?.name || p.name) : 
-                                                   p.level === 4 && p.partnerId ? `${partners.find(ptr => ptr.id === p.partnerId)?.name || '미지정'} (${p.name})` : 
-                                                   p.name}
-                                                </span>
-                                              </div>
-                                              {isExpanded && renderNodes(p.id, depth + 1)}
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    );
-                                  };
-                                  return renderNodes(null);
-                                })()}
+                                {renderNodes(null) || (
+                                  <div className="py-20 text-center space-y-3">
+                                    <AlertCircle className="size-8 text-slate-200 mx-auto" />
+                                    <p className="text-slate-400 font-black text-sm">해당 기간에 진행되는 사업이 없습니다.</p>
+                                  </div>
+                                )}
                              </div>
                              <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
                                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Tip: 노드 클릭 시 즉시 선택됩니다.</p>
