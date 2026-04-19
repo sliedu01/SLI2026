@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { Project } from './use-project-store';
 
 // UI(surveys/page.tsx) 요구 규격에 맞춘 타입 리네임
-export type SurveyType = 'COMPETENCY' | 'SATISFACTION';
+export type SurveyType = 'COMPETENCY' | 'SATISFACTION' | 'UNIFIED';
 
 export interface Question {
   id: string;
