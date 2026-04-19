@@ -187,6 +187,34 @@ export default function SurveysPage() {
   const aggregatedStats = getAggregatedStats(projects, selectedProjectIds.length > 0 ? selectedProjectIds : undefined, undefined, 'UNIFIED');
   const overallStats = aggregatedStats['_overall'];
 
+  // 지표별 상세 설명 상수 (15년차 컨설턴트 관점)
+  const metricGuides = {
+    satAvg: {
+      title: "만족도 평균 (Satisfaction Score)",
+      formula: "평균 = (각 문항 점수의 합) / 문항 수",
+      criteria: "4.5↑ 매우우수 | 4.0↑ 우수 | 3.5↑ 보통 | 3.0↑ 미흡 | 3.0↓ 매우미흡",
+      effect: "교육 과정의 매력도, 진행 적절성, 강사 만족도 등 전반적인 학습 경험의 질을 측정함."
+    },
+    gain: {
+      title: "역량 향상도 (Hake's Gain)",
+      formula: "G = (사후 - 사전) / (최대점수 - 사전)",
+      criteria: "0.7↑ 고성과(High) | 0.3~0.7 중성과(Medium) | 0.3↓ 저성과(Low)",
+      effect: "학습자가 교육을 통해 잠재적 성장 가능성을 얼마나 실제 역량으로 전환시켰는지 측정하는 핵심 지표."
+    },
+    cohensD: {
+      title: "효과 크기 (Cohen's d)",
+      formula: "d = (사후평균 - 사전평균) / 통합표준편차",
+      criteria: "0.8↑ 강력한 효과(Large) | 0.5↑ 중간 효과(Medium) | 0.2↑ 낮은 효과(Small)",
+      effect: "표본 크기와 관계없이 교육 프로그램이 학습자에게 준 실질적인 '충격'과 '변화의 강도'를 의미함."
+    },
+    pValue: {
+      title: "통계적 유의성 (p-value)",
+      formula: "대응표본 t-검정 (Paired t-test) 유의확률",
+      criteria: "0.05↓ 통계적으로 유의미함 | 0.01↓ 매우 유의미함",
+      effect: "관찰된 역량 변화가 우연이 아닌 프로그램의 효과일 확률을 과학적으로 신뢰할 수 있는지 검증함."
+    }
+  };
+
   
   const visibleProjectIds = React.useMemo(() => {
     const start = dataDateRange.start;
@@ -436,14 +464,62 @@ export default function SurveysPage() {
                             {satTextQuestions.map((q, idx) => (
                               <th key={q.id} className="p-2 text-center w-28 min-w-[110px]"><Tooltip><TooltipTrigger className="bg-slate-50 text-slate-600 px-2 py-1 rounded-lg flex flex-col items-center w-full leading-tight font-black">TX{idx+1}</TooltipTrigger><TooltipContent className="bg-slate-900 text-white p-4 rounded-xl">{q.content}</TooltipContent></Tooltip></th>
                             ))}
-                            <th className="p-4 text-center bg-emerald-50 text-[10px] w-20 text-emerald-700 font-black">만족도 평균</th>
+                             <th className="p-4 text-center bg-emerald-50 text-[10px] w-20 text-emerald-700 font-black">
+                               <Tooltip>
+                                 <TooltipTrigger className="cursor-help uppercase">만족도 평균</TooltipTrigger>
+                                 <TooltipContent className="p-5 bg-slate-900 text-white rounded-[1.5rem] border-none shadow-2xl space-y-3 min-w-[280px]">
+                                   <p className="text-emerald-400 font-black text-sm">{metricGuides.satAvg.title}</p>
+                                   <div className="space-y-2 text-[11px] opacity-90 leading-relaxed font-medium">
+                                     <p><span className="text-white font-black">[산식]</span> {metricGuides.satAvg.formula}</p>
+                                     <p><span className="text-white font-black">[기준]</span> {metricGuides.satAvg.criteria}</p>
+                                     <p><span className="text-white font-black">[기대효과]</span> {metricGuides.satAvg.effect}</p>
+                                   </div>
+                                 </TooltipContent>
+                               </Tooltip>
+                             </th>
                             {compQuestions.map((q, idx) => (
                               <th key={q.id} className="p-2 text-center w-16 min-min-w-[64px]"><Tooltip><TooltipTrigger className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg flex flex-col items-center w-full leading-tight font-black">Q{idx+1}</TooltipTrigger><TooltipContent className="bg-slate-900 text-white p-4 rounded-xl">{q.content}</TooltipContent></Tooltip></th>
                             ))}
                             <th className="p-4 text-center bg-blue-50 text-[10px] w-20 text-blue-700 font-black">역량 평균</th>
-                            <th className="p-4 text-center bg-emerald-50/50 text-emerald-700 font-black text-[10px]">Gain</th>
-                            <th className="p-4 text-center bg-amber-50/50 text-amber-700 font-black text-[10px]">Cohen's d</th>
-                            <th className="p-4 text-center bg-purple-50/50 text-purple-700 font-black text-[10px]">t-test</th>
+                             <th className="p-4 text-center bg-emerald-50/50 text-emerald-700 font-black text-[10px]">
+                               <Tooltip>
+                                 <TooltipTrigger className="cursor-help uppercase">Gain</TooltipTrigger>
+                                 <TooltipContent className="p-5 bg-slate-900 text-white rounded-[1.5rem] border-none shadow-2xl space-y-3 min-w-[280px]">
+                                   <p className="text-blue-400 font-black text-sm">{metricGuides.gain.title}</p>
+                                   <div className="space-y-2 text-[11px] opacity-90 leading-relaxed font-medium">
+                                     <p><span className="text-white font-black">[산식]</span> {metricGuides.gain.formula}</p>
+                                     <p><span className="text-white font-black">[기준]</span> {metricGuides.gain.criteria}</p>
+                                     <p><span className="text-white font-black">[기대효과]</span> {metricGuides.gain.effect}</p>
+                                   </div>
+                                 </TooltipContent>
+                               </Tooltip>
+                             </th>
+                             <th className="p-4 text-center bg-amber-50/50 text-amber-700 font-black text-[10px]">
+                               <Tooltip>
+                                 <TooltipTrigger className="cursor-help uppercase">Cohen's d</TooltipTrigger>
+                                 <TooltipContent className="p-5 bg-slate-900 text-white rounded-[1.5rem] border-none shadow-2xl space-y-3 min-w-[280px]">
+                                   <p className="text-amber-400 font-black text-sm">{metricGuides.cohensD.title}</p>
+                                   <div className="space-y-2 text-[11px] opacity-90 leading-relaxed font-medium">
+                                     <p><span className="text-white font-black">[산식]</span> {metricGuides.cohensD.formula}</p>
+                                     <p><span className="text-white font-black">[기준]</span> {metricGuides.cohensD.criteria}</p>
+                                     <p><span className="text-white font-black">[기대효과]</span> {metricGuides.cohensD.effect}</p>
+                                   </div>
+                                 </TooltipContent>
+                               </Tooltip>
+                             </th>
+                             <th className="p-4 text-center bg-purple-50/50 text-purple-700 font-black text-[10px]">
+                               <Tooltip>
+                                 <TooltipTrigger className="cursor-help uppercase">t-test</TooltipTrigger>
+                                 <TooltipContent className="p-5 bg-slate-900 text-white rounded-[1.5rem] border-none shadow-2xl space-y-3 min-w-[280px]">
+                                   <p className="text-purple-400 font-black text-sm">{metricGuides.pValue.title}</p>
+                                   <div className="space-y-2 text-[11px] opacity-90 leading-relaxed font-medium">
+                                     <p><span className="text-white font-black">[산식]</span> {metricGuides.pValue.formula}</p>
+                                     <p><span className="text-white font-black">[기준]</span> {metricGuides.pValue.criteria}</p>
+                                     <p><span className="text-white font-black">[기대효과]</span> {metricGuides.pValue.effect}</p>
+                                   </div>
+                                 </TooltipContent>
+                               </Tooltip>
+                             </th>
                             <th className="p-6 text-center">관리</th>
                           </tr>
                         </thead>
@@ -483,46 +559,66 @@ export default function SurveysPage() {
 
                                     </tr>
                                     {isExpanded && childRows.length > 0 && renderTree(childRows, depth + 1)}
-                                    {isExpanded && pResponses.sort((a, b) => (a.respondentId || '').localeCompare(b.respondentId || '')).map((r, rIdx) => {
-                                      const rSatAnswers = r.answers.filter(a => satQuestions.some(q => q.id === a.questionId));
-                                      const rSatAvg = rSatAnswers.length > 0 ? rSatAnswers.reduce((prev, curr) => prev + (Number(curr.score) || 0), 0) / rSatAnswers.length : 0;
-                                      const rCompAnswers = r.answers.filter(a => compQuestions.some(q => q.id === a.questionId));
-                                      const rPostAvg = rCompAnswers.length > 0 ? rCompAnswers.reduce((prev, curr) => prev + (Number(curr.score) || 0), 0) / rCompAnswers.length : 0;
-                                      return (
-                                        <tr key={r.id} className="border-b bg-white hover:bg-slate-50">
-                                          <td className="p-4" style={{ paddingLeft: `${(depth + 1.2) * 1}rem` }}><div className="flex flex-col"><span className="text-[10px] font-bold text-slate-500">{r.respondentId || '학습자'}</span><span className="text-[8px] text-slate-300 font-black">RAW DATA</span></div></td>
-                                          {satQuestions.map(q => <td key={q.id} className="p-4 text-center text-[10px] text-emerald-600/30">{r.answers.find(a=>a.questionId===q.id)?.score || '-'}</td>)}
-                                          {satTextQuestions.map(q => {
-                                            const ans = r.answers.find(a => a.questionId === q.id);
-                                            const text = ans?.text || '-';
-                                            return (
-                                              <td key={q.id} className="p-4 text-center text-[10px] text-slate-500 bg-slate-50/50 border-r min-w-[110px]">
-                                                {text === '-' ? '-' : (
-                                                  <Tooltip>
-                                                    <TooltipTrigger className="cursor-help hover:text-blue-600 underline decoration-slate-200 underline-offset-4 decoration-dotted">
-                                                      {text.length > 5 ? `${text.slice(0, 5)}...` : text}
-                                                    </TooltipTrigger>
-                                                    <TooltipContent className="max-w-[300px] p-4 bg-slate-900 text-white rounded-xl shadow-2xl border-none">
-                                                      <p className="text-xs leading-relaxed font-medium">{text}</p>
-                                                    </TooltipContent>
-                                                  </Tooltip>
-                                                )}
+                                    {isExpanded && (() => {
+                                      // 동일 학습자(respondentId)의 만족도와 역량 응답을 병합하여 한 행으로 표현
+                                      const mergedResponses = pResponses.reduce((acc, res) => {
+                                        const rId = res.respondentId || `anon-${res.id.slice(0, 8)}`;
+                                        if (!acc[rId]) acc[rId] = { id: rId, respondentId: res.respondentId, sat: null as SurveyResponse | null, comp: null as SurveyResponse | null };
+                                        const tmpl = templates.find(t => t.id === res.templateId);
+                                        if (tmpl?.type === 'SATISFACTION') acc[rId].sat = res;
+                                        else if (tmpl?.type === 'COMPETENCY') acc[rId].comp = res;
+                                        return acc;
+                                      }, {} as Record<string, { id: string, respondentId?: string, sat: SurveyResponse | null, comp: SurveyResponse | null }>);
+
+                                      return Object.values(mergedResponses)
+                                        .sort((a, b) => (a.respondentId || '').localeCompare(b.respondentId || ''))
+                                        .map((m) => {
+                                          const rSatAnswers = m.sat?.answers.filter(a => satQuestions.some(q => q.id === a.questionId)) || [];
+                                          const rSatAvg = rSatAnswers.length > 0 ? rSatAnswers.reduce((prev, curr) => prev + (Number(curr.score) || 0), 0) / rSatAnswers.length : 0;
+                                          const rCompAnswers = m.comp?.answers.filter(a => compQuestions.some(q => q.id === a.questionId)) || [];
+                                          const rPostAvg = rCompAnswers.length > 0 ? rCompAnswers.reduce((prev, curr) => prev + (Number(curr.score) || 0), 0) / rCompAnswers.length : 0;
+                                          
+                                          return (
+                                            <tr key={m.id} className="border-b bg-white hover:bg-slate-50">
+                                              <td className="p-4" style={{ paddingLeft: `${(depth + 1.2) * 1}rem` }}>
+                                                <div className="flex flex-col">
+                                                  <span className="text-[10px] font-bold text-slate-500">{m.respondentId || '학습자'}</span>
+                                                  <span className="text-[8px] text-emerald-500 font-black">INTEGRATED DATA</span>
+                                                </div>
                                               </td>
-                                            );
-                                          })}
-                                          <td className="p-4 text-center font-black text-[10px] text-emerald-600/40">{rSatAvg.toFixed(2)}</td>
-                                          {compQuestions.map(q => <td key={q.id} className="p-4 text-center text-[10px] text-blue-600/30">{r.answers.find(a=>a.questionId===q.id)?.score || '-'}</td>)}
-                                          <td className="p-4 text-center font-black text-[10px] text-blue-600/40">{rPostAvg.toFixed(2)}</td>
-                                          <td colSpan={3} />
-                                          <td className="p-4 text-center">
-                                            <div className="flex gap-1 justify-center">
-                                              <Button onClick={(e) => { e.stopPropagation(); setEditingResponse(r); setIsEditDialogOpen(true); }} variant="ghost" size="icon" className="size-6 text-slate-300"><Edit className="size-3" /></Button>
-                                              <Button onClick={async (e) => { e.stopPropagation(); if(confirm('삭제?')) { await deleteResponse(r.id); await fetchSurveys(); } }} variant="ghost" size="icon" className="size-6 text-slate-300"><Trash2 className="size-3" /></Button>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
+                                              {satQuestions.map(q => <td key={q.id} className="p-4 text-center text-[10px] text-emerald-600/30">{m.sat?.answers.find(a=>a.questionId===q.id)?.score || '-'}</td>)}
+                                              {satTextQuestions.map(q => {
+                                                const ans = m.sat?.answers.find(a => a.questionId === q.id);
+                                                const text = ans?.text || '-';
+                                                return (
+                                                  <td key={q.id} className="p-4 text-center text-[10px] text-slate-500 bg-slate-50/50 border-r min-w-[110px]">
+                                                    {text === '-' ? '-' : (
+                                                      <Tooltip>
+                                                        <TooltipTrigger className="cursor-help hover:text-blue-600 underline decoration-slate-200 underline-offset-4 decoration-dotted">
+                                                          {text.length > 5 ? `${text.slice(0, 5)}...` : text}
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="max-w-[300px] p-4 bg-slate-900 text-white rounded-xl shadow-2xl border-none">
+                                                          <p className="text-xs leading-relaxed font-medium">{text}</p>
+                                                        </TooltipContent>
+                                                      </Tooltip>
+                                                    )}
+                                                  </td>
+                                                );
+                                              })}
+                                              <td className="p-4 text-center font-black text-[10px] text-emerald-600/40">{rSatAvg.toFixed(2)}</td>
+                                              {compQuestions.map(q => <td key={q.id} className="p-4 text-center text-[10px] text-blue-600/30">{m.comp?.answers.find(a=>a.questionId===q.id)?.score || '-'}</td>)}
+                                              <td className="p-4 text-center font-black text-[10px] text-blue-600/40">{rPostAvg.toFixed(2)}</td>
+                                              <td colSpan={3} />
+                                              <td className="p-4 text-center">
+                                                <div className="flex gap-1 justify-center">
+                                                  <Button onClick={(e) => { e.stopPropagation(); setEditingResponse(m.sat || m.comp); setIsEditDialogOpen(true); }} variant="ghost" size="icon" className="size-6 text-slate-300"><Edit className="size-3" /></Button>
+                                                  <Button onClick={async (e) => { e.stopPropagation(); if(confirm('삭제?')) { if(m.sat) await deleteResponse(m.sat.id); if(m.comp) await deleteResponse(m.comp.id); await fetchSurveys(); } }} variant="ghost" size="icon" className="size-6 text-slate-300"><Trash2 className="size-3" /></Button>
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          );
+                                        });
+                                    })()}
                                     {isExpanded && (hasChildren || pResponses.length > 0) && (
                                       <tr className="bg-slate-900 text-white font-black text-[10px] border-b-2">
                                         <td className="p-4 sticky left-0 z-10 bg-slate-900"><div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 1}rem` }}><Sigma className="size-3 text-emerald-400" /> {p.name} 종합</div></td>
