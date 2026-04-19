@@ -62,6 +62,7 @@ export function ProjectDialog({
   const [quota, setQuota] = React.useState(0);
   const [participantCount, setParticipantCount] = React.useState(0);
   const [partnerId, setPartnerId] = React.useState<string>('none');
+  const [location, setLocation] = React.useState('');
   const [sessions, setSessions] = React.useState<ProjectSession[]>([]);
 
   React.useEffect(() => {
@@ -76,6 +77,7 @@ export function ProjectDialog({
         setQuota(project.quota || 0);
         setParticipantCount(project.participantCount || 0);
         setPartnerId(project.partnerId || 'none');
+        setLocation(project.location || '');
         setSessions(project.sessions || []);
       } else if (mode === 'add' && parentProject) {
         setName('');
@@ -87,6 +89,7 @@ export function ProjectDialog({
         setQuota(0);
         setParticipantCount(0);
         setPartnerId(parentProject.partnerId || 'none');
+        setLocation(parentProject.location || '');
         setSessions([]);
       } else {
         setName('');
@@ -98,6 +101,7 @@ export function ProjectDialog({
         setQuota(0);
         setParticipantCount(0);
         setPartnerId('none');
+        setLocation('');
         setSessions([]);
       }
     }
@@ -148,6 +152,7 @@ export function ProjectDialog({
       quota,
       participantCount: level >= 3 ? sessions.reduce((sum, s) => sum + s.participantCount, 0) : participantCount,
       partnerId: partnerId === 'none' ? undefined : partnerId,
+      location,
       sessions: level >= 3 ? sessions : [],
       parentId: mode === 'edit' ? project?.parentId || null : parentId,
       level: mode === 'edit' ? project?.level || 1 : level,
@@ -187,6 +192,17 @@ export function ProjectDialog({
                   placeholder="사업 명칭을 입력하세요"
                   className="font-bold h-12 rounded-xl"
                   required
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="location" className="text-xs font-black text-slate-400 uppercase tracking-wider">교육 장소</Label>
+                <Input
+                  id="location"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="교육이 진행된 장소를 입력하세요"
+                  className="font-bold h-12 rounded-xl"
                 />
               </div>
 

@@ -175,12 +175,12 @@ export default function ReportPage() {
            <div className="grid grid-cols-4 gap-6 mb-10">
               <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">교육 만족도</p>
-                 <p className="text-3xl font-black text-slate-900">{projectStats.normalizedSatScore.toFixed(1)}<span className="text-xs text-slate-400 ml-1">/100</span></p>
+                 <p className="text-3xl font-black text-slate-900">{projectStats.normalizedSatScore.toFixed(2)}<span className="text-xs text-slate-400 ml-1">/100</span></p>
                  <p className="text-[10px] font-bold text-slate-400 mt-1">평균 {projectStats.avgSat.toFixed(2)}점</p>
               </div>
               <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">예산 집행률</p>
-                 <p className="text-3xl font-black text-slate-900">{projectStats.execRate.toFixed(1)}%</p>
+                 <p className="text-3xl font-black text-slate-900">{projectStats.execRate.toFixed(2)}%</p>
                  <p className="text-[10px] font-bold text-slate-400 mt-1">₩{(projectStats.pSpent/10000).toLocaleString()}만 지출</p>
               </div>
               <div className="p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
@@ -233,7 +233,7 @@ export default function ReportPage() {
                           <TrendingUp className="size-4 text-blue-500" /> 잠재력 대비 성취도 (Hake&apos;s Gain)
                        </h4>
                        <p className="text-sm font-bold text-slate-600 leading-relaxed">
-                          학습자가 도달할 수 있는 최대 성장 폭 대비 실무 역량 향상도는 <span className="text-indigo-600 font-black">{(projectStats.hakeGain * 100).toFixed(1)}%</span>로 집계되었습니다. 
+                          학습자가 도달할 수 있는 최대 성장 폭 대비 실무 역량 향상도는 <span className="text-indigo-600 font-black">{(projectStats.hakeGain * 100).toFixed(2)}%</span>로 집계되었습니다. 
                           이는 학습자의 초기 역량 수준에 관계없이 실질적인 임팩트를 제공했음을 의미합니다.
                        </p>
                     </div>
@@ -273,7 +273,7 @@ export default function ReportPage() {
                            <div className="grid grid-cols-5 gap-4">
                               <div className="text-center">
                                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">만족도</p>
-                                 <p className="text-base font-black text-emerald-600">{stats.normalizedSatScore.toFixed(1)}</p>
+                                 <p className="text-base font-black text-emerald-600">{stats.normalizedSatScore.toFixed(2)}</p>
                               </div>
                               <div className="text-center">
                                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Gain</p>
@@ -281,7 +281,7 @@ export default function ReportPage() {
                               </div>
                               <div className="text-center">
                                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">집행률</p>
-                                 <p className="text-base font-black text-slate-700">{stats.execRate.toFixed(1)}%</p>
+                                 <p className="text-base font-black text-slate-700">{stats.execRate.toFixed(2)}%</p>
                               </div>
                               <div className="text-center">
                                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">투입예산</p>

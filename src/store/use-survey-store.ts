@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { Project } from './use-project-store';
+import { calculateHakeGain, calculateCohensD, calculatePairedTTest, getPValueFromT } from '@/lib/stat-utils';
 
 // UI(surveys/page.tsx) 요구 규격에 맞춘 타입 리네임
 export type SurveyType = 'COMPETENCY' | 'SATISFACTION' | 'UNIFIED';
@@ -38,6 +39,41 @@ export interface SurveyResponse {
   createdAt: number;
 }
 
+interface AggregatedStat {
+  avg: number; 
+  satAvg: number; 
+  preAvg: number; 
+  postAvg: number; 
+  satCount: number;
+  compCount: number;
+  count: number;
+  totalAverage: number;
+  hakeGain: number;
+  cohensD: number;
+  pValue: number;
+  questionStats: Array<{
+    preAvg: number;
+    postAvg: number;
+    average: number;
+    impRate: number;
+  }>;
+  themeStats: Record<string, {
+    preAvg: number;
+    postAvg: number;
+    satAvg: number;
+    average: number;
+    count: number;
+  }>;
+  impRate: number;
+  _raw?: {
+    preScores: number[][];
+    postScores: number[][];
+    satScores: number[][];
+    count: number;
+    responses: SurveyResponse[];
+  };
+}
+
 interface SurveyState {
   templates: SurveyTemplate[];
   responses: SurveyResponse[];
@@ -55,26 +91,7 @@ interface SurveyState {
   
   // Helpers
   createDefaultQuestions: (type: SurveyType) => Question[];
-  getAggregatedStats: (projects: Project[], projectIds?: string[], partnerId?: string, type?: SurveyType) => Record<string, { 
-    avg: number; 
-    satAvg: number; 
-    preAvg: number; 
-    postAvg: number; 
-    satCount: number;
-    compCount: number;
-    count: number;
-    totalAverage: number;
-    hakeGain: number;
-    cohensD: number;
-    pValue: number;
-    questionStats: Array<{
-      preAvg: number;
-      postAvg: number;
-      average: number;
-      impRate: number;
-    }>;
-    impRate: number;
-  }>;
+  getAggregatedStats: (projects: Project[], projectIds?: string[], partnerId?: string, type?: SurveyType) => Record<string, AggregatedStat>;
   getUnifiedProjectData: (projectId: string) => {
     mergedResponses: Array<{
       respondentId: string;
@@ -212,7 +229,6 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
 
   getAggregatedStats: (projects, projectIds, partnerId, type) => {
     const { responses, templates } = get();
-    const { calculateHakeGain, calculateCohensD, calculatePairedTTest, getPValueFromT } = require('@/lib/stat-utils');
 
     // 1. 빠른 탐색을 위한 인덱스 생성 (O(1) 접근)
     const templateMap = new Map(templates.map(t => [t.id, t]));
@@ -269,16 +285,16 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
       }
     });
 
-    const aggregated: Record<string, any> = {};
+    const aggregated: Record<string, AggregatedStat> = {};
 
     // 3. 재귀적 통계 합산 (Memoization 패턴)
-    const calculateRecursive = (id: string) => {
+    const calculateRecursive = (id: string): AggregatedStat | null => {
       if (aggregated[id]) return aggregated[id];
 
       const children = childrenMap.get(id) || [];
       const currentRaw = projectData[id] || { preScores: [], postScores: [], satScores: [], responses: [] };
       
-      let combined = {
+      const combined = {
         preScores: currentRaw.preScores.map(s => [...s]),
         postScores: currentRaw.postScores.map(s => [...s]),
         satScores: currentRaw.satScores.map(s => [...s]),
@@ -364,14 +380,49 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
         });
       }
 
-      const result = {
+      const themeStatsGroup: Record<string, { preSum: number, postSum: number, satSum: number, count: number }> = {};
+      
+      combined.responses.forEach(res => {
+        const tmpl = templateMap.get(res.templateId);
+        if(!tmpl) return;
+        res.answers.forEach((ans, idx) => {
+          const q = tmpl.questions[idx];
+          if(!q || !q.theme) return;
+          if(!themeStatsGroup[q.theme]) themeStatsGroup[q.theme] = { preSum: 0, postSum: 0, satSum: 0, count: 0 };
+          const ts = themeStatsGroup[q.theme];
+          if(tmpl.type === 'SATISFACTION' && q.type === 'SCALE') {
+            ts.satSum += Number(ans.score || 0);
+            ts.count++;
+          } else if(tmpl.type === 'COMPETENCY') {
+            ts.preSum += Number(ans.preScore || 0);
+            ts.postSum += Number(ans.score || 0);
+            ts.count++;
+          }
+        });
+      });
+
+      const finalThemeStats: Record<string, { preAvg: number; postAvg: number; satAvg: number; average: number; count: number }> = {};
+      Object.entries(themeStatsGroup).forEach(([theme, s]) => {
+        finalThemeStats[theme] = {
+          preAvg: s.count > 0 ? s.preSum / s.count : 0,
+          postAvg: s.count > 0 ? s.postSum / s.count : 0,
+          satAvg: s.count > 0 ? s.satSum / s.count : 0,
+          average: s.count > 0 ? (s.preSum + s.postSum + s.satSum) / s.count : 0,
+          count: s.count
+        };
+      });
+
+      const result: AggregatedStat = {
+        avg: type === 'SATISFACTION' ? satAvg : postAvg,
+        satAvg,
         preAvg,
         postAvg,
-        satAvg,
+        satCount: finalSatAvgs.length,
+        compCount: finalPostAvgs.length,
+        count: finalSatAvgs.length || finalPostAvgs.length || combined.count,
         totalAverage: type === 'SATISFACTION' ? satAvg : postAvg,
         hakeGain: calculateHakeGain(preAvg, postAvg),
         cohensD: calculateCohensD(finalPreAvgs, finalPostAvgs),
-        // Paired t-test는 사전/사후 데이터가 모두 있는 응답자만 대상으로 함
         pValue: (() => {
           const pairs = respondentAvgs.filter(a => a.pre !== null && a.post !== null);
           if (pairs.length < 2) return 1.0;
@@ -380,8 +431,8 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
           const tVal = calculatePairedTTest(preList, postList);
           return getPValueFromT(tVal, pairs.length - 1);
         })(),
-        count: finalSatAvgs.length || finalPostAvgs.length || combined.count,
         impRate: preAvg > 0 ? ((postAvg - preAvg) / preAvg) * 100 : 0,
+        themeStats: finalThemeStats,
         questionStats,
         _raw: combined 
       };
@@ -403,7 +454,7 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
       });
 
       if (overallResponses.length > 0) {
-        // 중복 제거 (여러 하위 프로젝트에 걸쳐 있을 수 있음)
+        // 중복 제거
         const uniqueResponses = Array.from(new Map(overallResponses.map(r => [r.id, r])).values());
         
         const respondents = new Map<string, { preSum: number, preCount: number, postSum: number, postCount: number, satSum: number, satCount: number }>();
@@ -438,10 +489,48 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
         const post = finalPostAvgs.length > 0 ? finalPostAvgs.reduce((a,b)=>a+b,0)/finalPostAvgs.length : 0;
         const sat = finalSatAvgs.length > 0 ? finalSatAvgs.reduce((a,b)=>a+b,0)/finalSatAvgs.length : 0;
 
+        
+      const themeStatsGroup: Record<string, { preSum: number, postSum: number, satSum: number, count: number }> = {};
+      
+      uniqueResponses.forEach(res => {
+        const tmpl = templateMap.get(res.templateId);
+        if(!tmpl) return;
+        res.answers.forEach((ans, idx) => {
+          const q = tmpl.questions[idx];
+          if(!q || !q.theme) return;
+          if(!themeStatsGroup[q.theme]) themeStatsGroup[q.theme] = { preSum: 0, postSum: 0, satSum: 0, count: 0 };
+          const ts = themeStatsGroup[q.theme];
+          if(tmpl.type === 'SATISFACTION' && q.type === 'SCALE') {
+            ts.satSum += Number(ans.score || 0);
+            ts.count++;
+          } else if(tmpl.type === 'COMPETENCY') {
+            ts.preSum += Number(ans.preScore || 0);
+            ts.postSum += Number(ans.score || 0);
+            ts.count++;
+          }
+        });
+      });
+
+      const finalThemeStats: Record<string, { preAvg: number; postAvg: number; satAvg: number; average: number; count: number }> = {};
+      Object.entries(themeStatsGroup).forEach(([theme, s]) => {
+        finalThemeStats[theme] = {
+          preAvg: s.count > 0 ? s.preSum / s.count : 0,
+          postAvg: s.count > 0 ? s.postSum / s.count : 0,
+          satAvg: s.count > 0 ? s.satSum / s.count : 0,
+          average: s.count > 0 ? (s.preSum + s.postSum + s.satSum) / s.count : 0,
+          count: s.count
+        };
+      });
+
         aggregated['_overall'] = {
+          avg: 0, // Placeholder
+          satAvg: sat,
           preAvg: pre, 
           postAvg: post,
-          satAvg: sat,
+          satCount: respondentAvgs.length,
+          compCount: respondentAvgs.length,
+          count: respondentAvgs.length,
+          totalAverage: sat,
           hakeGain: calculateHakeGain(pre, post),
           cohensD: calculateCohensD(finalPreAvgs, finalPostAvgs),
           pValue: (() => {
@@ -452,7 +541,8 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
             return getPValueFromT(calculatePairedTTest(preList, postList), pairs.length - 1);
           })(),
           impRate: pre > 0 ? ((post - pre) / pre) * 100 : 0,
-          count: respondentAvgs.length
+          themeStats: finalThemeStats,
+          questionStats: [] // Simplified for overall
         };
       }
     } else {
@@ -462,22 +552,14 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
     return aggregated;
   },
 
-  // 프로젝트 단위의 통합 데이터 및 동적 템플릿 정보 반환
   getUnifiedProjectData: (targetId: string) => {
     const { responses, templates } = get();
-    
-    // 대상 ID가 세부 프로그램(LV4)인 경우와 상위 사업(LV1~3)인 경우를 모두 고려
     const projectResponses = responses.filter(r => r.projectId === targetId);
-    
-    // 이 프로젝트/프로그램에서 사용된 모든 템플릿 추출
     const usedTemplateIds = Array.from(new Set(projectResponses.map(r => r.templateId)));
     const relevantTemplates = templates.filter(t => usedTemplateIds.includes(t.id));
-    
-    // 유형별 최신 템플릿
     const satTemplates = relevantTemplates.filter(t => t.type === 'SATISFACTION').sort((a,b) => b.createdAt - a.createdAt);
     const compTemplates = relevantTemplates.filter(t => t.type === 'COMPETENCY').sort((a,b) => b.createdAt - a.createdAt);
 
-    // respondentId 기준으로 데이터 병합
     const mergedMap = new Map<string, {
       respondentId: string;
       satResponses: SurveyResponse[];

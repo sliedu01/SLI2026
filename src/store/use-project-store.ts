@@ -22,6 +22,7 @@ export interface Project {
   parentId: string | null; 
   level: number; 
   partnerId?: string; 
+  location?: string; 
   quota: number; 
   participantCount: number; 
   sessions?: ProjectSession[]; // 다차시 정보
@@ -74,6 +75,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         parentId: p.parent_id,
         level: p.level,
         partnerId: p.partner_id || undefined,
+        location: p.location || '',
         quota: p.quota || 0,
         participantCount: p.participant_count || 0,
         sessions: p.sessions || [],
@@ -160,6 +162,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         parent_id: projectData.parentId,
         level: projectData.level,
         partner_id: projectData.partnerId,
+        location: projectData.location || '',
         quota: projectData.quota,
         participant_count: projectData.participantCount,
         sessions: projectData.sessions || [],
@@ -182,6 +185,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         parent_id: updates.parentId,
         level: updates.level,
         partner_id: updates.partnerId,
+        location: updates.location,
         quota: updates.quota,
         participant_count: updates.participantCount,
         sessions: updates.sessions,
@@ -220,6 +224,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         parent_id: newParentId,
         level: source.level,
         partner_id: source.partnerId,
+        location: source.location || '',
         quota: source.quota,
         participant_count: source.participantCount,
         sessions: source.sessions || [],

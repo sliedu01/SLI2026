@@ -83,7 +83,7 @@ export default function Home() {
 
     return {
       name: p.name,
-      executionRate: Number(executionRate.toFixed(1)),
+      executionRate: Number(executionRate.toFixed(2)),
       performance: performance,
       budget: pBudget,
       spent: pSpent,
@@ -119,8 +119,8 @@ export default function Home() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: '활성 사업 수', value: `${totalProjects}건`, sub: '전주 대비 +1', icon: LayoutGrid, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: '누적 집행율', value: `${budgetExecutionRate.toFixed(1)}%`, sub: `₩${(totalSpent/1000000).toFixed(1)}M 집행`, icon: Wallet, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-          { label: '평균 교육 성과', value: `${satisfactionIndex.toFixed(1)}점`, sub: '100점 만점 기준', icon: Zap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: '누적 집행율', value: `${budgetExecutionRate.toFixed(2)}%`, sub: `₩${(totalSpent/1000000).toFixed(2)}M 집행`, icon: Wallet, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+          { label: '평균 교육 성과', value: `${satisfactionIndex.toFixed(2)}점`, sub: '100점 만점 기준', icon: Zap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { label: '협력 파트너', value: `${totalPartners}개사`, sub: '문서 보호 100%', icon: Building2, color: 'text-amber-600', bg: 'bg-amber-50' },
         ].map((kpi, i) => (
           <Card key={i} className="border-none shadow-xl shadow-slate-200/50 rounded-[2rem] overflow-hidden group hover:scale-[1.02] transition-all">
@@ -206,7 +206,7 @@ export default function Home() {
              <div className="space-y-6 text-indigo-100/90 leading-relaxed font-medium text-sm">
                 <div className="p-5 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
                    <p className="italic">
-                      &quot;시스템 분석 결과, 현재 통합 예산 집행률은 {budgetExecutionRate.toFixed(1)}%입니다. 
+                      &quot;시스템 분석 결과, 현재 통합 예산 집행률은 {budgetExecutionRate.toFixed(2)}%입니다. 
                       성과 지수 측면에서는 주요 사업군에서 안정적인 ROI를 기록 중입니다. 
                       차세대 DX 역량 강화 교육 사업의 성과가 전주 대비 향상되었습니다.&quot;
                    </p>
@@ -247,7 +247,7 @@ export default function Home() {
                {categories.slice(0, 3).map((c, i) => (
                  <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/50">
                     <span className="text-xs font-black text-slate-700">{c.name}</span>
-                    <span className="text-xs font-bold text-blue-600">₩{(c.totalExpenditure/1000000).toFixed(1)}M</span>
+                    <span className="text-xs font-bold text-blue-600">₩{(c.totalExpenditure/1000000).toFixed(2)}M</span>
                  </div>
                ))}
             </div>

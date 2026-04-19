@@ -225,7 +225,7 @@ export default function ProjectsPage() {
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50/80 rounded-xl border border-amber-100 shadow-sm">
                     <span className="text-[10px] font-black text-amber-500 uppercase tracking-tight">평균 만족도</span>
                     <span className="text-[11px] font-black text-amber-700">
-                      {avgSatisfaction.toFixed(2)}pt ({satisfaction100.toFixed(1)}점)
+                      {avgSatisfaction.toFixed(2)}pt ({satisfaction100.toFixed(2)}점)
                     </span>
                   </div>
                 )}
@@ -252,14 +252,14 @@ export default function ProjectsPage() {
                     {totalSessions > 0 && (
                       <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 rounded-lg border border-indigo-100/50">
                         <span className="text-[9px] font-black text-indigo-400 uppercase">평균 참가인원</span>
-                        <span className="text-[10px] font-black text-indigo-700">{avgPerSession.toFixed(1)}명</span>
+                        <span className="text-[10px] font-black text-indigo-700">{avgPerSession.toFixed(2)}명</span>
                       </div>
                     )}
                     {p.quota > 0 && (
                       <div className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-50 rounded-lg border border-rose-100/50">
                         <span className="text-[9px] font-black text-rose-400 uppercase">참석률</span>
                         <span className="text-[10px] font-black text-rose-700">
-                          {((p.participantCount / p.quota) * 100).toFixed(1)}%
+                          {((p.participantCount / p.quota) * 100).toFixed(2)}%
                         </span>
                       </div>
                     )}
