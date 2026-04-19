@@ -10,6 +10,8 @@ import {
   Wand2,
   ArrowRight,
   TrendingUp,
+  Zap,
+  ArrowUpDown,
   Users,
   MessageSquare,
   Activity,
@@ -335,7 +337,6 @@ export default function SurveysPage() {
         }
       }
       setPasteContent(''); setIsPasteDialogOpen(false); await fetchSurveys(); alert('데이터 연동 완료');
-      setPasteContent(''); setIsPasteDialogOpen(false); await fetchSurveys(); alert('데이터 연동 완료');
     } catch (err: any) { alert(`오류 발생: ${err.message || '데이터 형식을 확인해주세요.'}`); }
   };
 
@@ -550,11 +551,85 @@ export default function SurveysPage() {
                                       {satQuestions.map((_, i) => <td key={i} className="p-4 text-center font-black text-[10px] text-emerald-600/60">{stats?.questionStats?.[i]?.average?.toFixed(2) || '-'}</td>)}
                                       {satTextQuestions.map((_, i) => <td key={i} className="p-4 text-center text-[9px] text-slate-300 italic border-r">SUMMARY</td>)}
                                       <td className="p-4 text-center font-black text-xs bg-emerald-50/30">{stats?.satAvg?.toFixed(2) || '-'}</td>
-                                      {compQuestions.map((_, i) => <td key={i} className="p-4 text-center font-black text-[10px] text-blue-600/60">{stats?.questionStats?.[i]?.postAvg?.toFixed(2) || '-'}</td>)}
-                                      <td className="p-4 text-center font-black text-xs bg-blue-50/30">{stats?.postAvg?.toFixed(2) || '-'}</td>
-                                      <td className={cn("p-4 text-center text-[10px] font-black", (stats?.hakeGain || 0) >= 0.7 ? "text-blue-600 bg-blue-50/50" : (stats?.hakeGain || 0) >= 0.3 ? "text-emerald-600" : "text-slate-400")}>{stats?.hakeGain?.toFixed(2) || '-'}</td>
-                                      <td className={cn("p-4 text-center text-[10px] font-black", (stats?.cohensD || 0) >= 0.8 ? "text-amber-600 bg-amber-50/50" : "text-slate-400")}>{stats?.cohensD?.toFixed(2) || '-'}</td>
-                                      <td className={cn("p-4 text-center text-[10px] font-black", (stats?.pValue || 1) < 0.05 ? "text-purple-600 font-black" : "text-slate-300")}>{stats?.pValue?.toFixed(3) || '-'}</td>
+                                      {compQuestions.map((_, i) => (
+                                        <td key={i} className="p-4 text-center font-black text-[10px] text-blue-600/60">
+                                          <div className="flex flex-col">
+                                            <span>{stats?.questionStats?.[i]?.postAvg?.toFixed(2) || '-'}</span>
+                                            {stats?.questionStats?.[i]?.impRate !== undefined && (
+                                              <Tooltip>
+                                                <TooltipTrigger className={cn("text-[7px] font-bold cursor-help", stats.questionStats[i].impRate >= 0 ? "text-blue-500" : "text-red-500")}>
+                                                  {stats.questionStats[i].impRate >= 0 ? '+' : ''}{stats.questionStats[i].impRate.toFixed(1)}%
+                                                </TooltipTrigger>
+                                                <TooltipContent className="p-3 bg-white border-slate-100 shadow-xl rounded-xl">
+                                                  <div className="text-[10px] space-y-1">
+                                                    <p className="font-black text-blue-600 underline underline-offset-2">문항 역량 향상률 분석</p>
+                                                    <p className="text-slate-500 font-bold">[(사후 평균 - 사전 평균) / 사전 평균] × 100</p>
+                                                    <p className="text-slate-400">사전 실력 대비 교육을 통한 실제 실력 향상 비중을 나타냅니다.</p>
+                                                  </div>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            )}
+                                          </div>
+                                        </td>
+                                      ))}
+                                      <td className="p-4 text-center font-black text-xs bg-blue-50/30">
+                                        <div className="flex flex-col">
+                                          <span>{stats?.postAvg?.toFixed(2) || '-'}</span>
+                                          {stats?.impRate !== undefined && (
+                                            <Tooltip>
+                                              <TooltipTrigger className={cn("text-[8px] font-black cursor-help", stats.impRate >= 0 ? "text-blue-600" : "text-red-500")}>
+                                                {stats.impRate >= 0 ? '+' : ''}{stats.impRate.toFixed(1)}%
+                                              </TooltipTrigger>
+                                              <TooltipContent className="p-4 bg-white border-slate-100 shadow-2xl rounded-2xl">
+                                                <div className="text-[11px] space-y-1.5">
+                                                  <div className="flex items-center gap-1.5">
+                                                    <TrendingUp className="size-3 text-blue-600" />
+                                                    <p className="font-black text-slate-800">종합 역량 향상률 (Skill Growth)</p>
+                                                  </div>
+                                                  <p className="text-slate-400 font-bold px-1 py-0.5 bg-blue-50 rounded w-fit">Formula: (Post - Pre) / Pre %</p>
+                                                  <p className="text-slate-500 leading-tight break-keep">해당 교육 과정 수료 전과 후의 객관적인 역량 차이를 백분율로 환산한 지표입니다.</p>
+                                                </div>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className={cn("p-4 text-center text-[10px] font-black", 
+                                        (stats?.hakeGain || 0) >= 0.7 ? "text-blue-700 bg-blue-100/50" : 
+                                        (stats?.hakeGain || 0) >= 0.3 ? "text-emerald-700 bg-emerald-50/50" : 
+                                        "text-slate-400")}>
+                                        <div className="flex flex-col">
+                                          <span>{stats?.hakeGain?.toFixed(2) || '-'}</span>
+                                          {stats?.hakeGain !== undefined && (
+                                            <Tooltip>
+                                              <TooltipTrigger className="text-[8px] font-black opacity-60 cursor-help">
+                                                {(stats.hakeGain * 100).toFixed(1)}%
+                                              </TooltipTrigger>
+                                              <TooltipContent className="p-4 bg-white border-slate-100 shadow-2xl rounded-2xl">
+                                                <div className="text-[11px] space-y-1.5">
+                                                  <div className="flex items-center gap-1.5">
+                                                    <Zap className="size-3 text-emerald-600" />
+                                                    <p className="font-black text-slate-800">Hake's Gain 비율 (Effectiveness)</p>
+                                                  </div>
+                                                  <p className="text-slate-400 font-bold px-1 py-0.5 bg-emerald-50 rounded w-fit">Formula: Gain / Potential Gain %</p>
+                                                  <p className="text-slate-500 leading-tight break-keep">학습자가 도달 가능한 최대 성장폭(5점 만점 기준) 중 교육을 통해 실제로 달성한 비율입니다.</p>
+                                                </div>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className={cn("p-4 text-center text-[10px] font-black", 
+                                        (stats?.cohensD || 0) >= 0.8 ? "text-amber-700 bg-amber-100/30 shadow-inner" : 
+                                        (stats?.cohensD || 0) >= 0.5 ? "text-amber-600" :
+                                        "text-slate-400")}>
+                                        {stats?.cohensD?.toFixed(2) || '-'}
+                                      </td>
+                                      <td className={cn("p-4 text-center text-[10px] font-black", 
+                                        (stats?.pValue || 1) < 0.05 ? "text-purple-700 bg-purple-50" : 
+                                        "text-slate-300")}>
+                                        {stats?.pValue?.toFixed(3) || '-'}
+                                      </td>
                                       <td className="p-4 text-center opacity-30 text-[9px] font-black">LV{p.level}</td>
 
                                     </tr>
@@ -571,12 +646,21 @@ export default function SurveysPage() {
                                       }, {} as Record<string, { id: string, respondentId?: string, sat: SurveyResponse | null, comp: SurveyResponse | null }>);
 
                                       return Object.values(mergedResponses)
-                                        .sort((a, b) => (a.respondentId || '').localeCompare(b.respondentId || ''))
+                                        .map(m => {
+                                          const rCompAnswers = m.comp?.answers.filter(a => compQuestions.some(q => q.id === a.questionId)) || [];
+                                          const rPostAvg = rCompAnswers.length > 0 ? rCompAnswers.reduce((prev, curr) => prev + (Number(curr.score) || 0), 0) / rCompAnswers.length : 0;
+                                          return { ...m, rPostAvg };
+                                        })
+                                        .sort((a, b) => {
+                                          const aIdNum = parseInt(a.respondentId?.match(/\d+/)?.[0] || '0');
+                                          const bIdNum = parseInt(b.respondentId?.match(/\d+/)?.[0] || '0');
+                                          if (aIdNum !== bIdNum) return aIdNum - bIdNum;
+                                          return (a.respondentId || '').localeCompare(b.respondentId || '');
+                                        }) // ID 숫자 크기순 정렬 (입력 순서)
                                         .map((m) => {
                                           const rSatAnswers = m.sat?.answers.filter(a => satQuestions.some(q => q.id === a.questionId)) || [];
                                           const rSatAvg = rSatAnswers.length > 0 ? rSatAnswers.reduce((prev, curr) => prev + (Number(curr.score) || 0), 0) / rSatAnswers.length : 0;
-                                          const rCompAnswers = m.comp?.answers.filter(a => compQuestions.some(q => q.id === a.questionId)) || [];
-                                          const rPostAvg = rCompAnswers.length > 0 ? rCompAnswers.reduce((prev, curr) => prev + (Number(curr.score) || 0), 0) / rCompAnswers.length : 0;
+                                          const rPostAvg = m.rPostAvg;
                                           
                                           return (
                                             <tr key={m.id} className="border-b bg-white hover:bg-slate-50">
@@ -594,11 +678,18 @@ export default function SurveysPage() {
                                                   <td key={q.id} className="p-4 text-center text-[10px] text-slate-500 bg-slate-50/50 border-r min-w-[110px]">
                                                     {text === '-' ? '-' : (
                                                       <Tooltip>
-                                                        <TooltipTrigger className="cursor-help hover:text-blue-600 underline decoration-slate-200 underline-offset-4 decoration-dotted">
-                                                          {text.length > 5 ? `${text.slice(0, 5)}...` : text}
+                                                        <TooltipTrigger className="cursor-help hover:text-blue-600 underline decoration-slate-200 underline-offset-4 decoration-dotted transition-colors">
+                                                          {text.length > 8 ? `${text.slice(0, 8)}...` : text}
                                                         </TooltipTrigger>
-                                                        <TooltipContent className="max-w-[300px] p-4 bg-slate-900 text-white rounded-xl shadow-2xl border-none">
-                                                          <p className="text-xs leading-relaxed font-medium">{text}</p>
+                                                        <TooltipContent className="max-w-[340px] p-6 bg-white border border-slate-100 text-slate-900 rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden">
+                                                          <div className="space-y-3">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                              <MessageSquare className="size-3.5 text-blue-500" />
+                                                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Qualitative Feedback</span>
+                                                            </div>
+                                                            <p className="text-sm leading-relaxed font-bold text-slate-800 break-keep">{text}</p>
+                                                            <div className="h-1 w-8 bg-blue-100 rounded-full" />
+                                                          </div>
                                                         </TooltipContent>
                                                       </Tooltip>
                                                     )}
@@ -625,9 +716,47 @@ export default function SurveysPage() {
                                         {satQuestions.map((_, i) => <td key={i} className="p-4 text-center text-emerald-400/80">{stats?.questionStats?.[i]?.average?.toFixed(2) || '-'}</td>)}
                                         {satTextQuestions.map((_, i) => <td key={i} className="p-4 text-center text-slate-500/50 italic">-</td>)}
                                         <td className="p-4 text-center text-emerald-400 bg-white/5">{stats?.satAvg?.toFixed(2) || '-'}</td>
-                                        {compQuestions.map((_, i) => <td key={i} className="p-4 text-center text-blue-400/80">{stats?.questionStats?.[i]?.postAvg?.toFixed(2) || '-'}</td>)}
-                                        <td className="p-4 text-center text-blue-400 bg-white/5">{stats?.postAvg?.toFixed(2) || '-'}</td>
-                                        <td className="p-4 text-center text-emerald-400">{stats?.hakeGain?.toFixed(2) || '-'}</td>
+                                        {compQuestions.map((_, i) => (
+                                          <td key={i} className="p-4 text-center text-blue-400/80">
+                                            <div className="flex flex-col">
+                                              <span>{stats?.questionStats?.[i]?.postAvg?.toFixed(2) || '-'}</span>
+                                              {stats?.questionStats?.[i]?.impRate !== undefined && (
+                                                <Tooltip>
+                                                  <TooltipTrigger className="text-[7px] font-bold text-blue-400/60 cursor-help">
+                                                    +{stats.questionStats[i].impRate.toFixed(1)}%
+                                                  </TooltipTrigger>
+                                                  <TooltipContent className="bg-slate-800 text-white border-none text-[9px]">문항별 평균 성장률</TooltipContent>
+                                                </Tooltip>
+                                              )}
+                                            </div>
+                                          </td>
+                                        ))}
+                                        <td className="p-4 text-center text-blue-400 bg-white/5">
+                                          <div className="flex flex-col">
+                                            <span>{stats?.postAvg?.toFixed(2) || '-'}</span>
+                                            {stats?.impRate !== undefined && (
+                                              <Tooltip>
+                                                <TooltipTrigger className="text-[8px] font-black text-blue-400 cursor-help">
+                                                  +{stats.impRate.toFixed(1)}%
+                                                </TooltipTrigger>
+                                                <TooltipContent className="bg-slate-800 text-white border-none text-[9px]">종합 역량 향상률 (Pre vs Post)</TooltipContent>
+                                              </Tooltip>
+                                            )}
+                                          </div>
+                                        </td>
+                                        <td className="p-4 text-center text-emerald-400">
+                                          <div className="flex flex-col">
+                                            <span>{stats?.hakeGain?.toFixed(2) || '-'}</span>
+                                            {stats?.hakeGain !== undefined && (
+                                              <Tooltip>
+                                                <TooltipTrigger className="text-[8px] font-black opacity-60 cursor-help">
+                                                  {(stats.hakeGain * 100).toFixed(1)}%
+                                                </TooltipTrigger>
+                                                <TooltipContent className="bg-slate-800 text-white border-none text-[9px]">Hake's Gain 비율 (학습 도달 효율)</TooltipContent>
+                                              </Tooltip>
+                                            )}
+                                          </div>
+                                        </td>
                                         <td className="p-4 text-center text-amber-400">{stats?.cohensD?.toFixed(2) || '-'}</td>
                                         <td className="p-4 text-center text-purple-400">{stats?.pValue?.toFixed(3) || '-'}</td>
                                         <td className="p-4 text-center"><Badge className="bg-emerald-600 text-[8px]">TOTAL</Badge></td>

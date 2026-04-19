@@ -38,6 +38,7 @@
     "eslint-config-next": "16.2.4",
     "firebase-tools": "^15.15.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vercel": "^51.7.0"
   }
 }

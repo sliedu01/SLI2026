@@ -71,7 +71,9 @@ interface SurveyState {
       preAvg: number;
       postAvg: number;
       average: number;
+      impRate: number;
     }>;
+    impRate: number;
   }>;
   getUnifiedProjectData: (projectId: string) => {
     mergedResponses: Array<{
@@ -280,7 +282,8 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
         preScores: currentRaw.preScores.map(s => [...s]),
         postScores: currentRaw.postScores.map(s => [...s]),
         satScores: currentRaw.satScores.map(s => [...s]),
-        count: currentRaw.responses.length
+        count: currentRaw.responses.length,
+        responses: [...currentRaw.responses]
       };
 
       children.forEach(c => {
@@ -300,17 +303,48 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
           combined.satScores[idx].push(...scores);
         });
         combined.count += cStats.count;
+        combined.responses.push(...cStats._raw.responses);
       });
 
       if (combined.count === 0) return null;
 
-      const allPre = combined.preScores.flat();
-      const allPost = combined.postScores.flat();
-      const allSat = combined.satScores.flat();
+      // --- 통계적 정확성 개선: 응답자 단위 집계 ---
+      const respondents = new Map<string, { preSum: number, preCount: number, postSum: number, postCount: number, satSum: number, satCount: number }>();
+      
+      combined.responses.forEach(res => {
+        if (!respondents.has(res.respondentId)) {
+          respondents.set(res.respondentId, { preSum: 0, preCount: 0, postSum: 0, postCount: 0, satSum: 0, satCount: 0 });
+        }
+        const r = respondents.get(res.respondentId)!;
+        const tmpl = templateMap.get(res.templateId);
+        
+        res.answers.forEach((ans, idx) => {
+          if (ans.score === undefined) return;
+          if (tmpl?.type === 'SATISFACTION' && tmpl.questions[idx]?.type === 'SCALE') {
+            r.satSum += Number(ans.score);
+            r.satCount++;
+          } else if (tmpl?.type === 'COMPETENCY') {
+            r.preSum += Number(ans.preScore || 0);
+            r.preCount++;
+            r.postSum += Number(ans.score);
+            r.postCount++;
+          }
+        });
+      });
 
-      const preAvg = allPre.length > 0 ? allPre.reduce((a,b)=>a+b,0)/allPre.length : 0;
-      const postAvg = allPost.length > 0 ? allPost.reduce((a,b)=>a+b,0)/allPost.length : 0;
-      const satAvg = allSat.length > 0 ? allSat.reduce((a,b)=>a+b,0)/allSat.length : 0;
+      const respondentAvgs = Array.from(respondents.values()).map(r => ({
+        pre: r.preCount > 0 ? r.preSum / r.preCount : null,
+        post: r.postCount > 0 ? r.postSum / r.postCount : null,
+        sat: r.satCount > 0 ? r.satSum / r.satCount : null
+      }));
+
+      const finalPreAvgs = respondentAvgs.map(a => a.pre).filter((v): v is number => v !== null);
+      const finalPostAvgs = respondentAvgs.map(a => a.post).filter((v): v is number => v !== null);
+      const finalSatAvgs = respondentAvgs.map(a => a.sat).filter((v): v is number => v !== null);
+
+      const preAvg = finalPreAvgs.length > 0 ? finalPreAvgs.reduce((a, b) => a + b, 0) / finalPreAvgs.length : 0;
+      const postAvg = finalPostAvgs.length > 0 ? finalPostAvgs.reduce((a, b) => a + b, 0) / finalPostAvgs.length : 0;
+      const satAvg = finalSatAvgs.length > 0 ? finalSatAvgs.reduce((a, b) => a + b, 0) / finalSatAvgs.length : 0;
 
       const questionStats = [];
       const maxQs = Math.max(combined.preScores.length, combined.satScores.length);
@@ -321,7 +355,12 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
         questionStats.push({
           preAvg: qPre.length > 0 ? qPre.reduce((a,b)=>a+b,0)/qPre.length : 0,
           postAvg: qPost.length > 0 ? qPost.reduce((a,b)=>a+b,0)/qPost.length : 0,
-          average: qSat.length > 0 ? qSat.reduce((a,b)=>a+b,0)/qSat.length : (qPost.length > 0 ? qPost.reduce((a,b)=>a+b,0)/qPost.length : 0)
+          average: qSat.length > 0 ? qSat.reduce((a,b)=>a+b,0)/qSat.length : (qPost.length > 0 ? qPost.reduce((a,b)=>a+b,0)/qPost.length : 0),
+          impRate: (() => {
+            const pre = qPre.length > 0 ? qPre.reduce((a,b)=>a+b,0)/qPre.length : 0;
+            const post = qPost.length > 0 ? qPost.reduce((a,b)=>a+b,0)/qPost.length : 0;
+            return pre > 0 ? ((post - pre) / pre) * 100 : 0;
+          })()
         });
       }
 
@@ -331,9 +370,18 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
         satAvg,
         totalAverage: type === 'SATISFACTION' ? satAvg : postAvg,
         hakeGain: calculateHakeGain(preAvg, postAvg),
-        cohensD: calculateCohensD(allPre, allPost),
-        pValue: getPValueFromT(calculatePairedTTest(allPre, allPost), Math.max(1, allPost.length - 1)),
-        count: combined.count,
+        cohensD: calculateCohensD(finalPreAvgs, finalPostAvgs),
+        // Paired t-test는 사전/사후 데이터가 모두 있는 응답자만 대상으로 함
+        pValue: (() => {
+          const pairs = respondentAvgs.filter(a => a.pre !== null && a.post !== null);
+          if (pairs.length < 2) return 1.0;
+          const preList = pairs.map(p => p.pre as number);
+          const postList = pairs.map(p => p.post as number);
+          const tVal = calculatePairedTTest(preList, postList);
+          return getPValueFromT(tVal, pairs.length - 1);
+        })(),
+        count: finalSatAvgs.length || finalPostAvgs.length || combined.count,
+        impRate: preAvg > 0 ? ((postAvg - preAvg) / preAvg) * 100 : 0,
         questionStats,
         _raw: combined 
       };
@@ -347,29 +395,64 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
       projectIds.forEach(id => calculateRecursive(id));
       
       // 전체 요약 통계 계산 (_overall)
-      const overallCombined = { preScores: [] as number[][], postScores: [] as number[][], satScores: [] as number[][], count: 0 };
+      const overallResponses: SurveyResponse[] = [];
       projectIds.forEach(id => {
         const stats = aggregated[id];
         if (!stats?._raw) return;
-        stats._raw.preScores.forEach((s: any, i: any) => { if(!overallCombined.preScores[i]) overallCombined.preScores[i]=[]; overallCombined.preScores[i].push(...s); });
-        stats._raw.postScores.forEach((s: any, i: any) => { if(!overallCombined.postScores[i]) overallCombined.postScores[i]=[]; overallCombined.postScores[i].push(...s); });
-        stats._raw.satScores.forEach((s: any, i: any) => { if(!overallCombined.satScores[i]) overallCombined.satScores[i]=[]; overallCombined.satScores[i].push(...s); });
-        overallCombined.count += stats.count;
+        overallResponses.push(...stats._raw.responses);
       });
 
-      if (overallCombined.count > 0) {
-        const allPre = overallCombined.preScores.flat();
-        const allPost = overallCombined.postScores.flat();
-        const pre = allPre.length > 0 ? allPre.reduce((a,b)=>a+b,0)/allPre.length : 0;
-        const post = allPost.length > 0 ? allPost.reduce((a,b)=>a+b,0)/allPost.length : 0;
+      if (overallResponses.length > 0) {
+        // 중복 제거 (여러 하위 프로젝트에 걸쳐 있을 수 있음)
+        const uniqueResponses = Array.from(new Map(overallResponses.map(r => [r.id, r])).values());
+        
+        const respondents = new Map<string, { preSum: number, preCount: number, postSum: number, postCount: number, satSum: number, satCount: number }>();
+        uniqueResponses.forEach(res => {
+          if (!respondents.has(res.respondentId)) {
+            respondents.set(res.respondentId, { preSum: 0, preCount: 0, postSum: 0, postCount: 0, satSum: 0, satCount: 0 });
+          }
+          const r = respondents.get(res.respondentId)!;
+          const tmpl = templateMap.get(res.templateId);
+          res.answers.forEach((ans, idx) => {
+            if (ans.score === undefined) return;
+            if (tmpl?.type === 'SATISFACTION' && tmpl.questions[idx]?.type === 'SCALE') {
+               r.satSum += Number(ans.score); r.satCount++;
+            } else if (tmpl?.type === 'COMPETENCY') {
+               r.preSum += Number(ans.preScore || 0); r.preCount++;
+               r.postSum += Number(ans.score); r.postCount++;
+            }
+          });
+        });
+
+        const respondentAvgs = Array.from(respondents.values()).map(r => ({
+          pre: r.preCount > 0 ? r.preSum / r.preCount : null,
+          post: r.postCount > 0 ? r.postSum / r.postCount : null,
+          sat: r.satCount > 0 ? r.satSum / r.satCount : null
+        }));
+
+        const finalPreAvgs = respondentAvgs.map(a => a.pre).filter((v): v is number => v !== null);
+        const finalPostAvgs = respondentAvgs.map(a => a.post).filter((v): v is number => v !== null);
+        const finalSatAvgs = respondentAvgs.map(a => a.sat).filter((v): v is number => v !== null);
+
+        const pre = finalPreAvgs.length > 0 ? finalPreAvgs.reduce((a,b)=>a+b,0)/finalPreAvgs.length : 0;
+        const post = finalPostAvgs.length > 0 ? finalPostAvgs.reduce((a,b)=>a+b,0)/finalPostAvgs.length : 0;
+        const sat = finalSatAvgs.length > 0 ? finalSatAvgs.reduce((a,b)=>a+b,0)/finalSatAvgs.length : 0;
+
         aggregated['_overall'] = {
           preAvg: pre, 
           postAvg: post,
-          satAvg: overallCombined.satScores.flat().length > 0 ? overallCombined.satScores.flat().reduce((a,b)=>a+b,0)/overallCombined.satScores.flat().length : 0,
+          satAvg: sat,
           hakeGain: calculateHakeGain(pre, post),
-          cohensD: calculateCohensD(allPre, allPost),
-          pValue: getPValueFromT(calculatePairedTTest(allPre, allPost), Math.max(1, allPost.length - 1)),
-          count: overallCombined.count
+          cohensD: calculateCohensD(finalPreAvgs, finalPostAvgs),
+          pValue: (() => {
+            const pairs = respondentAvgs.filter(a => a.pre !== null && a.post !== null);
+            if (pairs.length < 2) return 1.0;
+            const preList = pairs.map(p => p.pre as number);
+            const postList = pairs.map(p => p.post as number);
+            return getPValueFromT(calculatePairedTTest(preList, postList), pairs.length - 1);
+          })(),
+          impRate: pre > 0 ? ((post - pre) / pre) * 100 : 0,
+          count: respondentAvgs.length
         };
       }
     } else {

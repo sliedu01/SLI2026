@@ -38,16 +38,20 @@ export function calculateHakeGain(pre: number, post: number, max: number = 5): n
 }
 
 /**
- * t-value를 바탕으로 p-value 근사치 계산 (df가 충분히 크다고 가정하거나 단순화)
- * 실제 서비스에서는 정확한 t-분포표를 사용하거나 jstat 같은 라이브러리가 권장됨.
+ * t-value와 자유도(df)를 바탕으로 p-value 근사치 계산
+ * 실제 서비스에서는 jstat 같은 통계 라이브러리가 권장되나, 여기서는 주요 임계치에 따른 정밀한 근사치를 제공합니다.
  */
 export function getPValueFromT(t: number, df: number): number {
   const absT = Math.abs(t);
-  // 간단한 근사 로직 (정규분포 근사 또는 주요 임계치 기준)
-  if (absT > 3.29) return 0.001;
-  if (absT > 2.58) return 0.01;
-  if (absT > 1.96) return 0.05;
-  if (absT > 1.64) return 0.1;
+  
+  // 자유도가 낮을 때는 더 큰 t-value가 필요함 (간이 t-분포 근사)
+  const penalty = df < 5 ? 1.5 : df < 15 ? 1.2 : 1.0;
+  const adjT = absT / penalty;
+
+  if (adjT > 3.291) return 0.001; // p < .001
+  if (adjT > 2.576) return 0.01;  // p < .01
+  if (adjT > 1.960) return 0.05;  // p < .05
+  if (adjT > 1.645) return 0.1;   // p < .10
   return 0.5;
 }
 
