@@ -22,7 +22,12 @@ import {
   PieChart as PieChartIcon,
   Edit,
   Info,
-  Scale
+  Scale,
+  ChevronRight,
+  ChevronDown,
+  Layers,
+  Search,
+  Calendar
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -42,6 +47,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 import { 
   Dialog, 
   DialogContent, 
@@ -59,6 +65,7 @@ import {
 
 import { useProjectStore } from '@/store/use-project-store';
 import { useSurveyStore, SurveyTemplate, SurveyResponse, Answer, Question, SurveyType } from '@/store/use-survey-store';
+import { usePartnerStore } from '@/store/use-partner-store';
 import { cn } from '@/lib/utils';
 import { 
   generateAIExpertReport,
@@ -86,10 +93,11 @@ import {
 
 export default function SurveysPage() {
   const [mounted, setMounted] = React.useState(false);
-  const { projects } = useProjectStore();
+  const { projects, fetchProjects } = useProjectStore();
   const { 
     templates, 
     responses, 
+    fetchSurveys,
     addTemplate, 
     updateTemplate,
     deleteTemplate,
@@ -100,9 +108,10 @@ export default function SurveysPage() {
     updateResponse,
     deleteResponse
   } = useSurveyStore();
+  const { partners, fetchPartners } = usePartnerStore();
 
   const [activeTab, setActiveTab] = React.useState('templates');
-  const [targetIdForData, setTargetIdForData] = React.useState<string | null>(null);
+  const [selectedProjectIds, setSelectedProjectIds] = React.useState<string[]>([]);
   const [dataDateRange, setDataDateRange] = React.useState({ start: '', end: new Date().toISOString().split('T')[0] });
   const [isProjectSelectorOpen, setIsProjectSelectorOpen] = React.useState(false);
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
@@ -141,35 +150,49 @@ export default function SurveysPage() {
   const [dateRange, setDateRange] = React.useState({ start: '', end: '' }); // 분석용
   const [surveyType, setSurveyType] = React.useState<SurveyType>('COMPETENCY');
 
-  // 선택된 사업의 전체 경로 이름 추출
   const selectionPath = React.useMemo(() => {
-    if (!targetIdForData) return '대상을 선택하세요...';
-    const path: string[] = [];
-    let curr = projects.find(p => p.id === targetIdForData);
-    while (curr) {
-      path.unshift(curr.name);
-      curr = projects.find(p => p.id === curr?.parentId);
+    if (selectedProjectIds.length === 0) return '대상을 선택하세요...';
+    if (selectedProjectIds.length === 1) {
+      const path: string[] = [];
+      let curr = projects.find(p => p.id === selectedProjectIds[0]);
+      while (curr) {
+        path.unshift(curr.name);
+        curr = projects.find(p => p.id === curr?.parentId);
+      }
+      return path.join(' > ');
     }
-    return path.join(' > ');
-  }, [targetIdForData, projects]);
+    return `${selectedProjectIds.length}개의 사업/프로그램 선택됨`;
+  }, [selectedProjectIds, projects]);
 
-  const { mergedResponses, templates: projectTemplates } = React.useMemo(() => 
-    useSurveyStore.getState().getUnifiedProjectData(targetIdForData || ''),
-    [targetIdForData, responses, templates]
-  );
+  const { templates: projectTemplates } = React.useMemo(() => {
+    const targetId = selectedProjectIds[0] || '';
+    const data = useSurveyStore.getState().getUnifiedProjectData(targetId);
+    if (data.templates.all.length === 0 && templates.length > 0) {
+      return {
+        ...data,
+        templates: {
+          all: templates,
+          sat: templates.filter(t => t.type === 'SATISFACTION').sort((a,b) => b.createdAt - a.createdAt),
+          comp: templates.filter(t => t.type === 'COMPETENCY').sort((a,b) => b.createdAt - a.createdAt)
+        }
+      };
+    }
+    return data;
+  }, [selectedProjectIds, responses, templates]);
   
   const satTmpl = projectTemplates.sat[0];
   const compTmpl = projectTemplates.comp[0];
   const satQuestions = satTmpl?.questions.filter(q => q.type === 'SCALE') || [];
   const compQuestions = compTmpl?.questions.filter(q => q.type === 'SCALE') || [];
 
-  const aggregatedStats = getAggregatedStats(projects, targetIdForData || '', undefined, surveyType);
+  const aggregatedStats = getAggregatedStats(projects, selectedProjectIds.length > 0 ? selectedProjectIds : undefined, undefined, surveyType);
   
-  const projectResponses = responses.filter(r => r.projectId === targetIdForData);
-
   React.useEffect(() => {
     setMounted(true);
-    // 초기화: LV1 중 가장 빠른 시작일 찾기
+    fetchSurveys();
+    fetchProjects();
+    fetchPartners();
+
     const lv1Projects = useProjectStore.getState().projects.filter(p => p.level === 1);
     if (lv1Projects.length > 0) {
       const earliest = lv1Projects.reduce((min, p) => (p.startDate && p.startDate < min) ? p.startDate : min, lv1Projects[0].startDate || '');
@@ -188,8 +211,6 @@ export default function SurveysPage() {
   }, [selectedTemplateId, templates]);
 
   if (!mounted) return null;
-
-  const selectedTemplate = templates.find((t: SurveyTemplate) => t.id === selectedTemplateId) || templates[0];
 
   const handleSaveTemplate = async () => {
     if (!editingTemplate) return;
@@ -244,7 +265,7 @@ export default function SurveysPage() {
   };
 
   const handlePasteProcess = async () => {
-    const targetId = targetIdForData;
+    const targetId = selectedProjectIds[0];
     if (!pasteContent.trim() || !targetId) {
       alert('사업 및 프로그램을 먼저 선택해주세요.');
       return;
@@ -266,19 +287,17 @@ export default function SurveysPage() {
       for (const row of rows) {
         const cols = row.split('\t').map(c => c.trim());
         if (cols.length < 2) continue;
-        const respondentId = cols[0];
+        const respondentName = cols[0];
         let currentIdx = 1;
 
-        // 만족도 데이터 처리
         if (targetSatTmpl) {
           const satAnswers: Answer[] = targetSatTmpl.questions.map(q => {
             const val = cols[currentIdx++];
             return q.type === 'SCALE' ? { questionId: q.id, score: Number(val) || 0 } : { questionId: q.id, score: 0, text: val || '' };
           });
-          await addResponse({ projectId: targetId, templateId: targetSatTmpl.id, respondentId, answers: satAnswers });
+          await addResponse({ projectId: targetId, templateId: targetSatTmpl.id, respondentId: respondentName, answers: satAnswers });
         }
 
-        // 역량 진단 데이터 처리 (사전/사후)
         if (targetCompTmpl) {
           const compAnswers: Answer[] = targetCompTmpl.questions.map(q => {
             if (q.type === 'SCALE') {
@@ -288,7 +307,7 @@ export default function SurveysPage() {
             }
             return { questionId: q.id, score: 0, text: cols[currentIdx++] || '' };
           });
-          await addResponse({ projectId: targetId, templateId: targetCompTmpl.id, respondentId, answers: compAnswers });
+          await addResponse({ projectId: targetId, templateId: targetCompTmpl.id, respondentId: respondentName, answers: compAnswers });
         }
         successCount++;
       }
@@ -342,15 +361,13 @@ export default function SurveysPage() {
                       <CardTitle className="text-lg font-black flex justify-between items-center">
                          템플릿 레지스트리
                          <Popover>
-                           <PopoverTrigger>
-                             <Button variant="ghost" className="size-8 p-0"><Plus className="size-4" /></Button>
-                           </PopoverTrigger>
-                           <PopoverContent className="size-56 p-2 rounded-2xl shadow-2xl bg-white border-none">
-                              <div className="grid gap-1">
-                                 <Button variant="ghost" className="justify-start font-bold gap-2 text-emerald-600" onClick={() => addTemplate({ name: '신규 만족도 조사', type: 'SATISFACTION', questions: createDefaultQuestions('SATISFACTION') })}><ClipboardCheck className="size-4" /> 만족도 조사 생성</Button>
-                                 <Button variant="ghost" className="justify-start font-bold gap-2 text-blue-600" onClick={() => addTemplate({ name: '신규 역량 진단', type: 'COMPETENCY', questions: createDefaultQuestions('COMPETENCY') })}><Activity className="size-4" /> 역량 진단 생성</Button>
-                              </div>
-                           </PopoverContent>
+                            <PopoverTrigger render={<Button variant="ghost" className="size-8 p-0"><Plus className="size-4" /></Button>} />
+                            <PopoverContent className="size-56 p-2 rounded-2xl shadow-2xl bg-white border-none">
+                               <div className="grid gap-1">
+                                  <Button variant="ghost" className="justify-start font-bold gap-2 text-emerald-600" onClick={() => addTemplate({ name: '신규 만족도 조사', type: 'SATISFACTION', questions: createDefaultQuestions('SATISFACTION') })}><ClipboardCheck className="size-4" /> 만족도 조사 생성</Button>
+                                  <Button variant="ghost" className="justify-start font-bold gap-2 text-blue-600" onClick={() => addTemplate({ name: '신규 역량 진단', type: 'COMPETENCY', questions: createDefaultQuestions('COMPETENCY') })}><Activity className="size-4" /> 역량 진단 생성</Button>
+                               </div>
+                            </PopoverContent>
                          </Popover>
                       </CardTitle>
                    </CardHeader>
@@ -420,24 +437,46 @@ export default function SurveysPage() {
                   <div className="space-y-1 flex-1 min-w-[400px]">
                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">사업 / 프로그램 탐색기</label>
                      <Popover open={isProjectSelectorOpen} onOpenChange={setIsProjectSelectorOpen}>
-                        <PopoverTrigger asChild>
+                        <PopoverTrigger render={
                           <Button variant="outline" className={cn(
                             "w-full h-12 justify-start px-4 rounded-xl font-black text-sm gap-3 border-slate-100 bg-slate-50 hover:bg-slate-100 transition-all",
                             targetIdForData ? "text-slate-900 shadow-sm" : "text-slate-400"
                           )}>
                              <Layers className="size-4 shrink-0 text-blue-500" />
                              <span className="truncate">{selectionPath}</span>
+                             {selectedProjectIds.length > 0 && (
+                               <Badge className="ml-2 bg-blue-100 text-blue-600 border-none px-2 py-0.5 text-[9px] font-black">
+                                 {selectedProjectIds.length}
+                               </Badge>
+                             )}
                              <ChevronDown className="size-4 ml-auto opacity-50" />
                           </Button>
-                        </PopoverTrigger>
+                        } />
                         <PopoverContent className="w-[480px] p-0 rounded-[2rem] shadow-2xl border-none bg-white overflow-hidden max-h-[600px] flex flex-col" align="start">
-                           <div className="p-6 border-b border-slate-50 bg-slate-50/50">
+                           <div className="p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
                               <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                                <Search className="size-4 text-slate-400" /> 사업 탐색 및 선택
+                                <Search className="size-4 text-slate-400" /> LV1~LV4 사업 탐색 및 다중 선택
                               </h3>
+                              {selectedProjectIds.length > 0 && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={(e) => { e.stopPropagation(); setSelectedProjectIds([]); }}
+                                  className="h-7 px-3 text-[10px] font-black text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                >
+                                  전체 해제
+                                </Button>
+                              )}
                            </div>
                            <div className="overflow-y-auto p-4 custom-scrollbar flex-1 bg-white">
                               {(() => {
+                                const toggleId = (id: string, e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  setSelectedProjectIds(prev => 
+                                    prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+                                  );
+                                };
+
                                 const renderNodes = (parentId: string | null, depth: number = 0): React.ReactNode => {
                                   const filteredRows = projects.filter(p => 
                                     p.parentId === parentId && 
@@ -451,25 +490,32 @@ export default function SurveysPage() {
                                     <div className="flex flex-col gap-1">
                                       {filteredRows.map(p => {
                                         const isExpanded = expandedIds.has(p.id);
-                                        const isSelected = targetIdForData === p.id;
+                                        const isSelected = selectedProjectIds.includes(p.id);
                                         const hasChildren = projects.some(child => child.parentId === p.id);
 
                                         return (
                                           <div key={p.id} className="flex flex-col">
                                             <div 
-                                              onClick={() => {
-                                                setTargetIdForData(p.id);
-                                                if (!hasChildren) setIsProjectSelectorOpen(false);
-                                              }}
+                                              onClick={(e) => toggleId(p.id, e)}
                                               className={cn(
                                                 "group flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all",
                                                 isSelected ? "bg-blue-600 text-white shadow-md lg:scale-[1.02]" : "hover:bg-slate-50 text-slate-600"
                                               )}
                                               style={{ marginLeft: `${depth * 1.5}rem` }}
                                             >
+                                              <div className="size-5 flex items-center justify-center shrink-0">
+                                                {isSelected ? (
+                                                  <div className="size-4 rounded border-2 border-white bg-white flex items-center justify-center">
+                                                    <Check className="size-3 text-blue-600 stroke-[4px]" />
+                                                  </div>
+                                                ) : (
+                                                  <div className="size-4 rounded border-2 border-slate-200 group-hover:border-blue-400 bg-white" />
+                                                )}
+                                              </div>
+
                                               {hasChildren ? (
                                                 <button 
-                                                  onClick={(e) => toggleExpand(p.id, e)}
+                                                  onClick={(e) => { e.stopPropagation(); toggleExpand(p.id, e); }}
                                                   className={cn("p-1 rounded hover:bg-white/20 transition-colors", isSelected ? "text-white" : "text-slate-400")}
                                                 >
                                                   {isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
@@ -521,13 +567,13 @@ export default function SurveysPage() {
                   </div>
 
                   <div className="flex gap-4 ml-auto h-12 items-center">
-                    {targetIdForData && (
+                    {selectedProjectIds.length > 0 && (
                        <>
                           <Badge className="bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl border-none font-black text-xs h-full flex items-center shadow-inner">
                             {projectTemplates.all.length}개의 설문 연결됨
                           </Badge>
                           <Button variant="outline" onClick={() => setIsPasteDialogOpen(true)} className="h-full px-8 rounded-xl border-blue-100 text-blue-600 font-black transition-all hover:bg-blue-50 hover:scale-105 active:scale-95"><FileSpreadsheet className="size-4 mr-2" /> 엑셀 연동</Button>
-                          <Button onClick={() => { if(confirm('초기화하시겠습니까?')) clearProjectResponses(targetIdForData); }} variant="outline" className="h-full px-6 rounded-xl text-red-500 border-red-50 hover:bg-red-50 hover:border-red-100 transition-all active:scale-95"><Trash2 className="size-4" /></Button>
+                          <Button onClick={() => { if(confirm('선택된 항목들의 응답을 초기화하시겠습니까?')) selectedProjectIds.forEach(id => clearProjectResponses(id)); }} variant="outline" className="h-full px-6 rounded-xl text-red-500 border-red-50 hover:bg-red-50 hover:border-red-100 transition-all active:scale-95"><Trash2 className="size-4" /></Button>
                        </>
                     )}
                   </div>
@@ -540,101 +586,46 @@ export default function SurveysPage() {
                             <thead>
                                <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase">
                                   <th className="p-6 text-center">No.</th>
-                                  <th className="p-6 text-left">학습자</th>
+                                  <th className="p-6 text-left">탐색 항목 / 학습자</th>
                                   {satQuestions.map((q, idx) => (
-                                    <th key={q.id} className="p-4 text-center">
-                                      <Tooltip><TooltipTrigger className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full whitespace-nowrap">만족도 Q{idx+1}</TooltipTrigger>
-                                      <TooltipContent className="bg-slate-900 text-white p-4 rounded-xl shadow-2xl max-w-xs">{q.content}</TooltipContent></Tooltip>
+                                    <th key={q.id} className="p-2 text-center w-16 min-w-[64px]">
+                                      <Tooltip>
+                                        <TooltipTrigger className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg flex flex-col items-center gap-0 w-full leading-tight">
+                                          <span className="text-[8px] font-black opacity-60">만족도</span>
+                                          <span className="text-[10px] font-black">Q{idx+1}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="bg-slate-900 text-white p-4 rounded-xl shadow-2xl max-w-xs">{q.content}</TooltipContent>
+                                      </Tooltip>
                                     </th>
                                   ))}
-                                  {satTmpl && <th className="p-6 text-center bg-emerald-50/30">개인평균</th>}
+                                  {satTmpl && <th className="p-4 text-center bg-emerald-50/30 text-[10px] w-16">평균</th>}
                                   {compQuestions.map((q, idx) => (
-                                    <th key={q.id} className="p-4 text-center">
-                                      <Tooltip><TooltipTrigger className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full whitespace-nowrap">성숙도 Q{idx+1}</TooltipTrigger>
-                                      <TooltipContent className="bg-slate-900 text-white p-4 rounded-xl shadow-2xl max-w-xs">{q.content}</TooltipContent></Tooltip>
+                                    <th key={q.id} className="p-2 text-center w-16 min-w-[64px]">
+                                      <Tooltip>
+                                        <TooltipTrigger className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg flex flex-col items-center gap-0 w-full leading-tight">
+                                          <span className="text-[8px] font-black opacity-60">성숙도</span>
+                                          <span className="text-[10px] font-black">Q{idx+1}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="bg-slate-900 text-white p-4 rounded-xl shadow-2xl max-w-xs">{q.content}</TooltipContent>
+                                      </Tooltip>
                                     </th>
                                   ))}
                                   {compTmpl && (
                                      <>
-                                       <th className="p-6 text-center bg-blue-50/30">
-                                          <Tooltip>
-                                             <TooltipTrigger className="cursor-help underline decoration-dotted decoration-blue-200 underline-offset-4">Avg(Post)</TooltipTrigger>
-                                             <TooltipContent className="bg-slate-900 text-white p-6 rounded-2xl shadow-3xl max-w-xs space-y-3 border border-slate-700">
-                                                <div className="flex items-center gap-2 text-blue-400">
-                                                   <Info className="size-4" />
-                                                   <p className="font-black">사후 평균 (Post-score Average)</p>
-                                                </div>
-                                                <div className="space-y-3 text-[11px] leading-relaxed">
-                                                   <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>교육 직후 역량 수준을 정량화한 수치입니다.</div>
-                                                   <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>교육 목표 수준(Pass/Fail) 도달 여부와 집단의 평균 성숙도를 진단합니다.</div>
-                                                   <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>4.0 이상 (우수), 3.0 ~ 4.0 (양호), 3.0 미만 (보충 필요)</div>
-                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-blue-200">산식: Σ(사후 점수) / 질문 수</div>
-                                                </div>
-                                             </TooltipContent>
-                                          </Tooltip>
-                                       </th>
-                                       <th className="p-6 text-center bg-blue-50/30">
-                                          <Tooltip>
-                                             <TooltipTrigger className="cursor-help underline decoration-dotted decoration-blue-200 underline-offset-4">Hake Gain</TooltipTrigger>
-                                             <TooltipContent className="bg-slate-900 text-white p-6 rounded-2xl shadow-3xl max-w-xs space-y-3 border border-slate-700">
-                                                <div className="flex items-center gap-2 text-emerald-400">
-                                                   <TrendingUp className="size-4" />
-                                                   <p className="font-black">헤이크 이득 (Normalized Gain)</p>
-                                                </div>
-                                                <div className="space-y-3 text-[11px] leading-relaxed">
-                                                   <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>사전 대비 사후 점수의 순수 향상 비율을 정규화한 성장 지표입니다.</div>
-                                                   <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>학습자의 초기 수준과 무관하게 교육을 통한 실질적 '성장 폭'을 정밀 측정합니다.</div>
-                                                   <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>0.7 이상 (High), 0.3 ~ 0.7 (Medium), 0.3 미만 (Low)</div>
-                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-emerald-200">산식: (사후 평균 - 사전 평균) / (만점 - 사전 평균)</div>
-                                                </div>
-                                             </TooltipContent>
-                                          </Tooltip>
-                                       </th>
-                                       <th className="p-6 text-center bg-blue-50/30">
-                                          <Tooltip>
-                                             <TooltipTrigger className="cursor-help underline decoration-dotted decoration-blue-200 underline-offset-4">Cohen's d</TooltipTrigger>
-                                             <TooltipContent className="bg-slate-900 text-white p-6 rounded-2xl shadow-3xl max-w-xs space-y-3 border border-slate-700">
-                                                <div className="flex items-center gap-2 text-amber-400">
-                                                   <Activity className="size-4" />
-                                                   <p className="font-black">효과 크기 (Effect Size)</p>
-                                                </div>
-                                                <div className="space-y-3 text-[11px] leading-relaxed">
-                                                   <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>교육 전후 집단 간 평균 차이를 표준편차로 나눈 영향력 지표입니다.</div>
-                                                   <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>점수 차이를 넘어 교육 프로그램의 객관적인 임팩트(낮음/중간/높음)를 판단합니다.</div>
-                                                   <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>0.8 이상 (Large), 0.5 ~ 0.8 (Medium), 0.2 ~ 0.5 (Small)</div>
-                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-amber-200">산식: (사후 평균 - 사전 평균) / 통합 표준편차</div>
-                                                </div>
-                                             </TooltipContent>
-                                          </Tooltip>
-                                       </th>
-                                       <th className="p-6 text-center bg-blue-50/30">
-                                          <Tooltip>
-                                             <TooltipTrigger className="cursor-help underline decoration-dotted decoration-blue-200 underline-offset-4">t-test</TooltipTrigger>
-                                             <TooltipContent className="bg-slate-900 text-white p-6 rounded-2xl shadow-3xl max-w-xs space-y-3 border border-slate-700">
-                                                <div className="flex items-center gap-2 text-purple-400">
-                                                   <CheckCircle2 className="size-4" />
-                                                   <p className="font-black">통계적 유의성 (p-value)</p>
-                                                </div>
-                                                <div className="space-y-3 text-[11px] leading-relaxed">
-                                                   <div><span className="text-slate-400 block mb-0.5">● 지표 설명</span>사전/사후 변화가 우연이 아닌 유의미한 변화인지 검증하는 지표입니다.</div>
-                                                   <div><span className="text-slate-400 block mb-0.5">● 기대 효과</span>데이터의 신뢰성을 확보하고 교육 효과의 유의미함(p &lt; 0.05)을 수학적으로 증명합니다.</div>
-                                                   <div><span className="text-slate-400 block mb-0.5">● 평가 기준</span>p &lt; 0.05 (매우 유의함), p &lt; 0.1 (경향성 있음), p &gt;= 0.1 (유의하지 않음)</div>
-                                                   <div className="bg-white/5 p-2 rounded-lg font-mono text-[10px] text-purple-200">산식: 평균 차이 / (표준편차 / √표본 수)</div>
-                                                </div>
-                                             </TooltipContent>
-                                          </Tooltip>
-                                       </th>
+                                       <th className="p-6 text-center bg-blue-50/30">Avg(Post)</th>
+                                       <th className="p-6 text-center bg-blue-50/30">Gain</th>
+                                       <th className="p-6 text-center bg-blue-50/30">Cohen's d</th>
+                                       <th className="p-6 text-center bg-blue-50/30">t-test</th>
                                      </>
                                    )}
                                   <th className="p-6 text-center">관리</th>
                                </tr>
                             </thead>
-                               <tbody className="divide-y divide-slate-50">
+                             <tbody className="divide-y divide-slate-50">
                                {(() => {
-                                 // 필터로 선택된 사업을 루트로 설정, 없으면 날짜 기간 내의 모든 LV1 노출
-                                 const rootProjects = targetIdForData 
-                                   ? projects.filter(p => p.id === targetIdForData)
-                                   : projects.filter(p => p.level === 1 && (!dataDateRange.start || p.endDate >= dataDateRange.start));
+                                 const rootProjects = selectedProjectIds.length > 0
+                                   ? projects.filter(p => selectedProjectIds.includes(p.id))
+                                   : useProjectStore.getState().getSortedProjects(null).filter(p => (!dataDateRange.start || p.endDate >= dataDateRange.start));
 
                                  if (rootProjects.length === 0) {
                                    return (
@@ -651,62 +642,78 @@ export default function SurveysPage() {
                                      const isExpanded = expandedTableIds.has(p.id);
                                      const hasChildren = projects.some(c => c.parentId === p.id);
                                      const pResponses = responses.filter(r => r.projectId === p.id);
-                                     
-                                     // 해당 계층의 통계 합산
-                                     const stats = getAggregatedStats(projects, p.id, undefined, 'COMPETENCY');
-                                     const satStats = getAggregatedStats(projects, p.id, undefined, 'SATISFACTION');
-
-                                     const childRows = projects.filter(c => c.parentId === p.id);
+                                     const stats = aggregatedStats[p.id];
+                                     const childRows = useProjectStore.getState().getSortedProjects(p.id);
 
                                      return (
                                        <React.Fragment key={p.id}>
-                                         <tr className={cn(
-                                           "border-b border-slate-50 transition-colors group",
-                                           depth === 0 ? "bg-slate-50/50" : "bg-transparent",
-                                           "hover:bg-blue-50/40"
-                                         )}>
+                                         <tr 
+                                           onClick={() => toggleTableExpand(p.id)}
+                                           className={cn(
+                                             "border-b border-slate-50 transition-colors group cursor-pointer",
+                                             depth === 0 ? "bg-slate-50/50" : "bg-transparent",
+                                             "hover:bg-blue-50/40"
+                                           )}>
                                            <td className="p-4 text-center">
                                               <Badge variant="outline" className="bg-slate-100 text-slate-400 border-none font-black text-[9px]">LV{p.level}</Badge>
                                            </td>
                                            <td className="p-4">
                                               <div className="flex items-center gap-3" style={{ paddingLeft: `${depth * 1.5}rem` }}>
-                                                 {(hasChildren || pResponses.length > 0) && (
+                                                 {(hasChildren || p.level === 4) && (
                                                    <button onClick={() => toggleTableExpand(p.id)} className="p-1 rounded hover:bg-white shadow-sm transition-all">
                                                       {isExpanded ? <ChevronDown className="size-3.5 text-blue-500" /> : <ChevronRight className="size-3.5 text-slate-400" />}
                                                    </button>
                                                  )}
-                                                 {!hasChildren && pResponses.length === 0 && <div className="size-5.5" />}
-                                                 <span className={cn("text-xs font-black", depth === 0 ? "text-slate-900" : "text-slate-600")}>
-                                                   {p.level === 3 ? <span className="text-blue-500 mr-2 text-[10px] uppercase font-black tracking-tight">[PARTNER]</span> : null}
-                                                   {p.name}
-                                                 </span>
+                                                 {p.level !== 4 && !hasChildren && <div className="size-5.5" />}
+                                                 <div className="flex flex-col gap-0.5 min-w-0">
+                                                   <span className={cn("text-xs font-black truncate", 
+                                                     depth === 0 ? "text-slate-900" : 
+                                                     (p.level >= 3 ? "text-slate-900 font-bold" : "text-slate-600")
+                                                   )}>
+                                                     {p.name}
+                                                   </span>
+                                                   <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400">
+                                                     {p.startDate && (
+                                                       <div className="flex items-center gap-1 shrink-0">
+                                                         <Calendar className="size-2.5" />
+                                                         {p.startDate} ~ {p.endDate}
+                                                       </div>
+                                                     )}
+                                                     {p.level >= 3 && p.partnerId && (
+                                                       <>
+                                                         <Separator orientation="vertical" className="h-2 bg-slate-200" />
+                                                         <span className="text-blue-500/80 truncate opacity-80">
+                                                           {partners.find(partner => partner.id === p.partnerId)?.name || '미지정 협력업체'}
+                                                         </span>
+                                                       </>
+                                                     )}
+                                                   </div>
+                                                 </div>
                                               </div>
                                            </td>
-                                           {/* 만족도 질문별 합산 평균 */}
                                            {satQuestions.map((_, qIdx) => (
                                               <td key={qIdx} className="p-4 text-center font-black text-[11px] text-emerald-600/70">
-                                                 {satStats.questionStats[qIdx]?.average.toFixed(2) || '-'}
+                                                 {stats?.questionStats?.[qIdx]?.average?.toFixed(2) || '-'}
                                               </td>
                                            ))}
                                            {satTmpl && (
                                               <td className="p-4 text-center font-black text-xs text-slate-900 bg-emerald-50/20">
-                                                 {satStats.totalAverage.toFixed(2)}
+                                                 {stats?.satAvg?.toFixed(2) || '-'}
                                               </td>
                                            )}
-                                           {/* 역량 질문별 합산 평균 */}
                                            {compQuestions.map((_, qIdx) => (
                                               <td key={qIdx} className="p-4 text-center font-black text-[11px] text-blue-600/70">
-                                                 {stats.questionStats[qIdx]?.average.toFixed(2) || '-'}
+                                                 {stats?.questionStats?.[qIdx]?.postAvg?.toFixed(2) || '-'}
                                               </td>
                                            ))}
                                            {compTmpl && (
                                               <>
-                                                 <td className="p-4 text-center font-black text-xs text-blue-700 bg-blue-50/20">{stats.postAverage.toFixed(2)}</td>
-                                                 <td className="p-4 text-center font-black text-xs text-emerald-600 bg-emerald-50/10">
-                                                    <Badge className={cn("border-none text-[10px]", stats.hakeGain >= 0.3 ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400")}>{stats.hakeGain.toFixed(2)}</Badge>
+                                                 <td className="p-4 text-center font-black text-xs text-blue-700 bg-blue-50/20">{stats?.postAvg?.toFixed(2) || '-'}</td>
+                                                 <td className="p-4 text-center">
+                                                    <Badge className={cn("border-none text-[10px]", (stats?.hakeGain || 0) >= 0.3 ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400")}>{stats?.hakeGain?.toFixed(2) || '-'}</Badge>
                                                  </td>
-                                                 <td className="p-4 text-center font-black text-xs text-amber-600 bg-amber-50/10">{stats.cohensD.toFixed(2)}</td>
-                                                 <td className="p-4 text-center font-black text-xs text-purple-600 bg-purple-50/10">{stats.pValue.toFixed(3)}</td>
+                                                 <td className="p-4 text-center font-black text-xs text-amber-600 bg-amber-50/10">{stats?.cohensD?.toFixed(2) || '-'}</td>
+                                                 <td className="p-4 text-center font-black text-xs text-purple-600 bg-purple-50/10">{stats?.pValue?.toFixed(3) || '-'}</td>
                                                  <td className="p-4 text-center">
                                                    <span className="text-slate-300">-</span>
                                                  </td>
@@ -715,36 +722,39 @@ export default function SurveysPage() {
                                          </tr>
                                          {isExpanded && childRows.length > 0 && renderTree(childRows, depth + 1)}
                                          {isExpanded && p.level === 4 && pResponses.map((r, rIdx) => {
-                                            const rTotalSat = r.answers.filter(a => satQuestions.some(q => q.id === a.questionId)).length > 0
-                                              ? r.answers.filter(a => satQuestions.some(q => q.id === a.questionId)).reduce((sum, a) => sum + (Number(a.value) || 0), 0) / satQuestions.length
+                                            const rSatStats = r.answers.filter(a => satQuestions.some(q => q.id === a.questionId));
+                                            const rTotalSat = rSatStats.length > 0
+                                              ? rSatStats.reduce((sum, a) => sum + (Number(a.score) || 0), 0) / satQuestions.length
                                               : 0;
-                                            const rPostTotal = r.answers.filter(a => a.type === 'POST' && compQuestions.some(q => q.id === a.questionId)).reduce((sum, a) => sum + (Number(a.value) || 0), 0) / compQuestions.length;
+                                            const rCompStats = r.answers.filter(a => compQuestions.some(q => q.id === a.questionId));
+                                            const rPostTotal = rCompStats.length > 0
+                                              ? rCompStats.reduce((sum, a) => sum + (Number(a.score) || 0), 0) / compQuestions.length
+                                              : 0;
 
                                             return (
-                                              <tr key={r.id} className="border-b border-slate-50/50 bg-white hover:bg-slate-50 transition-colors animate-in fade-in slide-in-from-left-1">
+                                              <tr key={r.id} className="border-b border-slate-50/50 bg-slate-50/30 hover:bg-white transition-colors animate-in fade-in slide-in-from-left-1 border-l-4 border-l-blue-400">
                                                 <td className="p-4 text-center text-[10px] text-slate-400 font-bold opacity-50">{rIdx + 1}</td>
                                                 <td className="p-4" style={{ paddingLeft: `${(depth + 1) * 1.5}rem` }}>
                                                   <div className="flex items-center gap-3">
-                                                    <div className="size-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-400 border border-slate-50">{r.respondentName?.charAt(0) || '?'}</div>
+                                                    <Badge variant="outline" className="text-[8px] font-black uppercase text-blue-500 border-blue-100 bg-white">RAW DATA</Badge>
                                                     <div className="flex flex-col">
-                                                       <span className="text-xs font-bold text-slate-600">{r.respondentName || '익명'}</span>
-                                                       <span className="text-[8px] font-black text-slate-300 uppercase tracking-tighter">INDIVIDUAL DATA</span>
+                                                       <span className="text-xs font-bold text-slate-600 truncate max-w-[120px]">{r.respondentId || '익명'}</span>
+                                                       <span className="text-[8px] font-black text-slate-300 uppercase tracking-tighter">SURVEY RESPONSE</span>
                                                     </div>
                                                   </div>
                                                 </td>
                                                 {satQuestions.map(q => {
                                                   const ans = r.answers.find(a => a.questionId === q.id);
-                                                  return <td key={q.id} className="p-4 text-center text-xs font-bold text-emerald-600/50">{ans?.value || '-'}</td>
+                                                  return <td key={q.id} className="p-4 text-center text-xs font-bold text-emerald-600/50">{ans?.score || '-'}</td>
                                                 })}
                                                 {satTmpl && <td className="p-4 text-center font-black text-xs text-slate-900 bg-emerald-50/20">{rTotalSat.toFixed(2)}</td>}
                                                 {compQuestions.map(q => {
-                                                   const postAns = r.answers.find(a => a.questionId === q.id && a.type === 'POST');
-                                                   const preAns = r.answers.find(a => a.questionId === q.id && a.type === 'PRE');
+                                                   const ans = r.answers.find(a => a.questionId === q.id);
                                                    return (
                                                       <td key={q.id} className="p-4 text-center">
                                                          <div className="flex flex-col items-center gap-0.5 opacity-80">
-                                                            <div className="px-1.5 py-0.5 rounded-full bg-blue-500 text-[9px] font-black text-white">{postAns?.value || '-'}</div>
-                                                            <div className="text-[8px] font-black text-slate-300">PRE {preAns?.value || '-'}</div>
+                                                            <div className="px-1.5 py-0.5 rounded-full bg-blue-500 text-[9px] font-black text-white">{ans?.score || '-'}</div>
+                                                            <div className="text-[8px] font-black text-slate-300">PRE {ans?.preScore || '-'}</div>
                                                          </div>
                                                       </td>
                                                    );
@@ -756,7 +766,7 @@ export default function SurveysPage() {
                                                       <td className="p-4 text-center text-slate-200">-</td>
                                                       <td className="p-4 text-center text-slate-200">-</td>
                                                       <td className="p-4 text-center">
-                                                         <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                                         <div className="flex items-center justify-center gap-1 opacity-100 transition-all">
                                                             <Button onClick={() => { setEditingResponse(r); setIsEditDialogOpen(true); }} variant="ghost" size="icon" className="size-8 rounded-xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Edit className="size-4" /></Button>
                                                             <Button onClick={() => { if(confirm('응답을 삭제하시겠습니까?')) useSurveyStore.getState().deleteResponse(r.id); }} variant="ghost" size="icon" className="size-8 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 className="size-4" /></Button>
                                                          </div>
@@ -765,22 +775,43 @@ export default function SurveysPage() {
                                                 )}
                                               </tr>
                                             );
-                                         })}
-                                            const preScores = ans.map(a => a.preScore || 0);
-                                            return s + calculateCohensD(preScores, postScores);
-                                         },0)/mergedResponses.length).toFixed(2)}</td>
-                                         <td className="p-4 text-center text-blue-400 bg-white/5">{(mergedResponses.reduce((s,r)=>{
-                                            const ans = r.compResponses[0]?.answers || [];
-                                            const postScores = ans.map(a => a.score || 0);
-                                            const preScores = ans.map(a => a.preScore || 0);
-                                            return s + calculatePairedTTest(preScores, postScores);
-                                         },0)/mergedResponses.length).toFixed(2)}</td>
-                                         <td className="bg-white/5"></td>
-                                       </>
-                                     )}
-                                  </tr>
-                               )}
-                            </tbody>
+                                          })}
+                                        </React.Fragment>
+                                      );
+                                    });
+                                  };
+
+                                  const treeContent = renderTree(rootProjects);
+                                   const overall = aggregatedStats['_overall'] || null;
+
+                                  return (
+                                    <>
+                                      {treeContent}
+                                      {projects.length > 0 && (
+                                        <tr className="bg-slate-900 text-white font-black text-xs border-t-2 border-slate-700">
+                                           <td colSpan={2} className="p-6 text-center uppercase tracking-widest text-slate-500">Overall Statistics</td>
+                                           {satQuestions.map((_, qIdx) => (
+                                              <td key={qIdx} className="p-4 text-center text-emerald-400">{overall?.questionStats?.[qIdx]?.average?.toFixed(2) || '0.00'}</td>
+                                           ))}
+                                           {satTmpl && <td className="p-6 text-center text-emerald-500 bg-white/5">{overall?.satAvg?.toFixed(2) || '0.00'}</td>}
+                                           {compQuestions.map((_, qIdx) => (
+                                              <td key={qIdx} className="p-4 text-center text-blue-400">{overall?.questionStats?.[qIdx]?.postAvg?.toFixed(2) || '0.00'}</td>
+                                           ))}
+                                           {compTmpl && (
+                                             <>
+                                               <td className="p-4 text-center text-blue-600 bg-white/5">{overall?.postAvg?.toFixed(2) || '0.00'}</td>
+                                               <td className="p-4 text-center text-emerald-400 bg-white/5">{overall?.hakeGain?.toFixed(2) || '0.00'}</td>
+                                               <td className="p-4 text-center text-amber-400 bg-white/5">{overall?.cohensD?.toFixed(2) || '0.00'}</td>
+                                               <td className="p-4 text-center text-purple-400 bg-white/5">{overall?.pValue?.toFixed(3) || '1.000'}</td>
+                                               <td className="bg-white/5"></td>
+                                             </>
+                                           )}
+                                        </tr>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                             </tbody>
                           </table>
                    </TooltipProvider>
                 </div>
@@ -829,11 +860,11 @@ export default function SurveysPage() {
                 <Card className="lg:col-span-2 rounded-[3rem] p-10 bg-white shadow-xl h-[500px]">
                    <CardTitle className="text-xl font-black mb-8 flex items-center gap-2"><BarChart2 className="size-5 text-blue-600" /> 종합 교육 성과 지수</CardTitle>
                    <ResponsiveContainer width="100%" height="85%">
-                      <ComposedChart data={projects.filter(p => aggregatedStats[p.id]?.count > 0).map(p => ({
+                      <ComposedChart data={projects.filter(p => (aggregatedStats[p.id]?.count || 0) > 0).map(p => ({
                         name: p.name,
-                        satisfaction: Number(aggregatedStats[p.id].satAvg.toFixed(2)),
-                        gain: Number(calculateHakeGain(aggregatedStats[p.id].preAvg, aggregatedStats[p.id].postAvg).toFixed(2)) * 5
-                      }))}>
+                        satisfaction: Number((aggregatedStats[p.id]?.satAvg || 0).toFixed(2)),
+                        gain: Number((aggregatedStats[p.id]?.hakeGain || 0).toFixed(2)) * 5
+                       }))}>
                          <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f1f5f9" />
                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
                          <YAxis domain={[0, 5]} axisLine={false} tickLine={false} />

@@ -41,15 +41,15 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
 
   fetchPartners: async () => {
     set({ isLoading: true });
+    // 성능 최적화를 위해 대용량 필드(documents)를 제외하고 가져옵니다.
     const { data, error } = await supabase
       .from('partners')
-      .select('*')
+      .select('id, name, manager, phone1, phone2, email, address, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching partners:', error);
     } else {
-      // DB 필드명(snake_case)을 카카오 스타일의 camelCase로 매핑
       const mappedPartners: Partner[] = (data || []).map(p => ({
         id: p.id,
         name: p.name,
@@ -58,7 +58,7 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
         phone2: p.phone2 || '',
         email: p.email || '',
         address: p.address || '',
-        documents: (p.documents as unknown as PartnerDocument[]) || [],
+        documents: [], // 상세 정보가 필요할 때 별도로 가져오도록 처리 가능
         createdAt: new Date(p.created_at).getTime(),
       }));
       set({ partners: mappedPartners });

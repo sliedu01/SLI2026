@@ -42,6 +42,7 @@ export default function ProjectsPage() {
   React.useEffect(() => { setHasMounted(true); }, []);
   const { 
     projects,
+    fetchProjects,
     deleteProject, 
     copyProject,
     sortKey, 
@@ -49,6 +50,7 @@ export default function ProjectsPage() {
     setSort,
     getSortedProjects 
   } = useProjectStore();
+  const { fetchPartners } = usePartnerStore();
 
   const [mounted, setMounted] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
@@ -66,9 +68,11 @@ export default function ProjectsPage() {
 
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
 
-  // 하이드레이션 오류 방지
+  // 하이드레이션 오류 방지 및 초기 데이터 로딩
   React.useEffect(() => {
     setMounted(true);
+    fetchProjects();
+    fetchPartners();
   }, []);
 
   const toggleExpand = (id: string) => {
@@ -135,8 +139,8 @@ export default function ProjectsPage() {
     const { getAggregatedStats } = useSurveyStore();
     
     // 만족도 및 역량 향상 지표 계산 (계층 합산 반영)
-    const satisfactionStats = getAggregatedStats(projects, p.id, undefined, 'SATISFACTION');
-    const competencyStats = getAggregatedStats(projects, p.id, undefined, 'COMPETENCY');
+    const satisfactionStats = getAggregatedStats(projects, [p.id], undefined, 'SATISFACTION');
+    const competencyStats = getAggregatedStats(projects, [p.id], undefined, 'COMPETENCY');
 
     const avgSatisfaction = satisfactionStats[p.id]?.avg || 0;
     const satisfaction100 = avgSatisfaction * 20;

@@ -55,14 +55,23 @@ interface SurveyState {
   
   // Helpers
   createDefaultQuestions: (type: SurveyType) => Question[];
-  getAggregatedStats: (projects: Project[], projectId: string | null, partnerId?: string, type?: SurveyType) => Record<string, { 
+  getAggregatedStats: (projects: Project[], projectIds?: string[], partnerId?: string, type?: SurveyType) => Record<string, { 
     avg: number; 
     satAvg: number; 
     preAvg: number; 
     postAvg: number; 
     satCount: number;
     compCount: number;
-    count: number 
+    count: number;
+    totalAverage: number;
+    hakeGain: number;
+    cohensD: number;
+    pValue: number;
+    questionStats: Array<{
+      preAvg: number;
+      postAvg: number;
+      average: number;
+    }>;
   }>;
   getUnifiedProjectData: (projectId: string) => {
     mergedResponses: Array<{
@@ -199,121 +208,183 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
     }
   },
 
-  getAggregatedStats: (projects, projectId, partnerId, type) => {
+  getAggregatedStats: (projects, projectIds, partnerId, type) => {
     const { responses, templates } = get();
-    
-    // 1. 기초 데이터 확보: 프로젝트별 평균 점수 계산
-    const projectAverages: Record<string, { 
-      avg: number, // Legacy 지원용 (POST 평균)
-      satAvg: number, 
-      preAvg: number, 
-      postAvg: number, 
-      satCount: number,
-      compCount: number,
-      count: number 
+    // Dynamic import to avoid circular dependency or issues during build
+    const { calculateHakeGain, calculateCohensD, calculatePairedTTest, getPValueFromT } = require('@/lib/stat-utils');
+
+    const projectData: Record<string, { 
+      preScores: number[][],
+      postScores: number[][],
+      satScores: number[][],
+      responses: SurveyResponse[]
     }> = {};
-    
+
     responses.forEach(res => {
       const tmpl = templates.find(t => t.id === res.templateId);
       if (!tmpl) return;
-
-      // 1-1. 유형별 필터 (요청된 경우에만 적용)
       if (type && tmpl.type !== type) return;
-
-      // 1-2. 파트너 필터 적용
       if (partnerId) {
         const proj = projects.find(p => p.id === res.projectId);
         if (proj?.partnerId !== partnerId) return;
       }
 
-      const validAnswers = res.answers.filter(a => a.score !== undefined);
-      if (validAnswers.length === 0) return;
-
-      const resPostTotal = validAnswers.reduce((sum, a) => sum + (Number(a.score) || 0), 0);
-      const resAvg = resPostTotal / validAnswers.length;
-
-      if (!projectAverages[res.projectId]) {
-        projectAverages[res.projectId] = { avg: 0, satAvg: 0, preAvg: 0, postAvg: 0, satCount: 0, compCount: 0, count: 0 };
+      if (!projectData[res.projectId]) {
+        projectData[res.projectId] = { preScores: [], postScores: [], satScores: [], responses: [] };
       }
-
-      const current = projectAverages[res.projectId];
       
+      const pData = projectData[res.projectId];
+      pData.responses.push(res);
+
       if (tmpl.type === 'SATISFACTION') {
-        const newCount = current.satCount + 1;
-        current.satAvg = (current.satAvg * current.satCount + resAvg) / newCount;
-        current.satCount = newCount;
+        res.answers.forEach((ans, idx) => {
+          if (ans.score === undefined) return;
+          if (!pData.satScores[idx]) pData.satScores[idx] = [];
+          pData.satScores[idx].push(Number(ans.score));
+        });
       } else {
-        const resPreTotal = validAnswers.reduce((sum, a) => sum + (Number(a.preScore) || 0), 0);
-        const resPreAvg = resPreTotal / validAnswers.length;
-        const newCount = current.compCount + 1;
-        current.preAvg = (current.preAvg * current.compCount + resPreAvg) / newCount;
-        current.postAvg = (current.postAvg * current.compCount + resAvg) / newCount;
-        current.compCount = newCount;
+        res.answers.forEach((ans, idx) => {
+          if (ans.score === undefined) return;
+          if (!pData.preScores[idx]) pData.preScores[idx] = [];
+          if (!pData.postScores[idx]) pData.postScores[idx] = [];
+          pData.preScores[idx].push(Number(ans.preScore || 0));
+          pData.postScores[idx].push(Number(ans.score));
+        });
       }
-      
-      // 전체 통합 카운트 및 평균 (POST 기준)
-      const newTotalCount = current.count + 1;
-      current.avg = (current.avg * current.count + resAvg) / newTotalCount;
-      current.count = newTotalCount;
     });
 
-    // 2. 계층형 집계 (LV4 -> LV3 -> LV2 -> LV1)
-    const aggregatedData: Record<string, { 
-      avg: number; 
-      satAvg: number; 
-      preAvg: number; 
-      postAvg: number; 
-      satCount: number;
-      compCount: number;
-      count: number 
-    }> = {};
+    const aggregated: Record<string, any> = {};
 
-    const calculateRecursive = (id: string): { 
-      avg: number; 
-      satAvg: number; 
-      preAvg: number; 
-      postAvg: number; 
-      satCount: number;
-      compCount: number;
-      count: number 
-    } => {
+    const calculateRecursive = (id: string) => {
       const children = projects.filter(p => p.parentId === id);
-      const directData = projectAverages[id] || { avg: 0, satAvg: 0, preAvg: 0, postAvg: 0, satCount: 0, compCount: 0, count: 0 };
-
-      if (children.length === 0) return directData;
-
-      const childStats = children.map(c => calculateRecursive(c.id)).filter(s => s.count > 0 || s.avg > 0);
-      if (childStats.length === 0) return directData;
       
-      const totalCount = childStats.reduce((acc, s) => acc + s.count, 0) + directData.count;
-      const satTotalCount = childStats.reduce((acc, s) => acc + s.satCount, 0) + directData.satCount;
-      const compTotalCount = childStats.reduce((acc, s) => acc + s.compCount, 0) + directData.compCount;
-
-      const weightedAvg = (childStats.reduce((acc, s) => acc + s.avg * s.count, 0) + directData.avg * directData.count) / (totalCount || 1);
-      const weightedSatAvg = (childStats.reduce((acc, s) => acc + s.satAvg * s.satCount, 0) + directData.satAvg * directData.satCount) / (satTotalCount || 1);
-      const weightedPreAvg = (childStats.reduce((acc, s) => acc + s.preAvg * s.compCount, 0) + directData.preAvg * directData.compCount) / (compTotalCount || 1);
-      const weightedPostAvg = (childStats.reduce((acc, s) => acc + s.postAvg * s.compCount, 0) + directData.postAvg * directData.compCount) / (compTotalCount || 1);
-
-      return {
-        avg: weightedAvg,
-        satAvg: weightedSatAvg,
-        preAvg: weightedPreAvg,
-        postAvg: weightedPostAvg,
-        satCount: satTotalCount,
-        compCount: compTotalCount,
-        count: totalCount
+      let combined = {
+        preScores: [...(projectData[id]?.preScores || [])],
+        postScores: [...(projectData[id]?.postScores || [])],
+        satScores: [...(projectData[id]?.satScores || [])],
+        count: projectData[id]?.responses.length || 0
       };
+
+      children.forEach(c => {
+        const cStats = calculateRecursive(c.id);
+        if (!cStats) return;
+        
+        cStats._raw.preScores.forEach((scores: number[], idx: number) => {
+          if (!combined.preScores[idx]) combined.preScores[idx] = [];
+          combined.preScores[idx].push(...scores);
+        });
+        cStats._raw.postScores.forEach((scores: number[], idx: number) => {
+          if (!combined.postScores[idx]) combined.postScores[idx] = [];
+          combined.postScores[idx].push(...scores);
+        });
+        cStats._raw.satScores.forEach((scores: number[], idx: number) => {
+          if (!combined.satScores[idx]) combined.satScores[idx] = [];
+          combined.satScores[idx].push(...scores);
+        });
+        combined.count += cStats.count;
+      });
+
+      if (combined.count === 0) return null;
+
+      const allPre = combined.preScores.flat();
+      const allPost = combined.postScores.flat();
+      const allSat = combined.satScores.flat();
+
+      const preAvg = allPre.length > 0 ? allPre.reduce((a,b)=>a+b,0)/allPre.length : 0;
+      const postAvg = allPost.length > 0 ? allPost.reduce((a,b)=>a+b,0)/allPost.length : 0;
+      const satAvg = allSat.length > 0 ? allSat.reduce((a,b)=>a+b,0)/allSat.length : 0;
+
+      const hakeGain = calculateHakeGain(preAvg, postAvg);
+      const cohensD = calculateCohensD(allPre, allPost);
+      const tValue = calculatePairedTTest(allPre, allPost);
+      const pValue = getPValueFromT(tValue, Math.max(1, allPost.length - 1));
+
+      const questionStats = [];
+      const maxQs = Math.max(combined.preScores.length, combined.satScores.length);
+      for(let i=0; i<maxQs; i++) {
+        const qPre = combined.preScores[i] || [];
+        const qPost = combined.postScores[i] || [];
+        const qSat = combined.satScores[i] || [];
+        questionStats.push({
+          preAvg: qPre.length > 0 ? qPre.reduce((a,b)=>a+b,0)/qPre.length : 0,
+          postAvg: qPost.length > 0 ? qPost.reduce((a,b)=>a+b,0)/qPost.length : 0,
+          average: qSat.length > 0 ? qSat.reduce((a,b)=>a+b,0)/qSat.length : (qPost.length > 0 ? qPost.reduce((a,b)=>a+b,0)/qPost.length : 0)
+        });
+      }
+
+      const result = {
+        preAvg,
+        postAvg,
+        satAvg,
+        totalAverage: type === 'SATISFACTION' ? satAvg : postAvg,
+        hakeGain,
+        cohensD,
+        pValue,
+        count: combined.count,
+        questionStats,
+        _raw: combined 
+      };
+      
+      aggregated[id] = result;
+      return result;
     };
 
-    if (projectId) {
-      aggregatedData[projectId] = calculateRecursive(projectId);
-    } else {
-      projects.filter(p => p.level === 1).forEach(p => {
-        aggregatedData[p.id] = calculateRecursive(p.id);
+    if (projectIds && projectIds.length > 0) {
+      projectIds.forEach(id => calculateRecursive(id));
+      
+      // 전체 통계 계산을 위한 가상 ID '_overall'
+      const overallCombined = {
+        preScores: [] as number[][],
+        postScores: [] as number[][],
+        satScores: [] as number[][],
+        count: 0
+      };
+
+      projectIds.forEach(id => {
+        const stats = aggregated[id];
+        if (!stats) return;
+        stats._raw.preScores.forEach((scores: number[], idx: number) => {
+          if (!overallCombined.preScores[idx]) overallCombined.preScores[idx] = [];
+          overallCombined.preScores[idx].push(...scores);
+        });
+        stats._raw.postScores.forEach((scores: number[], idx: number) => {
+          if (!overallCombined.postScores[idx]) overallCombined.postScores[idx] = [];
+          overallCombined.postScores[idx].push(...scores);
+        });
+        stats._raw.satScores.forEach((scores: number[], idx: number) => {
+          if (!overallCombined.satScores[idx]) overallCombined.satScores[idx] = [];
+          overallCombined.satScores[idx].push(...scores);
+        });
+        overallCombined.count += stats.count;
       });
+
+      if (overallCombined.count > 0) {
+        const allPre = overallCombined.preScores.flat();
+        const allPost = overallCombined.postScores.flat();
+        const preAvg = allPre.length > 0 ? allPre.reduce((a,b)=>a+b,0)/allPre.length : 0;
+        const postAvg = allPost.length > 0 ? allPost.reduce((a,b)=>a+b,0)/allPost.length : 0;
+        const satAvg = overallCombined.satScores.flat().length > 0 ? overallCombined.satScores.flat().reduce((a,b)=>a+b,0)/overallCombined.satScores.flat().length : 0;
+        
+        aggregated['_overall'] = {
+          preAvg,
+          postAvg,
+          satAvg,
+          hakeGain: calculateHakeGain(preAvg, postAvg),
+          cohensD: calculateCohensD(allPre, allPost),
+          pValue: getPValueFromT(calculatePairedTTest(allPre, allPost), Math.max(1, allPost.length - 1)),
+          count: overallCombined.count,
+          questionStats: Array.from({ length: Math.max(overallCombined.preScores.length, overallCombined.satScores.length) }).map((_, i) => ({
+            preAvg: (overallCombined.preScores[i] || []).length > 0 ? overallCombined.preScores[i].reduce((a,b)=>a+b,0)/overallCombined.preScores[i].length : 0,
+            postAvg: (overallCombined.postScores[i] || []).length > 0 ? overallCombined.postScores[i].reduce((a,b)=>a+b,0)/overallCombined.postScores[i].length : 0,
+            average: (overallCombined.satScores[i] || []).length > 0 ? overallCombined.satScores[i].reduce((a,b)=>a+b,0)/overallCombined.satScores[i].length : 0
+          }))
+        };
+      }
+    } else {
+      projects.filter(p => p.level === 1).forEach(p => calculateRecursive(p.id));
     }
 
-    return aggregatedData;
+    return aggregated;
   },
 
   // 프로젝트 단위의 통합 데이터 및 동적 템플릿 정보 반환
@@ -321,20 +392,13 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
     const { responses, templates } = get();
     
     // 대상 ID가 세부 프로그램(LV4)인 경우와 상위 사업(LV1~3)인 경우를 모두 고려
-    // 단순히 responses.filter(r => r.projectId === targetId) 뿐만 아니라 
-    // 실제 해당 단위에 속한 데이터를 더 정확히 가져오도록 필터링함
     const projectResponses = responses.filter(r => r.projectId === targetId);
     
-    if (projectResponses.length === 0 && targetId) {
-      // 만약 직접적인 매칭이 없다면, 상위 레벨에서 하위의 모든 응답을 긁어오는 로직 (필요시)
-      // 현재는 프로젝트 ID가 리프 노드(LV4)라고 가정함
-    }
-
     // 이 프로젝트/프로그램에서 사용된 모든 템플릿 추출
     const usedTemplateIds = Array.from(new Set(projectResponses.map(r => r.templateId)));
     const relevantTemplates = templates.filter(t => usedTemplateIds.includes(t.id));
     
-    // 유형별 최신 템플릿 (UI 레이아웃 결정용 또는 기본 템플릿용)
+    // 유형별 최신 템플릿
     const satTemplates = relevantTemplates.filter(t => t.type === 'SATISFACTION').sort((a,b) => b.createdAt - a.createdAt);
     const compTemplates = relevantTemplates.filter(t => t.type === 'COMPETENCY').sort((a,b) => b.createdAt - a.createdAt);
 

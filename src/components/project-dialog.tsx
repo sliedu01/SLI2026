@@ -199,9 +199,13 @@ export function ProjectDialog({
                     </SelectTrigger>
                     <SelectContent className="min-w-[400px] rounded-2xl border-slate-100 shadow-2xl">
                       <SelectItem value="none">미지정</SelectItem>
-                      {partners.map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
+                      {partners.length === 0 ? (
+                        <div className="p-2 text-xs font-bold text-slate-400 text-center">파트너 목록을 불러오는 중...</div>
+                      ) : (
+                        partners.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -224,17 +228,17 @@ export function ProjectDialog({
                     <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">시작일</Label>
                     <Popover>
                       <PopoverTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          type="button"
-                          className={cn("w-full justify-start text-left font-bold h-12 rounded-xl", !startDate && "text-muted-foreground")}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {startDate ? format(startDate, "yyyy-MM-dd") : <span>날짜 선택</span>}
-                        </Button>
-                      }
-                    />
+                        render={
+                          <Button
+                            variant="outline"
+                            type="button"
+                            className={cn("w-full justify-start text-left font-bold h-12 rounded-xl", !startDate && "text-muted-foreground")}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {startDate ? format(startDate, "yyyy-MM-dd") : <span>날짜 선택</span>}
+                          </Button>
+                        }
+                      />
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar mode="single" selected={startDate} onSelect={handleStartDateSelect} locale={ko} initialFocus />
                       </PopoverContent>
@@ -244,17 +248,17 @@ export function ProjectDialog({
                     <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">종료일</Label>
                     <Popover>
                       <PopoverTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          type="button"
-                          className={cn("w-full justify-start text-left font-bold h-12 rounded-xl", !endDate && "text-muted-foreground")}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {endDate ? format(endDate, "yyyy-MM-dd") : <span>날짜 선택</span>}
-                        </Button>
-                      }
-                    />
+                        render={
+                          <Button
+                            variant="outline"
+                            type="button"
+                            className={cn("w-full justify-start text-left font-bold h-12 rounded-xl", !endDate && "text-muted-foreground")}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {endDate ? format(endDate, "yyyy-MM-dd") : <span>날짜 선택</span>}
+                          </Button>
+                        }
+                      />
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar mode="single" selected={endDate} onSelect={setEndDate} locale={ko} initialFocus />
                       </PopoverContent>
