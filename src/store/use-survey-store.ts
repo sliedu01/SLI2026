@@ -250,6 +250,9 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
       if (tmpl.type === 'SATISFACTION') {
         res.answers.forEach((ans, idx) => {
           if (ans.score === undefined) return;
+          // 주관식 문항(TEXT)은 통계 계산에서 제외 (분모 왜곡 방지)
+          if (tmpl.questions[idx]?.type !== 'SCALE') return;
+          
           if (!pData.satScores[idx]) pData.satScores[idx] = [];
           pData.satScores[idx].push(Number(ans.score));
         });

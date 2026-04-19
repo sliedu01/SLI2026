@@ -181,6 +181,7 @@ export default function SurveysPage() {
   const satTmpl = projectTemplates.sat[0];
   const compTmpl = projectTemplates.comp[0];
   const satQuestions = satTmpl?.questions.filter(q => q.type === 'SCALE') || [];
+  const satTextQuestions = satTmpl?.questions.filter(q => q.type === 'TEXT') || [];
   const compQuestions = compTmpl?.questions.filter(q => q.type === 'SCALE') || [];
 
   const aggregatedStats = getAggregatedStats(projects, selectedProjectIds.length > 0 ? selectedProjectIds : undefined, undefined, 'UNIFIED');
@@ -433,6 +434,9 @@ export default function SurveysPage() {
                               <th key={q.id} className="p-2 text-center w-16 min-min-w-[64px]"><Tooltip><TooltipTrigger className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg flex flex-col items-center w-full leading-tight font-black">Q{idx+1}</TooltipTrigger><TooltipContent className="bg-slate-900 text-white p-4 rounded-xl">{q.content}</TooltipContent></Tooltip></th>
                             ))}
                             <th className="p-4 text-center bg-emerald-50 text-[10px] w-20 text-emerald-700 font-black">만족도 평균</th>
+                            {satTextQuestions.map((q, idx) => (
+                              <th key={q.id} className="p-2 text-center w-28 min-w-[110px]"><Tooltip><TooltipTrigger className="bg-slate-50 text-slate-600 px-2 py-1 rounded-lg flex flex-col items-center w-full leading-tight font-black">TX{idx+1}</TooltipTrigger><TooltipContent className="bg-slate-900 text-white p-4 rounded-xl">{q.content}</TooltipContent></Tooltip></th>
+                            ))}
                             {compQuestions.map((q, idx) => (
                               <th key={q.id} className="p-2 text-center w-16 min-min-w-[64px]"><Tooltip><TooltipTrigger className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg flex flex-col items-center w-full leading-tight font-black">Q{idx+1}</TooltipTrigger><TooltipContent className="bg-slate-900 text-white p-4 rounded-xl">{q.content}</TooltipContent></Tooltip></th>
                             ))}
@@ -469,6 +473,7 @@ export default function SurveysPage() {
                                       <td className="p-4 sticky left-0 z-10 bg-inherit border-r"><div className="flex items-center gap-3" style={{ paddingLeft: `${depth * 1}rem` }}>{(hasChildren || p.level === 4) && <button className="p-1">{isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}</button>}<span className="text-[11px] font-black text-slate-900 truncate">{p.level >= 3 && p.partnerId ? `${partners.find(ptr => ptr.id === p.partnerId)?.name || '협력사'} (${p.name})` : p.name}</span></div></td>
                                       {satQuestions.map((_, i) => <td key={i} className="p-4 text-center font-black text-[10px] text-emerald-600/60">{stats?.questionStats?.[i]?.average?.toFixed(2) || '-'}</td>)}
                                       <td className="p-4 text-center font-black text-xs bg-emerald-50/30">{stats?.satAvg?.toFixed(2) || '-'}</td>
+                                      {satTextQuestions.map((_, i) => <td key={i} className="p-4 text-center text-[9px] text-slate-300 italic border-r">SUMMARY</td>)}
                                       {compQuestions.map((_, i) => <td key={i} className="p-4 text-center font-black text-[10px] text-blue-600/60">{stats?.questionStats?.[i]?.postAvg?.toFixed(2) || '-'}</td>)}
                                       <td className="p-4 text-center font-black text-xs bg-blue-50/30">{stats?.postAvg?.toFixed(2) || '-'}</td>
                                       <td className={cn("p-4 text-center text-[10px] font-black", (stats?.hakeGain || 0) >= 0.7 ? "text-blue-600 bg-blue-50/50" : (stats?.hakeGain || 0) >= 0.3 ? "text-emerald-600" : "text-slate-400")}>{stats?.hakeGain?.toFixed(2) || '-'}</td>
@@ -488,6 +493,24 @@ export default function SurveysPage() {
                                           <td className="p-4" style={{ paddingLeft: `${(depth + 1.2) * 1}rem` }}><div className="flex flex-col"><span className="text-[10px] font-bold text-slate-500">{r.respondentId || '학습자'}</span><span className="text-[8px] text-slate-300 font-black">RAW DATA</span></div></td>
                                           {satQuestions.map(q => <td key={q.id} className="p-4 text-center text-[10px] text-emerald-600/30">{r.answers.find(a=>a.questionId===q.id)?.score || '-'}</td>)}
                                           <td className="p-4 text-center font-black text-[10px] text-emerald-600/40">{rSatAvg.toFixed(2)}</td>
+                                          {satTextQuestions.map(q => {
+                                            const ans = r.answers.find(a => a.questionId === q.id);
+                                            const text = ans?.text || '-';
+                                            return (
+                                              <td key={q.id} className="p-4 text-center text-[10px] text-slate-500 bg-slate-50/50 border-r min-w-[110px]">
+                                                {text === '-' ? '-' : (
+                                                  <Tooltip>
+                                                    <TooltipTrigger className="cursor-help hover:text-blue-600 underline decoration-slate-200 underline-offset-4 decoration-dotted">
+                                                      {text.length > 5 ? `${text.slice(0, 5)}...` : text}
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="max-w-[300px] p-4 bg-slate-900 text-white rounded-xl shadow-2xl border-none">
+                                                      <p className="text-xs leading-relaxed font-medium">{text}</p>
+                                                    </TooltipContent>
+                                                  </Tooltip>
+                                                )}
+                                              </td>
+                                            );
+                                          })}
                                           {compQuestions.map(q => <td key={q.id} className="p-4 text-center text-[10px] text-blue-600/30">{r.answers.find(a=>a.questionId===q.id)?.score || '-'}</td>)}
                                           <td className="p-4 text-center font-black text-[10px] text-blue-600/40">{rPostAvg.toFixed(2)}</td>
                                           <td colSpan={3} />
@@ -505,6 +528,7 @@ export default function SurveysPage() {
                                         <td className="p-4 sticky left-0 z-10 bg-slate-900"><div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 1}rem` }}><Sigma className="size-3 text-emerald-400" /> {p.name} 종합</div></td>
                                         {satQuestions.map((_, i) => <td key={i} className="p-4 text-center text-emerald-400/80">{stats?.questionStats?.[i]?.average?.toFixed(2) || '-'}</td>)}
                                         <td className="p-4 text-center text-emerald-400 bg-white/5">{stats?.satAvg?.toFixed(2) || '-'}</td>
+                                        {satTextQuestions.map((_, i) => <td key={i} className="p-4 text-center text-slate-500/50 italic">-</td>)}
                                         {compQuestions.map((_, i) => <td key={i} className="p-4 text-center text-blue-400/80">{stats?.questionStats?.[i]?.postAvg?.toFixed(2) || '-'}</td>)}
                                         <td className="p-4 text-center text-blue-400 bg-white/5">{stats?.postAvg?.toFixed(2) || '-'}</td>
                                         <td className="p-4 text-center text-emerald-400">{stats?.hakeGain?.toFixed(2) || '-'}</td>
