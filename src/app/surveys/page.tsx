@@ -483,7 +483,7 @@ export default function SurveysPage() {
 
                                     </tr>
                                     {isExpanded && childRows.length > 0 && renderTree(childRows, depth + 1)}
-                                    {isExpanded && pResponses.map((r, rIdx) => {
+                                    {isExpanded && pResponses.sort((a, b) => (a.respondentId || '').localeCompare(b.respondentId || '')).map((r, rIdx) => {
                                       const rSatAnswers = r.answers.filter(a => satQuestions.some(q => q.id === a.questionId));
                                       const rSatAvg = rSatAnswers.length > 0 ? rSatAnswers.reduce((prev, curr) => prev + (Number(curr.score) || 0), 0) / rSatAnswers.length : 0;
                                       const rCompAnswers = r.answers.filter(a => compQuestions.some(q => q.id === a.questionId));
