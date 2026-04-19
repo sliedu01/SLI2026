@@ -232,7 +232,7 @@ export default function SurveysPage() {
     pValue: {
       title: "통계적 유의성 (p-value)",
       formula: "대응표본 t-검정 (Paired t-test) 유의확률",
-      criteria: "0.05↓ 통계적으로 유의미함 | 0.01↓ 매우 유의미함",
+      criteria: "p < 0.05 성과 유의함 | p < 0.01 성과 강력함",
       effect: "관찰된 역량 변화가 우연이 아닌 프로그램의 효과일 확률을 과학적으로 신뢰할 수 있는지 검증함."
     }
   };
@@ -1041,7 +1041,7 @@ export default function SurveysPage() {
                           </div>
                           <div className="text-right">
                             <span className="text-xs font-black text-slate-400 block uppercase">Overall Average</span>
-                            <span className="text-3xl font-black text-emerald-600">{(overallStats?.satAvg || 0).toFixed(2)}<span className="text-sm text-slate-300 ml-1">/ 5.00</span></span>
+                            <span className="text-3xl font-black text-emerald-600">{(overallStats?.satAvg || 0).toFixed(2)}<span className="text-sm text-slate-300 ml-1">점 / 5.00</span></span>
                           </div>
                         </div>
                       </div>
@@ -1088,8 +1088,9 @@ export default function SurveysPage() {
                         </div>
                         <p className="text-[15px] font-bold text-slate-800 leading-[1.8] text-pretty whitespace-pre-wrap">
                           {overallStats ? ExpertReportGenerator.generateSatisfactionOpinion(
-                            projects.filter(p => selectedProjectIds.includes(p.id)), 
-                            overallStats
+                            projects.filter(p => [selectedProjectIds[0], ...projects.filter(p2 => p2.parentId === selectedProjectIds[0]).map(p2 => p2.id)].includes(p.id)), 
+                            overallStats,
+                            responses.filter(r => selectedProjectIds.includes(r.projectId)).flatMap(r => r.answers.filter(a => a.text).map(a => a.text!))
                           ) : '전체 요약 데이터를 불러오는 중입니다...'}
                         </p>
                       </div>
@@ -1157,7 +1158,7 @@ export default function SurveysPage() {
                         </div>
                         <p className="text-[15px] font-bold text-slate-800 leading-[1.8] text-pretty whitespace-pre-wrap">
                           {overallStats ? ExpertReportGenerator.generateCompetencyOpinion(
-                            projects.filter(p => selectedProjectIds.includes(p.id)), 
+                            projects.filter(p => [selectedProjectIds[0], ...projects.filter(p2 => p2.parentId === selectedProjectIds[0]).map(p2 => p2.id)].includes(p.id)), 
                             overallStats
                           ) : '성장 분석 데이터를 불러오는 중입니다...'}
                         </p>
@@ -1196,7 +1197,7 @@ export default function SurveysPage() {
                             <div className="space-y-10">
                                 <p className="text-[17px] font-medium leading-[2.2] text-slate-300 whitespace-pre-wrap selection:bg-blue-500/30">
                                     {overallStats ? ExpertReportGenerator.generateConsultingReport(
-                                        projects.filter(p => selectedProjectIds.includes(p.id)), 
+                                        projects.filter(p => selectedProjectIds.includes(p.id) || p.id === projects.find(p2 => p2.id === selectedProjectIds[0])?.parentId), 
                                         overallStats
                                     ) : '데이터 로딩 중...'}
                                 </p>
