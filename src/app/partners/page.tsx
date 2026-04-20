@@ -273,7 +273,7 @@ export default function PartnersPage() {
       </div>
 
       {/* 업체 목록 그리드 */}
-      <div className="grid grid-cols-1 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
          {isLoading ? (
            <div className="space-y-6">
               {[1, 2, 3].map(i => (
@@ -294,17 +294,17 @@ export default function PartnersPage() {
 
              return (
                <Card key={p.id} className={cn(
-                 "rounded-[3rem] border-none shadow-xl shadow-slate-200/40 bg-white overflow-hidden transition-all duration-500",
-                 isExpanded ? "ring-2 ring-blue-500/20 shadow-2xl scale-[1.01]" : "hover:shadow-2xl hover:-translate-y-1"
+                 "rounded-[2.5rem] border-none shadow-xl shadow-slate-200/40 bg-white overflow-hidden transition-all duration-500",
+                 isExpanded ? "ring-2 ring-blue-500/20 shadow-2xl scale-[1.01] md:col-span-2" : "hover:shadow-2xl hover:-translate-y-1"
                )}>
-                  <div className="p-10 space-y-10">
-                     <div className="flex flex-col lg:flex-row justify-between gap-10">
-                        {/* 좌측 기본 정보 */}
-                        <div className="flex-1 space-y-8">
+                  <div className="p-7 space-y-7">
+                     <div className="flex flex-col gap-6">
+                        {/* 상단 기본 정보 */}
+                        <div className="space-y-6">
                            <div className="flex justify-between items-start">
                               <div className="space-y-3">
-                                 <h3 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                                   <Building2 className="size-8 text-blue-500" /> {p.name}
+                                 <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                   <Building2 className="size-6 text-blue-500" /> {p.name}
                                  </h3>
                               </div>
                               <div className="flex gap-2">
@@ -333,22 +333,22 @@ export default function PartnersPage() {
                               </div>
                            </div>
                            
-                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-                              <div className="space-y-1.5">
-                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manager</p>
-                                 <p className="text-sm font-black text-slate-800">{p.manager}</p>
+                           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                              <div className="space-y-1">
+                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Manager</p>
+                                 <p className="text-xs font-black text-slate-800">{p.manager}</p>
                               </div>
-                              <div className="space-y-1.5">
-                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact</p>
-                                 <p className="text-sm font-black text-slate-800">{p.phone1}</p>
+                              <div className="space-y-1">
+                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Contact</p>
+                                 <p className="text-xs font-black text-slate-800">{p.phone1}</p>
                               </div>
-                              <div className="space-y-1.5">
-                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</p>
-                                 <p className="text-sm font-black text-slate-800">{p.email}</p>
+                              <div className="space-y-1">
+                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Email</p>
+                                 <p className="text-xs font-black text-slate-800 truncate">{p.email}</p>
                               </div>
-                              <div className="space-y-1.5">
-                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</p>
-                                 <p className="text-sm font-black text-slate-800 truncate">{p.address}</p>
+                              <div className="space-y-1">
+                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Location</p>
+                                 <p className="text-xs font-black text-slate-800 truncate">{p.address}</p>
                               </div>
                            </div>
 
@@ -380,20 +380,23 @@ export default function PartnersPage() {
                            </div>
                         </div>
 
-                        {/* 우측 수행 통계 */}
-                        <div className="lg:w-72 flex flex-col justify-center gap-6 bg-slate-50/50 p-8 rounded-[2rem] border border-slate-100">
-                           <div className="text-center">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Performance Insight</p>
-                              <p className="text-4xl font-black text-slate-900 tracking-tighter">{history.length}<span className="text-sm ml-1 text-slate-400 font-bold italic">Projects</span></p>
+                        {/* 하단 수행 통계 및 액션 */}
+                        <div className="flex items-center gap-4 bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+                           <div className="flex-1 flex items-center gap-4 px-2">
+                               <div className="flex flex-col">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Performance</p>
+                                  <p className="text-xl font-black text-slate-900 tracking-tighter">{history.length}<span className="text-[10px] ml-1 text-slate-400 font-bold italic">Projects</span></p>
+                               </div>
                            </div>
                            <Button 
                              onClick={() => setViewDetailId(isExpanded ? null : p.id)}
+                             variant="secondary"
                              className={cn(
-                               "w-full h-12 rounded-2xl font-black text-xs gap-2 transition-all",
-                               isExpanded ? "bg-slate-900 text-white shadow-xl" : "bg-white text-blue-600 border border-blue-100 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20"
+                               "h-10 px-6 rounded-xl font-black text-[11px] gap-2 transition-all",
+                               isExpanded ? "bg-slate-900 text-white shadow-lg" : "bg-white text-blue-600 border border-blue-50 shadow-sm hover:shadow-md"
                              )}
                            >
-                              {isExpanded ? '상세 이력 닫기' : '참여 사업 이력 보기'} <ChevronRight className={cn("size-4 transition-transform duration-300", isExpanded && "rotate-90")} />
+                              {isExpanded ? '닫기' : '이력 보기'} <ChevronRight className={cn("size-3.5 transition-transform duration-300", isExpanded && "rotate-90")} />
                            </Button>
                         </div>
                      </div>
