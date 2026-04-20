@@ -23,6 +23,7 @@ import { usePartnerStore, PartnerDocument } from '@/store/use-partner-store';
 import { Project } from '@/store/use-project-store';
 import { FileUploadZone } from './file-upload-zone';
 import { Separator } from '@/components/ui/separator';
+import { uploadFileToStorage, generateStoragePath } from '@/lib/storage';
 
 interface PartnerDialogProps {
   open: boolean;
@@ -44,10 +45,10 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
   // 가변 계약서 리스트
-  const [contracts, setContracts] = React.useState<{id: string, name: string, originalName?: string, fileUrl?: string}[]>([{ id: 'c1', name: '' }]);
+  const [contracts, setContracts] = React.useState<{id: string, name: string, originalName?: string, fileUrl?: string, file?: File}[]>([{ id: 'c1', name: '' }]);
   
   // 증빙 서류 상태 관리
-  const [docs, setDocs] = React.useState<Record<string, { originalName: string, fileName: string, fileUrl: string }>>({});
+  const [docs, setDocs] = React.useState<Record<string, { originalName: string, fileName: string, fileUrl: string, file?: File }>>({});
 
   // 초기화 함수
   const resetForm = React.useCallback(() => {
@@ -97,27 +98,46 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
     setIsSubmitting(true);
     try {
       const combinedDocs: PartnerDocument[] = [];
-      Object.entries(docs).forEach(([type, info]) => {
+      
+      // 1. 공통 증빙 서류 업로드 처리
+      for (const [type, info] of Object.entries(docs)) {
+        let finalUrl = info.fileUrl;
+        
+        // 새로 선택된 파일이 있는 경우에만 클라우드 업로드 수행
+        if (info.file) {
+          const path = generateStoragePath('partners', info.fileName);
+          finalUrl = await uploadFileToStorage('partner-documents', path, info.file);
+        }
+
         combinedDocs.push({
           id: crypto.randomUUID(),
           type,
           originalName: info.originalName,
           fileName: info.fileName,
-          fileUrl: info.fileUrl
+          fileUrl: finalUrl
         });
-      });
+      }
       
-      contracts.forEach((c, i) => {
+      // 2. 계약서 및 기타 서류 업로드 처리
+      for (let i = 0; i < contracts.length; i++) {
+        const c = contracts[i];
         if (c.name) {
+          let finalUrl = c.fileUrl;
+          
+          if (c.file) {
+            const path = generateStoragePath('partners', c.name);
+            finalUrl = await uploadFileToStorage('partner-documents', path, c.file);
+          }
+
           combinedDocs.push({
             id: c.id,
             type: `${i+1}회차 계약서`,
             originalName: c.originalName || c.name,
             fileName: c.name,
-            fileUrl: c.fileUrl
+            fileUrl: finalUrl
           });
         }
-      });
+      }
 
       const partnerData = {
         name,
@@ -139,7 +159,7 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
     } catch (err) {
       const error = err as Error;
       console.error('Submit error:', error);
-      alert(`데이터 저장 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
+      alert(`데이터 저장 및 파일 업로드 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
     } finally {
       setIsSubmitting(false);
     }

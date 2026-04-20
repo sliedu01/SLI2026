@@ -34,7 +34,7 @@ export default function PartnersPage() {
   const [mounted, setMounted] = React.useState(false);
   const { partners, deletePartner, isLoading, fetchPartners } = usePartnerStore();
   const { projects } = useProjectStore();
-  const { responses } = useSurveyStore();
+  const { responses, getAggregatedStats } = useSurveyStore();
   
   const [searchTerm, setSearchTerm] = React.useState('');
   const [viewDetailId, setViewDetailId] = React.useState<string | null>(null);
@@ -72,23 +72,19 @@ export default function PartnersPage() {
   // 특정 파트너가 참여한 사업 내역 추출
   const getPartnerProjects = (partnerId: string) => {
     const partnerProjects = projects.filter(p => p.partnerId === partnerId);
+    const projectIds = partnerProjects.map(p => p.id);
+    
+    // 통합 통계 엔진 호출 (UNIFIED 타입으로 만족도와 역량 데이터 모두 수집)
+    const stats = getAggregatedStats(projects, projectIds, partnerId, 'UNIFIED');
     
     return partnerProjects.map(p => {
-      const projectResponses = responses.filter(r => r.projectId === p.id);
+      const pStats = stats[p.id];
       
-      // 만족도 집계
-      const avgSatisfaction = projectResponses.length > 0
-        ? (projectResponses.reduce((acc, r) => {
-            const sum = r.answers.reduce((s, a) => s + (a.score || 0), 0);
-            return acc + (sum / (r.answers.length || 1));
-          }, 0) / projectResponses.length).toFixed(1)
-        : '-';
-
       return {
         ...p,
-        avgSatisfaction,
-        preCompetency: projectResponses.length > 0 ? (3.2 + (Math.random() * 0.5)).toFixed(1) : '-',
-        postCompetency: projectResponses.length > 0 ? (4.1 + (Math.random() * 0.4)).toFixed(1) : '-'
+        avgSatisfaction: pStats && pStats.satCount > 0 ? pStats.satAvg.toFixed(1) : '-',
+        preCompetency: pStats && pStats.compCount > 0 ? pStats.preAvg.toFixed(1) : '-',
+        postCompetency: pStats && pStats.compCount > 0 ? pStats.postAvg.toFixed(1) : '-'
       };
     });
   };

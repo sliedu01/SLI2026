@@ -266,25 +266,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const { projects, sortKey, sortDirection } = get();
     const filtered = projects.filter((p) => p.parentId === parentId);
 
-    // LV3, LV4는 무조건 날짜 오름차순(오래된 순) 정렬
-    // filtered의 첫 번째 요소가 LV3 이상인지 확인 (모든 siblings는 같은 레벨임)
-    const isHighLevel = filtered.length > 0 && filtered[0].level >= 3;
-
     return [...filtered].sort((a, b) => {
-      let comparison = 0;
-      
-      if (isHighLevel) {
-        // LV3, LV4 특화 정렬 (날짜 ASC)
-        comparison = (a.startDate || '').localeCompare(b.startDate || '');
-        return comparison; // 항상 ASC
+      // 1. LV1, LV2는 이름순 (숫자 prefix 고려)
+      if (a.level <= 2) {
+        return a.name.localeCompare(b.name, undefined, { numeric: true });
       }
 
-      if (sortKey === 'name') {
-        comparison = a.name.localeCompare(b.name);
-      } else if (sortKey === 'date') {
-        comparison = (a.startDate || '').localeCompare(b.startDate || '');
+      // 2. LV3, LV4는 무조건 일정순 (시작일 ASC -> 종료일 ASC)
+      if (a.startDate !== b.startDate) {
+        return (a.startDate || '').localeCompare(b.startDate || '');
       }
-      return sortDirection === 'asc' ? comparison : -comparison;
+      return (a.endDate || '').localeCompare(b.endDate || '');
     });
   },
 }));

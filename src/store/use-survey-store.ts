@@ -52,6 +52,7 @@ interface AggregatedStat {
   cohensD: number;
   pValue: number;
   questionStats: Array<{
+    questionId: string;
     preAvg: number;
     postAvg: number;
     average: number;
@@ -362,23 +363,38 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
       const postAvg = finalPostAvgs.length > 0 ? finalPostAvgs.reduce((a, b) => a + b, 0) / finalPostAvgs.length : 0;
       const satAvg = finalSatAvgs.length > 0 ? finalSatAvgs.reduce((a, b) => a + b, 0) / finalSatAvgs.length : 0;
 
-      const questionStats = [];
-      const maxQs = Math.max(combined.preScores.length, combined.satScores.length);
-      for(let i=0; i<maxQs; i++) {
+      const allTemplates = get().templates;
+      const satQuestions = allTemplates.filter(t => t.type === 'SATISFACTION').flatMap(t => t.questions.filter(q => q.type === 'SCALE'));
+      const compQuestions = allTemplates.filter(t => t.type === 'COMPETENCY').flatMap(t => t.questions);
+
+      const questionStats: AggregatedStat['questionStats'] = [];
+      
+      // 만족도 문항 통계
+      satQuestions.forEach((q, i) => {
+        const scores = combined.satScores[i] || [];
+        questionStats.push({
+          questionId: q.id,
+          preAvg: 0,
+          postAvg: 0,
+          average: scores.length > 0 ? scores.reduce((a,b)=>a+b,0)/scores.length : 0,
+          impRate: 0
+        });
+      });
+
+      // 역량 문항 통계
+      compQuestions.forEach((q, i) => {
         const qPre = combined.preScores[i] || [];
         const qPost = combined.postScores[i] || [];
-        const qSat = combined.satScores[i] || [];
+        const pre = qPre.length > 0 ? qPre.reduce((a,b)=>a+b,0)/qPre.length : 0;
+        const post = qPost.length > 0 ? qPost.reduce((a,b)=>a+b,0)/qPost.length : 0;
         questionStats.push({
-          preAvg: qPre.length > 0 ? qPre.reduce((a,b)=>a+b,0)/qPre.length : 0,
-          postAvg: qPost.length > 0 ? qPost.reduce((a,b)=>a+b,0)/qPost.length : 0,
-          average: qSat.length > 0 ? qSat.reduce((a,b)=>a+b,0)/qSat.length : (qPost.length > 0 ? qPost.reduce((a,b)=>a+b,0)/qPost.length : 0),
-          impRate: (() => {
-            const pre = qPre.length > 0 ? qPre.reduce((a,b)=>a+b,0)/qPre.length : 0;
-            const post = qPost.length > 0 ? qPost.reduce((a,b)=>a+b,0)/qPost.length : 0;
-            return pre > 0 ? ((post - pre) / pre) * 100 : 0;
-          })()
+          questionId: q.id,
+          preAvg: pre,
+          postAvg: post,
+          average: post,
+          impRate: pre > 0 ? ((post - pre) / pre) * 100 : 0
         });
-      }
+      });
 
       const themeStatsGroup: Record<string, { preSum: number, postSum: number, satSum: number, count: number }> = {};
       
@@ -542,7 +558,36 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
           })(),
           impRate: pre > 0 ? ((post - pre) / pre) * 100 : 0,
           themeStats: finalThemeStats,
-          questionStats: [] // Simplified for overall
+          questionStats: (() => {
+            const allTmpls = get().templates;
+            const satQs = allTmpls.filter(t => t.type === 'SATISFACTION').flatMap(t => t.questions.filter(q => q.type === 'SCALE'));
+            const compQs = allTmpls.filter(t => t.type === 'COMPETENCY').flatMap(t => t.questions);
+            const qStats: AggregatedStat['questionStats'] = [];
+            
+            satQs.forEach((q) => {
+              const theme = finalThemeStats[q.theme];
+              qStats.push({
+                questionId: q.id,
+                preAvg: 0,
+                postAvg: 0,
+                average: theme?.satAvg || 0,
+                impRate: 0
+              });
+            });
+
+            compQs.forEach((q) => {
+              const theme = finalThemeStats[q.theme];
+              qStats.push({
+                questionId: q.id,
+                preAvg: theme?.preAvg || 0,
+                postAvg: theme?.postAvg || 0,
+                average: theme?.postAvg || 0,
+                impRate: theme?.preAvg > 0 ? ((theme.postAvg - theme.preAvg) / theme.preAvg) * 100 : 0
+              });
+            });
+
+            return qStats;
+          })()
         };
       }
     } else {

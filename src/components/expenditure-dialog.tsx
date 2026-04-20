@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { FileUploadZone } from './file-upload-zone';
+import { uploadFileToStorage, generateStoragePath } from '@/lib/storage';
 
 import { 
   Dialog, 
@@ -40,34 +41,51 @@ export function ExpenditureDialog({ open, onOpenChange, executionItem }: Expendi
   const [selectedPartnerId, setSelectedPartnerId] = React.useState('');
   const [customVendor, setCustomVendor] = React.useState('');
   const [description, setDescription] = React.useState('');
-  const [uploadFile, setUploadFile] = React.useState<{ originalName: string, fileName: string, fileUrl: string } | null>(null);
+  const [uploadFile, setUploadFile] = React.useState<{ originalName: string, fileName: string, fileUrl: string, file?: File } | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const project = projects.find(p => p.id === executionItem.projectId);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || (!selectedPartnerId && !customVendor)) {
       alert('금액과 지출처를 확인해주세요.');
       return;
     }
 
-    const vendorName = selectedPartnerId === 'custom'
-      ? customVendor
-      : partners.find(p => p.id === selectedPartnerId)?.name || '';
+    setIsSubmitting(true);
+    try {
+      const vendorName = selectedPartnerId === 'custom'
+        ? customVendor
+        : partners.find(p => p.id === selectedPartnerId)?.name || '';
 
-    addExpenditure({
-      executionId: executionItem.id,
-      date,
-      amount: Number(amount),
-      vendor: vendorName,
-      description,
-      attachmentOriginalName: uploadFile?.originalName,
-      attachmentName: uploadFile?.fileName,
-      attachmentUrl: uploadFile?.fileUrl,
-    });
+      let finalUrl = uploadFile?.fileUrl;
 
-    onOpenChange(false);
-    resetForm();
+      // 파일이 새로 선택된 경우 클라우드 업로드
+      if (uploadFile?.file) {
+        const path = generateStoragePath('expenditures', uploadFile.fileName);
+        finalUrl = await uploadFileToStorage('partner-documents', path, uploadFile.file);
+      }
+
+      await addExpenditure({
+        executionId: executionItem.id,
+        date,
+        amount: Number(amount),
+        vendor: vendorName,
+        description,
+        attachmentOriginalName: uploadFile?.originalName,
+        attachmentName: uploadFile?.fileName,
+        attachmentUrl: finalUrl,
+      });
+
+      onOpenChange(false);
+      resetForm();
+    } catch (err) {
+      console.error('Expenditure save error:', err);
+      alert('지출 내역 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -195,9 +213,10 @@ export function ExpenditureDialog({ open, onOpenChange, executionItem }: Expendi
           </Button>
           <Button 
             onClick={handleSubmit}
+            disabled={isSubmitting}
             className="flex-[2] h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-xl shadow-emerald-100 active:scale-95 transition-all outline-none border-none"
           >
-            집행 내역 등록 완료
+            {isSubmitting ? '저장 중...' : '집행 내역 등록 완료'}
           </Button>
         </DialogFooter>
       </DialogContent>

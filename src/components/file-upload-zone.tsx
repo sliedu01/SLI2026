@@ -21,7 +21,7 @@ interface FileUploadZoneProps {
     fileName: string;
     fileUrl?: string;
   } | null;
-  onChange: (fileInfo: { originalName: string, fileName: string, fileUrl: string } | null) => void;
+  onChange: (fileInfo: { originalName: string, fileName: string, fileUrl: string, file?: File } | null) => void;
   onRename?: (originalName: string) => string; // 상위에서 명명 규칙 정의
   className?: string;
 }
@@ -53,7 +53,8 @@ export function FileUploadZone({
       onChange({
         originalName,
         fileName,
-        fileUrl
+        fileUrl,
+        file
       });
     };
     reader.readAsDataURL(file);

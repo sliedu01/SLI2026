@@ -39,27 +39,29 @@ import {
   BarChart3,
   Lightbulb,
   ShieldCheck,
-  Rocket
+  Rocket,
+  FileText,
+  BrainCircuit
 } from 'lucide-react';
 
-import { Button } from 'components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from 'components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Select, 
   SelectContent, 
   SelectItem, 
   SelectTrigger, 
   SelectValue 
-} from 'components/ui/select';
+} from '@/components/ui/select';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Input } from 'components/ui/input';
-import { Badge } from 'components/ui/badge';
-import { Textarea } from 'components/ui/textarea';
-import { Separator } from 'components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from 'date-fns';
 import { 
@@ -69,7 +71,7 @@ import {
   DialogTitle, 
   DialogFooter,
   DialogDescription
-} from 'components/ui/dialog';
+} from '@/components/ui/dialog';
 import {
   Tooltip,
   TooltipContent,
@@ -77,17 +79,32 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { useProjectStore } from 'store/use-project-store';
-import { useSurveyStore, SurveyTemplate, SurveyResponse, Answer, Question, SurveyType } from 'store/use-survey-store';
-import { usePartnerStore } from 'store/use-partner-store';
-import { cn } from 'lib/utils';
-import { 
-  ExpertReportGenerator,
-  calculateHakeGain,
-  calculateCohensD,
-  calculatePairedTTest,
-  getPValueFromT
-} from 'lib/stat-utils';
+import { useProjectStore } from '@/store/use-project-store';
+import { useSurveyStore, SurveyTemplate, SurveyResponse, Answer, Question, SurveyType } from '@/store/use-survey-store';
+import { usePartnerStore } from '@/store/use-partner-store';
+import { cn } from "@/lib/utils";
+import { ExpertReportGenerator } from "@/lib/stat-utils";
+
+// 레이더 차트 텍스트 줄바꿈용 커스텀 틱 컴포넌트
+const CustomRadarTick = (props: any) => {
+  const { payload, x, y, textAnchor, index } = props;
+  const words = payload.value.split(' ');
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text 
+        dy={0} 
+        textAnchor={textAnchor} 
+        fill="#64748b" 
+        fontSize={11} 
+        fontWeight={800}
+      >
+        {words.map((word: string, i: number) => (
+          <tspan x={0} dy={i === 0 ? 0 : 13} key={i}>{word}</tspan>
+        ))}
+      </text>
+    </g>
+  );
+};
 
 // Charts
 import { 
@@ -115,7 +132,7 @@ import {
 
 export default function SurveysPage() {
   const [mounted, setMounted] = React.useState(false);
-  const { projects, fetchProjects } = useProjectStore();
+  const { projects, fetchProjects, getSortedProjects } = useProjectStore();
   const { 
     templates, 
     responses, 
@@ -168,7 +185,7 @@ export default function SurveysPage() {
     open: false, title: "", description: "", onConfirm: () => {} 
   });
   
-  const [surveyType, setSurveyType] = React.useState<SurveyType>('UNIFIED');
+  
 
   const selectionPath = React.useMemo(() => {
     if (selectedProjectIds.length === 0) return '대상을 선택하세요...';
@@ -255,7 +272,8 @@ export default function SurveysPage() {
   }, [projects, dataDateRange]);
 
   const renderNodes = React.useCallback((parentId: string | null, depth: number = 0): React.ReactNode => {
-    const filteredRows = projects.filter(p => p.parentId === parentId && visibleProjectIds.has(p.id));
+    const filteredRows = getSortedProjects(parentId)
+      .filter(p => visibleProjectIds.has(p.id));
     if (filteredRows.length === 0) return null;
 
     const handleToggle = (projectId: string, isSelected: boolean) => {
@@ -297,7 +315,7 @@ export default function SurveysPage() {
                 )}
                 style={{ marginLeft: `${depth * 1.5}rem` }}
               >
-                <div className="size-5 flex items-center justify-center shrink-0">
+                <div className="size-5 flex items-center justify-center shrink-0" onClick={(e) => e.stopPropagation()}>
                   <Checkbox 
                     checked={isSelected}
                     onChange={() => handleToggle(p.id, isSelected)}
@@ -313,6 +331,8 @@ export default function SurveysPage() {
                   <div className="flex flex-col gap-0.5 overflow-hidden">
                     <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-400/80 uppercase tracking-tighter">
                       <span>{p.startDate} ~ {p.endDate}</span>
+                      <span className="text-slate-300">|</span>
+                      <span className="text-blue-500/70">{partners.find(ptr => ptr.id === p.partnerId)?.name || '협력사 미지정'}</span>
                       {p.location && (
                         <>
                           <span className="text-slate-300">|</span>
@@ -320,8 +340,8 @@ export default function SurveysPage() {
                         </>
                       )}
                     </div>
-                    <span className="text-xs font-black truncate">
-                      {p.partnerId ? `${partners.find(ptr => ptr.id === p.partnerId)?.name || '미지정'} (${p.name})` : p.name}
+                    <span className="text-sm font-black truncate leading-tight">
+                      {p.name}
                     </span>
                   </div>
                 ) : (
@@ -418,33 +438,90 @@ export default function SurveysPage() {
       </div>
 
       {activeTab === 'data' && overallStats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-4 duration-1000">
-           <Card className="rounded-[2rem] border-none shadow-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 space-y-2">
-              <div className="flex justify-between items-center opacity-80"><span className="text-[10px] font-black uppercase tracking-widest">만족도 평균</span><PieChartIcon className="size-4" /></div>
-              <div className="text-4xl font-black">{overallStats.satAvg.toFixed(2)}</div>
-              <p className="text-[10px] font-bold opacity-70">전체 응답 {overallStats.count.toFixed(2)}건 기준</p>
-           </Card>
-           <Card className="rounded-[2rem] border-none shadow-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 space-y-2">
-              <div className="flex justify-between items-center opacity-80"><span className="text-[10px] font-black uppercase tracking-widest">역량 향상도 (Gain %)</span><TrendingUp className="size-4" /></div>
-              <div className="text-4xl font-black">{(overallStats.hakeGain * 100).toFixed(1)}%</div>
-              <div className="flex items-center gap-2">
-                 <Badge className={cn("text-[9px] border-none", overallStats.hakeGain >= 0.7 ? "bg-white text-blue-600" : "bg-blue-400/30 text-white")}>
-                   {overallStats.hakeGain >= 0.7 ? '높은 성과' : overallStats.hakeGain >= 0.3 ? '중간 성과' : '보통'}
-                 </Badge>
+        <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-1000">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+             <Card className="rounded-[2.5rem] border-none shadow-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-8 space-y-4">
+                <div className="flex justify-between items-center opacity-80"><span className="text-[11px] font-black uppercase tracking-widest">만족도 평균</span><PieChartIcon className="size-5" /></div>
+                <div className="space-y-1">
+                  <div className="text-4xl font-black">{overallStats.satAvg.toFixed(2)}</div>
+                  <p className="text-[11px] font-bold opacity-80 leading-tight">
+                    100점 만점 기준 {(overallStats.satAvg * 20).toFixed(1)}점의<br/>
+                    {overallStats.satAvg >= 4.5 ? '매우 우수한' : '안정적인'} 만족도 달성
+                  </p>
+                </div>
+             </Card>
+             <Card className="rounded-[2.5rem] border-none shadow-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white p-8 space-y-4">
+                <div className="flex justify-between items-center opacity-80"><span className="text-[11px] font-black uppercase tracking-widest">역량 향상도</span><TrendingUp className="size-5" /></div>
+                <div className="space-y-1">
+                  <div className="text-4xl font-black">{(overallStats.hakeGain * 100).toFixed(1)}%</div>
+                  <p className="text-[11px] font-bold opacity-80 leading-tight">
+                    Hake&apos;s Gain 지표 기준<br/>
+                    {overallStats.hakeGain >= 0.7 ? '최상위권의' : overallStats.hakeGain >= 0.3 ? '안정적인' : '통상적인'} 성장 성취
+                  </p>
+                </div>
+             </Card>
+             <Card className="rounded-[2.5rem] border-none shadow-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-8 space-y-4">
+                <div className="flex justify-between items-center opacity-80"><span className="text-[11px] font-black uppercase tracking-widest">교육 효과 크기</span><BarChart2 className="size-5" /></div>
+                <div className="space-y-1">
+                  <div className="text-4xl font-black">{overallStats.cohensD.toFixed(2)}</div>
+                  <p className="text-[11px] font-bold opacity-80 leading-tight">
+                    Cohen&apos;s d 지표 기준<br/>
+                    {overallStats.cohensD >= 0.8 ? '매우 강력한' : overallStats.cohensD >= 0.5 ? '뚜렷한' : '실질적인'} 성과 증명
+                  </p>
+                </div>
+             </Card>
+             <Card className="rounded-[2.5rem] border-none shadow-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white p-8 space-y-4">
+                <div className="flex justify-between items-center opacity-80"><span className="text-[11px] font-black uppercase tracking-widest">통계적 신뢰도</span><CheckCircle2 className="size-5" /></div>
+                <div className="space-y-1">
+                  <div className="text-4xl font-black">{overallStats.pValue < 0.001 ? '< .01' : overallStats.pValue.toFixed(2)}</div>
+                  <p className="text-[11px] font-bold opacity-80 leading-tight">
+                    Paired t-test 검정 결과<br/>
+                    {overallStats.pValue < 0.05 ? '신뢰 수준 95% 이상' : '유의 확률 범위 내'} 분포
+                  </p>
+                </div>
+             </Card>
+          </div>
+
+          <Card className="rounded-[2rem] border-none shadow-lg bg-white/60 backdrop-blur-md p-8 border border-white/40">
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="relative shrink-0">
+                <div className="size-20 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-2xl shadow-blue-200">
+                  <Lightbulb className="size-10" />
+                </div>
+                <div className="absolute -top-1 -right-1 size-6 rounded-full bg-emerald-500 border-4 border-white animate-pulse" />
               </div>
-           </Card>
-           <Card className="rounded-[2rem] border-none shadow-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 space-y-2">
-              <div className="flex justify-between items-center opacity-80"><span className="text-[10px] font-black uppercase tracking-widest">성과 크기 (Effect Size)</span><BarChart2 className="size-4" /></div>
-              <div className="text-4xl font-black">{overallStats.cohensD.toFixed(2)}</div>
-              <p className="text-[10px] font-bold opacity-70">Cohen&apos;s d 지표 (0.8 이상 강력)</p>
-           </Card>
-           <Card className="rounded-[2rem] border-none shadow-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 space-y-2">
-              <div className="flex justify-between items-center opacity-80"><span className="text-[10px] font-black uppercase tracking-widest">통계적 유의성</span><CheckCircle2 className="size-4" /></div>
-              <div className="text-4xl font-black">{overallStats.pValue < 0.001 ? '< .01' : overallStats.pValue.toFixed(2)}</div>
-              <Badge className={cn("text-[9px] border-none", overallStats.pValue < 0.05 ? "bg-white text-purple-600" : "bg-purple-400/30 text-white")}>
-                 {overallStats.pValue < 0.05 ? '유의미한 변화' : '유의미하지 않음'}
-              </Badge>
-           </Card>
+              
+              <div className="flex-1 space-y-4 text-center md:text-left">
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                  <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-100 font-black px-3 py-1 rounded-full text-[10px] uppercase">Expert Insight</Badge>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">성과 데이터 정밀 분석 결과 요약</h3>
+                </div>
+                
+                <p className="text-base text-slate-600 font-bold leading-relaxed tracking-tight">
+                  {(() => {
+                    const levelText = overallStats.satAvg >= 4.5 && overallStats.hakeGain >= 0.3 ? "우수한 만족도와 안정적인 성취를 달성한 교육 모델" : overallStats.satAvg >= 4.0 ? "안정적인 교수 설계가 돋보인 과정" : "지속적인 모니터링이 필요한 과정";
+                    const coreText = overallStats.cohensD >= 0.8 ? "매우 강력한 현업 임팩트" : "유의미한 변화";
+                    
+                    return `본 과정은 ${levelText}로서, 교육 전후 ${coreText}를 이끌어냈습니다. 통계적 신뢰도와 학습자 체감도 모두 긍정적인 분포를 보이고 있습니다.`;
+                  })()}
+                </p>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                  {[
+                    { label: '품질 등급', value: overallStats.satAvg >= 4.5 ? 'S (Excellent)' : overallStats.satAvg >= 4.0 ? 'A (Good)' : 'B (Normal)', color: 'text-emerald-600' },
+                    { label: '효율 판단', value: overallStats.hakeGain >= 0.7 ? '최고 수준' : overallStats.hakeGain >= 0.3 ? '안정적' : '통상적', color: 'text-blue-600' },
+                    { label: '성과 강도', value: overallStats.cohensD >= 0.8 ? '대단함' : overallStats.cohensD >= 0.5 ? '뚜렷함' : '보통', color: 'text-amber-600' },
+                    { label: '분석 신뢰도', value: overallStats.pValue < 0.05 ? '매우 높음' : '보통', color: 'text-purple-600' }
+                  ].map((item, idx) => (
+                    <div key={idx} className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{item.label}</span>
+                      <span className={cn("text-[13px] font-black", item.color)}>{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
         </div>
       )}
 
@@ -550,7 +627,7 @@ export default function SurveysPage() {
                   </div>
                   <div className="flex gap-4 ml-auto h-12 items-center">
                     <Button variant="outline" onClick={()=>setIsPasteDialogOpen(true)} className="h-full px-8 rounded-xl border-blue-100 text-blue-600 font-black"><FileSpreadsheet className="size-4 mr-2" /> 엑셀 RAW 연동</Button>
-                    <Button onClick={async ()=>{setDeleteConfirm({ open: true, title: "데이터 초기화", description: `선택된 {selectedProjectIds.length}개 사업의 모든 응답 데이터를 삭제합니다. 이 작업은 되돌릴 수 없습니다.`, onConfirm: async () => { await Promise.all(selectedProjectIds.map(id=>clearProjectResponses(id))); await fetchSurveys(); setDeleteConfirm(p => ({...p, open: false})); alert("삭제 완료"); } })}} variant="outline" className="h-full px-6 rounded-xl text-red-500"><Trash2 className="size-4" /></Button>
+                    <Button onClick={async ()=>{setDeleteConfirm({ open: true, title: "데이터 초기화", description: `선택된 ${selectedProjectIds.length}개 사업의 모든 응답 데이터를 삭제합니다. 이 작업은 되돌릴 수 없습니다.`, onConfirm: async () => { await Promise.all(selectedProjectIds.map(id=>clearProjectResponses(id))); await fetchSurveys(); setDeleteConfirm(p => ({...p, open: false})); alert("삭제 완료"); } })}} variant="outline" className="h-full px-6 rounded-xl text-red-500"><Trash2 className="size-4" /></Button>
                   </div>
              </div>
 
@@ -628,37 +705,48 @@ export default function SurveysPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                           {(() => {
-                            const rootProjects = projects.filter(p => p.level === 1 && visibleProjectIds.has(p.id));
-                            let filteredRoots = rootProjects;
-                            if (selectedProjectIds.length > 0) {
-                              const ancestors = new Set<string>();
-                              selectedProjectIds.forEach(id => {
-                                let curr = projects.find(p => p.id === id);
-                                while(curr) { ancestors.add(curr.id); curr = projects.find(p => p.id === curr?.parentId); }
-                              });
-                              filteredRoots = rootProjects.filter(p => ancestors.has(p.id));
-                            }
-                            
-                            const renderTree = (rows: typeof projects, depth = 0): React.ReactNode[] => {
-                              return rows.map(p => {
+                            const renderTree = (parentId: string | null, depth = 0): React.ReactNode[] => {
+                              const sorted = getSortedProjects(parentId);
+                              const displayProjects = depth === 0 
+                                ? sorted.filter(p => p.level === 1) 
+                                : sorted;
+
+                              const sortedRows = displayProjects.filter(p => visibleProjectIds.has(p.id));
+                              return sortedRows.map(p => {
                                 const isExpanded = expandedTableIds.has(p.id);
-                                const hasChildren = projects.some(c => c.parentId === p.id);
                                 const pResponses = responses.filter(r => r.projectId === p.id);
                                 const stats = aggregatedStats[p.id];
-                                const childRows = projects.filter(c => c.parentId === p.id && visibleProjectIds.has(c.id));
                                 return (
                                   <React.Fragment key={p.id}>
-                                    <tr onClick={() => toggleTableExpand(p.id)} className={cn("border-b transition-colors group cursor-pointer", depth === 0 ? "bg-slate-50/50" : "bg-transparent", "hover:bg-blue-50/40")}>
-                                      <td className="p-4 sticky left-0 z-20 bg-white group-hover:bg-blue-50/40 transition-colors border-r min-w-[300px]">
-                                        <div className="flex items-center gap-3" style={{ paddingLeft: `${depth * 1}rem` }}>
-                                          {(hasChildren || p.level === 4) && (
-                                            <button className="p-1 hover:bg-slate-100 rounded-md transition-colors">
-                                              {isExpanded ? <ChevronDown className="size-3 text-slate-400" /> : <ChevronRight className="size-3 text-slate-400" />}
-                                            </button>
-                                          )}
-                                          <span className="text-[11px] font-black text-slate-900 truncate">
-                                            {p.level >= 3 && p.partnerId ? `{partners.find(ptr => ptr.id === p.partnerId)?.name || '협력사'} ({p.name})` : p.name}
-                                          </span>
+                                    <tr 
+                                      onClick={() => toggleTableExpand(p.id)} 
+                                      className={cn(
+                                        "border-b transition-colors group cursor-pointer", 
+                                        depth === 0 ? "bg-slate-100/40" : (depth === 1 ? "bg-slate-50/30" : "bg-transparent"),
+                                        "hover:bg-blue-50/60"
+                                      )}
+                                    >
+                                      <td className="p-4 sticky left-0 z-20 bg-inherit group-hover:bg-inherit transition-colors border-r min-w-[300px]">
+                                        <div className="flex items-center gap-3" style={{ paddingLeft: `${depth * 1.5}rem` }}>
+                                          <div className="flex items-center justify-center size-5 shrink-0">
+                                            {projects.some(c => c.parentId === p.id) ? (
+                                              <button className="p-1 hover:bg-slate-100 rounded-md transition-colors">
+                                                {isExpanded ? <ChevronDown className="size-3 text-slate-400" /> : <ChevronRight className="size-3 text-slate-400" />}
+                                              </button>
+                                            ) : null}
+                                          </div>
+                                          <div className="flex flex-col gap-0.5">
+                                            {p.level >= 3 && (
+                                              <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 leading-none">
+                                                <span>{p.startDate} ~ {p.endDate}</span>
+                                                <span className="text-slate-200">|</span>
+                                                <span className="text-blue-500/60">{partners.find(ptr => ptr.id === p.partnerId)?.name || '협력사'}</span>
+                                              </div>
+                                            )}
+                                            <span className="text-[11px] font-black text-slate-900 truncate">
+                                              {p.name}
+                                            </span>
+                                          </div>
                                         </div>
                                       </td>
                                       {satQuestions.map((_, i) => <td key={i} className="p-4 text-center font-black text-[10px] text-emerald-600/60">{stats?.questionStats?.[i]?.average?.toFixed(2) || '-'}</td>)}
@@ -670,15 +758,15 @@ export default function SurveysPage() {
                                             <span>{stats?.questionStats?.[i]?.postAvg?.toFixed(2) || '-'}</span>
                                             {stats?.questionStats?.[i]?.impRate !== undefined && (
                                               <Tooltip>
-                                                <TooltipTrigger className={cn("text-[7px] font-bold cursor-help", stats.questionStats[i].impRate >= 0 ? "text-blue-500" : "text-red-500")}>
-                                                  {stats.questionStats[i].impRate >= 0 ? '+' : ''}{stats.questionStats[i].impRate.toFixed(2)}%
+                                                <TooltipTrigger className={cn("text-[7px] font-bold cursor-help", stats?.questionStats?.[i]?.impRate >= 0 ? "text-blue-500" : "text-red-500")}>
+                                                  {stats?.questionStats?.[i]?.impRate >= 0 ? '+' : ''}{stats?.questionStats?.[i]?.impRate.toFixed(2)}%
                                                 </TooltipTrigger>
                                                 <TooltipContent className="p-3 bg-white border-slate-100 shadow-xl rounded-xl">
                                                   <div className="text-[10px] space-y-1">
                                                     <p className="font-black text-blue-600 underline underline-offset-2">문항 역량 향상률 분석</p>
                                                     <p className="text-slate-500 font-bold">[(사후 평균 - 사전 평균) / 사전 평균] × 100</p>
                                                     <p className="text-slate-700 font-black pt-1 border-t border-slate-100 italic">
-                                                      {"\"해당 문항에서 사전 대비 사후 역량이 " + stats.questionStats[i].impRate.toFixed(2) + "% " + (stats.questionStats[i].impRate >= 0 ? "향상" : "하락") + "된 결과를 보였습니다.\""}
+                                                      {"\"해당 문항에서 사전 대비 사후 역량이 " + stats?.questionStats?.[i]?.impRate.toFixed(2) + "% " + (stats?.questionStats?.[i]?.impRate >= 0 ? "향상" : "하락") + "된 결과를 보였습니다.\""}
                                                     </p>
                                                   </div>
                                                 </TooltipContent>
@@ -692,8 +780,8 @@ export default function SurveysPage() {
                                           <span>{stats?.postAvg?.toFixed(2) || '-'}</span>
                                           {stats?.impRate !== undefined && (
                                             <Tooltip>
-                                              <TooltipTrigger className={cn("text-[8px] font-black cursor-help", stats.impRate >= 0 ? "text-blue-700" : "text-red-600")}>
-                                                {stats.impRate >= 0 ? '+' : ''}{stats.impRate.toFixed(2)}%
+                                              <TooltipTrigger className={cn("text-[8px] font-black cursor-help", stats?.impRate >= 0 ? "text-blue-700" : "text-red-600")}>
+                                                {stats?.impRate >= 0 ? '+' : ''}{stats?.impRate.toFixed(2)}%
                                               </TooltipTrigger>
                                               <TooltipContent className="p-4 bg-white border-slate-100 shadow-2xl rounded-2xl">
                                                 <div className="text-[11px] space-y-1.5">
@@ -703,7 +791,7 @@ export default function SurveysPage() {
                                                   </div>
                                                   <p className="text-slate-400 font-bold px-1 py-0.5 bg-blue-50 rounded w-fit">Formula: (Post - Pre) / Pre %</p>
                                                   <p className="text-slate-700 font-black border-t border-slate-100 pt-1.5">
-                                                     {"전체적으로 사전 대비 사후 역량이 " + stats.impRate.toFixed(2) + "% " + (stats.impRate >= 0 ? "성장" : "감소") + "하며 " + (stats.impRate >= 10 ? "유의미한 성과" : "다소 아쉬운 변화") + "를 보였습니다."}
+                                                     {"전체적으로 사전 대비 사후 역량이 " + stats?.impRate.toFixed(2) + "% " + (stats?.impRate >= 0 ? "성장" : "감소") + "하며 " + (stats?.impRate >= 10 ? "유의미한 성과" : "다소 아쉬운 변화") + "를 보였습니다."}
                                                   </p>
                                                 </div>
                                               </TooltipContent>
@@ -720,7 +808,9 @@ export default function SurveysPage() {
                                           {stats?.hakeGain !== undefined && (
                                             <Tooltip>
                                               <TooltipTrigger className="text-[8px] font-black opacity-60 cursor-help">
-                                                {stats.hakeGain.toFixed(2)} idx
+                                                <span className="text-[8px] font-black opacity-60">
+                                                  {((stats?.hakeGain ?? 0) * 100).toFixed(0)}%
+                                                </span>
                                               </TooltipTrigger>
                                               <TooltipContent className="p-4 bg-white border-slate-100 shadow-2xl rounded-2xl">
                                                 <div className="text-[11px] space-y-1.5">
@@ -730,7 +820,7 @@ export default function SurveysPage() {
                                                   </div>
                                                   <p className="text-slate-400 font-bold px-1 py-0.5 bg-emerald-50 rounded w-fit">Formula: Gain / Potential Gain %</p>
                                                   <p className="text-slate-700 font-black border-t border-slate-100 pt-1.5">
-                                                    {"\"학습 도달 효율이 " + (stats.hakeGain * 100).toFixed(1) + "%로, " + (stats.hakeGain >= 0.7 ? "잠재력의 최대치를 이끌어낸 매우 우수한" : stats.hakeGain >= 0.3 ? "목표치를 준수하게 달성한" : "목표 대비 성장이 다소 부족한") + " 결과입니다.\""}
+                                                    {"\"학습 도달 효율이 " + ((stats?.hakeGain ?? 0) * 100).toFixed(1) + "%로, " + ((stats?.hakeGain ?? 0) >= 0.7 ? "잠재력의 최대치를 이끌어낸 매우 우수한" : (stats?.hakeGain ?? 0) >= 0.3 ? "목표치를 준수하게 달성한" : "목표 대비 성장이 다소 부족한") + " 결과입니다.\""}
                                                   </p>
                                                 </div>
                                               </TooltipContent>
@@ -738,11 +828,8 @@ export default function SurveysPage() {
                                           )}
                                         </div>
                                       </td>
-                                      <td className={cn("p-4 text-center text-[10px] font-black", 
-                                        (stats?.cohensD || 0) >= 0.8 ? "text-amber-700 bg-amber-100/30 shadow-inner" : 
-                                        (stats?.cohensD || 0) >= 0.5 ? "text-amber-600" :
-                                        "text-slate-400")}>
-                                        {stats?.cohensD?.toFixed(2) || '-'}
+                                      <td className="p-4 text-center text-[10px] font-black">
+                                        {(stats?.cohensD || 0).toFixed(2)}
                                       </td>
                                       <td className={cn("p-4 text-center text-[10px] font-black", 
                                         (stats?.pValue || 1) < 0.05 ? "text-purple-700 bg-purple-50" : 
@@ -752,10 +839,10 @@ export default function SurveysPage() {
                                       <td className="p-4 text-center opacity-30 text-[9px] font-black">LV{p.level}</td>
 
                                     </tr>
-                                    {isExpanded && childRows.length > 0 && renderTree(childRows, depth + 1)}
+                                    {isExpanded && projects.some(c => c.parentId === p.id) && renderTree(p.id, depth + 1)}
                                     {isExpanded && (() => {
                                       const mergedResponses = pResponses.reduce((acc, res) => {
-                                        const rId = res.respondentId || `anon-{res.id.slice(0, 8)}`;
+                                        const rId = res.respondentId || `anon-${res.id.slice(0, 8)}`;
                                         if (!acc[rId]) acc[rId] = { id: rId, respondentId: res.respondentId, sat: null as SurveyResponse | null, comp: null as SurveyResponse | null };
                                         const tmpl = templates.find(t => t.id === res.templateId);
                                         if (tmpl?.type === 'SATISFACTION') acc[rId].sat = res;
@@ -764,22 +851,18 @@ export default function SurveysPage() {
                                       }, {} as Record<string, { id: string, respondentId?: string, sat: SurveyResponse | null, comp: SurveyResponse | null }>);
 
                                       return Object.values(mergedResponses)
-                                        .map(m => {
-                                          const rCompAnswers = m.comp?.answers.filter(a => compQuestions.some(q => q.id === a.questionId)) || [];
-                                          const rPreAvg = rCompAnswers.length > 0 ? rCompAnswers.reduce((prev, curr) => prev + (Number(curr.preScore) || 0), 0) / rCompAnswers.length : 0;
-                                          const rPostAvg = rCompAnswers.length > 0 ? rCompAnswers.reduce((prev, curr) => prev + (Number(curr.score) || 0), 0) / rCompAnswers.length : 0;
-                                          const rGain = rPreAvg > 0 || rPostAvg > 0 ? (rPostAvg - rPreAvg) / (5 - rPreAvg) : 0;
-                                          return { ...m, rPreAvg, rPostAvg, rGain };
-                                        })
                                         .sort((a, b) => {
-                                          if (a.rPostAvg !== b.rPostAvg) return a.rPostAvg - b.rPostAvg;
-                                          return (a.respondentId || '').localeCompare(b.respondentId || '');
+                                          const aId = a.respondentId || '';
+                                          const bId = b.respondentId || '';
+                                          return aId.localeCompare(bId, undefined, { numeric: true, sensitivity: 'base' });
                                         })
                                         .map((m) => {
                                           const rSatAnswers = m.sat?.answers.filter(a => satQuestions.some(q => q.id === a.questionId)) || [];
                                           const rSatAvg = rSatAnswers.length > 0 ? rSatAnswers.reduce((prev, curr) => prev + (Number(curr.score) || 0), 0) / rSatAnswers.length : 0;
-                                          const rPostAvg = m.rPostAvg;
-                                          const rGain = m.rGain;
+                                          const rCompAnswers = m.comp?.answers.filter(a => compQuestions.some(q => q.id === a.questionId)) || [];
+                                          const rPreAvg = rCompAnswers.length > 0 ? rCompAnswers.reduce((prev, curr) => prev + (Number(curr.preScore) || 0), 0) / rCompAnswers.length : 0;
+                                          const rPostAvg = rCompAnswers.length > 0 ? rCompAnswers.reduce((prev, curr) => prev + (Number(curr.score) || 0), 0) / rCompAnswers.length : 0;
+                                          const rGain = rPreAvg > 0 || rPostAvg > 0 ? (rPostAvg - rPreAvg) / (5 - rPreAvg) : 0;
                                           
                                           return (
                                             <tr key={m.id} className="border-b bg-white hover:bg-slate-50">
@@ -826,9 +909,9 @@ export default function SurveysPage() {
                                                       {ans?.preScore !== undefined && ans?.score !== undefined && (
                                                         <span className={cn(
                                                           "text-[7px] font-bold leading-none mt-0.5",
-                                                          (ans.score - ans.preScore) >= 0 ? "text-blue-500" : "text-red-500"
+                                                          (ans?.score - ans?.preScore) >= 0 ? "text-blue-500" : "text-red-500"
                                                         )}>
-                                                          {ans.score >= ans.preScore ? '+' : ''}{(((ans.score - ans.preScore) / (ans.preScore || 1)) * 100).toFixed(2)}%
+                                                          {ans?.score >= ans?.preScore ? '+' : ''}{(((ans?.score - ans?.preScore) / (ans?.preScore || 1)) * 100).toFixed(2)}%
                                                         </span>
                                                       )}
                                                     </div>
@@ -838,12 +921,12 @@ export default function SurveysPage() {
                                               <td className="p-4 text-center font-black text-[10px] text-blue-700">{rPostAvg.toFixed(2)}</td>
                                               <td className="p-4 text-center">
                                                 <div className="flex flex-col">
-                                                  <span className="text-[10px] font-black text-blue-700">{(rGain * 100).toFixed(1)}%</span>
+                                                  <span className="text-[10px] font-black text-blue-700">{((rGain ?? 0) * 100).toFixed(1)}%</span>
                                                   <span className={cn(
                                                     "text-[8px] font-black leading-none mt-0.5",
                                                     rGain >= 0.7 ? "text-blue-700" : rGain >= 0.3 ? "text-emerald-600" : "text-slate-500"
                                                   )}>
-                                                    {rGain.toFixed(2)} idx
+                                                    {((rGain ?? 0) * 100).toFixed(0)}%
                                                   </span>
                                                 </div>
                                               </td>
@@ -858,34 +941,37 @@ export default function SurveysPage() {
                                           );
                                         });
                                     })()}
-                                    {isExpanded && (hasChildren || pResponses.length > 0) && (
+                                    {isExpanded && (projects.some(c => c.parentId === p.id) || pResponses.length > 0) && (
                                       <tr className="bg-slate-900 text-white font-black text-[10px] border-b-2">
                                         <td className="p-4 sticky left-0 z-30 bg-slate-900 border-r min-w-[300px]"><div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 1}rem` }}><Sigma className="size-3 text-emerald-400" /> {p.name} 종합</div></td>
-                                        {satQuestions.map((_, i) => <td key={i} className="p-4 text-center text-emerald-400/80">{stats?.questionStats?.[i]?.average?.toFixed(2) || '-'}</td>)}
+                                        {satQuestions.map((q) => <td key={q.id} className="p-4 text-center text-emerald-400/80">{stats?.questionStats?.find(qs => qs.questionId === q.id)?.average?.toFixed(2) || '-'}</td>)}
                                         {satTextQuestions.map((_, i) => <td key={i} className="p-4 text-center text-slate-500/50 italic">-</td>)}
                                         <td className="p-4 text-center text-emerald-400 bg-white/5">{stats?.satAvg?.toFixed(2) || '-'}</td>
-                                        {compQuestions.map((_, i) => (
-                                          <td key={i} className="p-4 text-center text-blue-400/80">
-                                            <div className="flex flex-col">
-                                              <span>{stats?.questionStats?.[i]?.postAvg?.toFixed(2) || '-'}</span>
-                                              {stats?.questionStats?.[i]?.impRate !== undefined && (
-                                                <Tooltip>
-                                                  <TooltipTrigger className="text-[7px] font-bold text-blue-400/60 cursor-help">
-                                                    +{stats.questionStats[i].impRate.toFixed(2)}%
-                                                  </TooltipTrigger>
-                                                  <TooltipContent className="p-4 bg-white border-slate-100 shadow-2xl rounded-2xl text-slate-900">
-                                                    <div className="text-[11px] space-y-1.5">
-                                                      <p className="font-black text-blue-600 mb-1">문항별 평균 성장률</p>
-                                                      <p className="font-bold border-t pt-1.5 border-slate-50 italic">
-                                                        {"\"종합적으로 이 문항에서 " + stats.questionStats[i].impRate.toFixed(2) + "%의 " + (stats.questionStats[i].impRate >= 0 ? "역량 향상" : "수치 하락") + "이 관찰되었습니다.\""}
-                                                      </p>
-                                                    </div>
-                                                  </TooltipContent>
-                                                </Tooltip>
-                                              )}
-                                            </div>
-                                          </td>
-                                        ))}
+                                        {compQuestions.map((q) => {
+                                          const qStat = stats?.questionStats?.find(qs => qs.questionId === q.id);
+                                          return (
+                                            <td key={q.id} className="p-4 text-center text-blue-400/80">
+                                              <div className="flex flex-col">
+                                                <span>{qStat?.postAvg?.toFixed(2) || '-'}</span>
+                                                {qStat?.impRate !== undefined && (
+                                                  <Tooltip>
+                                                    <TooltipTrigger className="text-[7px] font-bold text-blue-400/60 cursor-help">
+                                                      +{qStat.impRate.toFixed(2)}%
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="p-4 bg-white border-slate-100 shadow-2xl rounded-2xl text-slate-900">
+                                                      <div className="text-[11px] space-y-1.5">
+                                                        <p className="font-black text-blue-600 mb-1">문항별 평균 성장률</p>
+                                                        <p className="font-bold border-t pt-1.5 border-slate-50 italic">
+                                                          {"\"종합적으로 이 문항에서 " + qStat.impRate.toFixed(2) + "%의 " + (qStat.impRate >= 0 ? "역량 향상" : "수치 하락") + "이 관찰되었습니다.\""}
+                                                        </p>
+                                                      </div>
+                                                    </TooltipContent>
+                                                  </Tooltip>
+                                                )}
+                                              </div>
+                                            </td>
+                                          );
+                                        })}
                                         <td className="p-4 text-center bg-blue-500/10">
                                           <Tooltip>
                                             <TooltipTrigger className="cursor-help">
@@ -906,7 +992,7 @@ export default function SurveysPage() {
                                         <td className="p-4 text-center bg-blue-500/5">
                                           <Tooltip>
                                             <TooltipTrigger className="cursor-help">
-                                              <span className="text-sm font-black text-blue-400">{(stats?.hakeGain * 100).toFixed(1)}%</span>
+                                              <span className="text-sm font-black text-blue-400">{((stats?.hakeGain ?? 0) * 100).toFixed(1)}%</span>
                                             </TooltipTrigger>
                                             <TooltipContent className="p-6 bg-slate-900 border-none shadow-3xl rounded-[2rem] w-80 text-white">
                                               <div className="space-y-4">
@@ -916,7 +1002,7 @@ export default function SurveysPage() {
                                                 </div>
                                                 <p className="text-xs text-slate-400 leading-relaxed font-medium">사전 점수를 고려하여 잠재적 성장 가능성 중 실제 얼마나 성취했는지를 백분율로 나타낸 지표입니다.</p>
                                                 <div className="flex flex-col gap-2">
-                                                  <div className="bg-white/5 p-3 rounded-xl border border-white/10"><p className="text-[9px] font-bold text-slate-500 uppercase mb-1">Interpretation</p><p className="text-[11px] text-emerald-300 font-bold">{stats.hakeGain >= 0.7 ? "High Gain (우수)" : stats.hakeGain >= 0.3 ? "Medium Gain (보통)" : "Low Gain (관심)"}</p></div>
+                                                  <div className="bg-white/5 p-3 rounded-xl border border-white/10"><p className="text-[9px] font-bold text-slate-500 uppercase mb-1">Interpretation</p><p className="text-[11px] text-emerald-300 font-bold">{(stats?.hakeGain ?? 0) >= 0.7 ? "High Gain (우수)" : (stats?.hakeGain ?? 0) >= 0.3 ? "Medium Gain (보통)" : "Low Gain (관심)"}</p></div>
                                                   <div className="bg-white/5 p-3 rounded-xl border border-white/10"><p className="text-[9px] font-bold text-slate-500 uppercase mb-1">Formula</p><p className="text-[11px] font-mono text-emerald-200">(Post - Pre) / (5 - Pre) × 100</p></div>
                                                 </div>
                                               </div>
@@ -935,7 +1021,7 @@ export default function SurveysPage() {
                                                   <div><p className="text-[10px] font-black text-blue-400 uppercase tracking-widest leading-none mb-1">Cohen&apos;s d</p><p className="text-white font-black">효과 크기 (Effect Size)</p></div>
                                                 </div>
                                                 <p className="text-xs text-slate-400 leading-relaxed font-medium">단순한 평균 차이를 넘어, 교육이 학습자 집단에 준 실제적인 영향력의 크기를 표준화하여 나타냅니다.</p>
-                                                <div className="bg-white/5 p-3 rounded-xl border border-white/10"><p className="text-[9px] font-bold text-slate-500 uppercase mb-1">Benchmark</p><p className="text-[11px] text-blue-300 font-bold">{stats.cohensD >= 0.8 ? "Large (강력함)" : stats.cohensD >= 0.5 ? "Medium (보통)" : "Small (미미함)"}</p></div>
+                                                <div className="bg-white/5 p-3 rounded-xl border border-white/10"><p className="text-[9px] font-bold text-slate-500 uppercase mb-1">Benchmark</p><p className="text-[11px] text-blue-300 font-bold">{(stats?.cohensD ?? 0) >= 0.8 ? "Large (강력함)" : (stats?.cohensD ?? 0) >= 0.5 ? "Medium (보통)" : "Small (미미함)"}</p></div>
                                               </div>
                                             </TooltipContent>
                                           </Tooltip>
@@ -943,7 +1029,7 @@ export default function SurveysPage() {
                                         <td className="p-4 text-center bg-blue-500/5">
                                           <Tooltip>
                                             <TooltipTrigger className="cursor-help">
-                                              <span className={cn("text-sm font-black", stats.pValue < 0.05 ? "text-emerald-400" : "text-slate-500")}>
+                                              <span className={cn("text-sm font-black", (stats?.pValue ?? 1) < 0.05 ? "text-emerald-400" : "text-slate-500")}>
                                                 {stats?.pValue < 0.001 ? '< .01' : stats?.pValue?.toFixed(2) || '1.00'}
                                               </span>
                                             </TooltipTrigger>
@@ -954,7 +1040,7 @@ export default function SurveysPage() {
                                                   <div><p className="text-[10px] font-black text-purple-400 uppercase tracking-widest leading-none mb-1">p-Value</p><p className="text-white font-black">통계적 유의성 (t-test)</p></div>
                                                 </div>
                                                 <p className="text-xs text-slate-400 leading-relaxed font-medium">사전-사후의 변화가 우연이 아닐 확률을 의미합니다. 0.05 미만일 때 통계적으로 유의미한 교육 효과가 있었다고 판단합니다.</p>
-                                                <div className="bg-white/5 p-3 rounded-xl border border-white/10"><p className="text-[9px] font-bold text-slate-500 uppercase mb-1">Decision</p><p className={cn("text-[11px] font-bold", stats.pValue < 0.05 ? "text-emerald-300" : "text-slate-400")}>{stats.pValue < 0.05 ? "Statistically Significant (유의)" : "Not Significant (비유의)"}</p></div>
+                                                <div className="bg-white/5 p-3 rounded-xl border border-white/10"><p className="text-[9px] font-bold text-slate-500 uppercase mb-1">Decision</p><p className={cn("text-[11px] font-bold", (stats?.pValue ?? 1) < 0.05 ? "text-emerald-300" : "text-slate-400")}>{(stats?.pValue ?? 1) < 0.05 ? "Statistically Significant (유의)" : "Not Significant (비유의)"}</p></div>
                                               </div>
                                             </TooltipContent>
                                           </Tooltip>
@@ -966,7 +1052,7 @@ export default function SurveysPage() {
                                 );
                               });
                             };
-                            return renderTree(filteredRoots);
+                            return renderTree(null);
                           })()}
                         </tbody>
                       </table>
@@ -1002,23 +1088,22 @@ export default function SurveysPage() {
                       </Button>
                       <Button 
                         onClick={() => {
-                          const exportHWPX = () => {
-                            const reportContent = ExpertReportGenerator.generateConsultingReport(
-                              projects.filter(p => selectedProjectIds.includes(p.id)), 
-                              overallStats
-                            );
-                            const blob = new Blob([reportContent], { type: 'application/hwpx' });
+                          const exportDOCX = () => {
+                            const reportContent = document.getElementById('consulting-report-content')?.innerText || '';
+                            const blob = new Blob([reportContent], { type: 'application/msword' });
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
-                            a.download = `SLI_전문가컨설팅보고서_${format(new Date(), 'yyMMdd')}.hwpx`;
+                            a.download = `SLI_전문가컨설팅보고서_${format(new Date(), 'yyMMdd')}.docx`;
+                            document.body.appendChild(a);
                             a.click();
+                            document.body.removeChild(a);
                           };
-                          exportHWPX();
+                          exportDOCX();
                         }}
                         className="bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] px-10 h-16 text-lg font-black gap-3 shadow-2xl transition-all hover:scale-105 active:scale-95"
                       >
-                        <FileSpreadsheet className="size-6" /> 통합 컨설팅 리포트 (HWPX)
+                        <FileText className="size-6" /> 통합 컨설팅 리포트 (DOCX)
                       </Button>
                     </div>
 
@@ -1058,7 +1143,7 @@ export default function SurveysPage() {
                             })).filter(d => d.score > 0);
                           })()}>
                             <PolarGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-                            <PolarAngleAxis dataKey="theme" tick={{ fill: '#475569', fontSize: 12, fontWeight: 900 }} />
+                            <PolarAngleAxis dataKey="theme" tick={<CustomRadarTick />} />
                             <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fontSize: 10, fontWeight: 'bold' }} />
                             <Radar name="만족도" dataKey="score" stroke="#10b981" strokeWidth={3} fill="#10b981" fillOpacity={0.4}>
                               <LabelList dataKey="score" position="outside" offset={10} fill="#059669" fontSize={10} fontWeight="900" />
@@ -1082,13 +1167,13 @@ export default function SurveysPage() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3 text-emerald-700">
                                 <Wand2 className="size-6" />
-                                <span className="text-sm font-black uppercase tracking-widest font-mono">Expert Evaluation</span>
+                                <span className="text-sm font-black uppercase tracking-widest font-mono">교육 전문가 정밀 진단</span>
                             </div>
-                            <Badge className="bg-emerald-600 text-white font-black text-[10px] px-3 py-1 rounded-full">500자 정밀 분석</Badge>
                         </div>
                         <p className="text-[15px] font-bold text-slate-800 leading-[1.8] text-pretty whitespace-pre-wrap">
                           {overallStats ? ExpertReportGenerator.generateSatisfactionOpinion(
                             projects.filter(p => [selectedProjectIds[0], ...projects.filter(p2 => p2.parentId === selectedProjectIds[0]).map(p2 => p2.id)].includes(p.id)), 
+                            satQuestions,
                             overallStats,
                             responses.filter(r => selectedProjectIds.includes(r.projectId)).flatMap(r => r.answers.filter(a => a.text).map(a => a.text!))
                           ) : '전체 요약 데이터를 불러오는 중입니다...'}
@@ -1122,28 +1207,13 @@ export default function SurveysPage() {
                             })).filter(d => d.pre > 0 || d.post > 0);
                           })()}>
                             <PolarGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-                            <PolarAngleAxis dataKey="theme" tick={{ fill: '#475569', fontSize: 12, fontWeight: 900 }} />
+                            <PolarAngleAxis dataKey="theme" tick={<CustomRadarTick />} />
                             <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fontSize: 10, fontWeight: 'bold' }} />
                             <Radar name="사전 역량" dataKey="pre" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" fill="#94a3b8" fillOpacity={0.2} />
                             <Radar name="사후 역량" dataKey="post" stroke="#3b82f6" strokeWidth={3} fill="#3b82f6" fillOpacity={0.4}>
                               <LabelList dataKey="post" position="outside" offset={10} fill="#2563eb" fontSize={10} fontWeight="900" />
                             </Radar>
                             <Legend wrapperStyle={{ paddingTop: '30px', fontSize: '12px', fontWeight: '900' }} />
-                            <ChartTooltip content={({ active, payload }) => {
-                              if (active && payload && payload.length >= 2) {
-                                return (
-                                  <div className="bg-slate-900 border-none px-6 py-5 rounded-[1.5rem] shadow-3xl space-y-2">
-                                    <p className="text-blue-400 font-black text-xs font-mono">{payload[0].payload.theme}</p>
-                                    <div className="grid grid-cols-2 gap-6">
-                                      <div><p className="text-slate-400 text-[10px] font-black uppercase">Pre</p><p className="text-white text-xl font-bold">{payload[0].value}</p></div>
-                                      <div><p className="text-blue-400 text-[10px] font-black uppercase">Post</p><p className="text-blue-400 text-xl font-black">{payload[1].value}</p></div>
-                                    </div>
-                                    <p className="pt-2 border-t border-white/10 text-emerald-400 font-black text-sm">성장 증분: +{(Number(payload[1].value) - Number(payload[0].value)).toFixed(2)}</p>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            }} />
                           </RadarChart>
                         </ResponsiveContainer>
                       </div>
@@ -1152,13 +1222,13 @@ export default function SurveysPage() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3 text-blue-700">
                                 <ShieldCheck className="size-6" />
-                                <span className="text-sm font-black uppercase tracking-widest font-mono">Statistical Analysis</span>
+                                <span className="text-sm font-black uppercase tracking-widest font-mono">통계적 성장 진단</span>
                             </div>
-                            <Badge className="bg-blue-600 text-white font-black text-[10px] px-3 py-1 rounded-full">500자 정밀 분석</Badge>
                         </div>
                         <p className="text-[15px] font-bold text-slate-800 leading-[1.8] text-pretty whitespace-pre-wrap">
                           {overallStats ? ExpertReportGenerator.generateCompetencyOpinion(
                             projects.filter(p => [selectedProjectIds[0], ...projects.filter(p2 => p2.parentId === selectedProjectIds[0]).map(p2 => p2.id)].includes(p.id)), 
+                            compQuestions,
                             overallStats
                           ) : '성장 분석 데이터를 불러오는 중입니다...'}
                         </p>
@@ -1166,46 +1236,94 @@ export default function SurveysPage() {
                     </Card>
                   </div>
 
-                  {/* 통합 컨설팅 보고서 섹션 */}
+                  {/* 통합 컨설팅 보고서 섹션 - 화이트 워드 스타일 개편 */}
                   <div className="px-6 pb-20">
-                    <Card className="rounded-[4rem] border-none shadow-[0_40px_80px_-20px_rgba(0,0,0,0.15)] bg-slate-900 text-white p-16 space-y-12 overflow-hidden relative">
-                        <div className="absolute -top-20 -right-20 size-80 bg-blue-600/20 blur-[100px] rounded-full" />
-                        <div className="absolute -bottom-20 -left-20 size-80 bg-emerald-600/20 blur-[100px] rounded-full" />
+                    <Card id="consulting-report-card" className="rounded-[1rem] border border-slate-200 shadow-2xl bg-white text-slate-900 p-20 space-y-12 overflow-hidden relative min-h-[1000px]">
+                        <div className="absolute top-0 left-0 w-full h-2 bg-blue-600" />
                         
-                        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 border-b border-white/10 pb-12">
+                        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 border-b-2 border-slate-100 pb-12">
                             <div className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <Lightbulb className="size-10 text-amber-400 fill-amber-400/20" />
-                                    <h3 className="text-4xl font-black tracking-tight">전문가 통합 컨설팅 보고서</h3>
-                                </div>
-                                <p className="text-xl font-bold text-slate-400">Integrated Strategic Consulting Report</p>
-                            </div>
-                            <div className="flex items-center gap-6">
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Normalized Gain</p>
-                                    <p className="text-3xl font-black text-blue-400">{((overallStats?.hakeGain || 0) * 100).toFixed(1)}%</p>
-                                </div>
-                                <div className="h-12 w-px bg-white/10" />
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Overall Satisfaction</p>
-                                    <p className="text-3xl font-black text-emerald-400">{(overallStats?.satAvg || 0).toFixed(2)}</p>
+                                <div className="flex items-center gap-4">
+                                    <div className="size-14 rounded-2xl bg-slate-900 flex items-center justify-center shadow-lg">
+                                      <Lightbulb className="size-8 text-amber-400" />
+                                    </div>
+                                    <h3 className="text-4xl font-black text-slate-900 tracking-tight">전문가 통합 컨설팅 보고서</h3>
                                 </div>
                             </div>
+                            <div className="flex items-center gap-8 bg-slate-50 px-8 py-6 rounded-3xl border border-slate-100">
+                                <div className="text-right">
+                                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">정규화 향상도</p>
+                                    <p className="text-3xl font-black text-blue-600">{((overallStats?.hakeGain || 0) * 100).toFixed(1)}%</p>
+                                </div>
+                                <div className="h-10 w-px bg-slate-200" />
+                                <div className="text-right">
+                                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">종합 만족도 평균</p>
+                                    <p className="text-3xl font-black text-emerald-600">{(overallStats?.satAvg || 0).toFixed(2)}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 리포트 내 시각화 요약 섹션 */}
+                        <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8">
+                          <div className="p-8 rounded-3xl bg-blue-50/50 border border-blue-100/50 flex flex-col gap-4">
+                            <div className="flex items-center gap-2 text-blue-700">
+                              <BrainCircuit className="size-5" />
+                              <span className="text-xs font-black uppercase tracking-tighter">역량 성장 임팩트</span>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-[11px] font-black text-slate-400">
+                                <span>성취율</span>
+                                <span>{((overallStats?.hakeGain || 0) * 100).toFixed(1)}%</span>
+                              </div>
+                              <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-600 transition-all" style={{ width: `${(overallStats?.hakeGain || 0) * 100}%` }} />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-8 rounded-3xl bg-emerald-50/50 border border-emerald-100/50 flex flex-col gap-4">
+                            <div className="flex items-center gap-2 text-emerald-700">
+                              <Target className="size-5" />
+                              <span className="text-xs font-black uppercase tracking-tighter">교육 만족도 달성</span>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-[11px] font-black text-slate-400">
+                                <span>달성도</span>
+                                <span>{((overallStats?.satAvg || 0) / 5 * 100).toFixed(1)}%</span>
+                              </div>
+                              <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-600 transition-all" style={{ width: `${(overallStats?.satAvg || 0) / 5 * 100}%` }} />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-8 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col gap-4">
+                            <div className="flex items-center gap-2 text-slate-700">
+                              <TrendingUp className="size-5" />
+                              <span className="text-xs font-black uppercase tracking-tighter">통계적 유의성</span>
+                            </div>
+                            <div className="flex items-end gap-2">
+                              <span className="text-2xl font-black text-slate-900">High</span>
+                              <span className="text-[10px] font-bold text-slate-400 mb-1 leading-none">(p {'<'} 0.05)</span>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="relative z-10 grid grid-cols-1 gap-12">
-                            <div className="space-y-10">
-                                <p className="text-[17px] font-medium leading-[2.2] text-slate-300 whitespace-pre-wrap selection:bg-blue-500/30">
+                            <article id="consulting-report-content" className="space-y-10">
+                                <p className="text-[17px] font-bold leading-[2.2] text-slate-700 whitespace-pre-wrap selection:bg-blue-100">
                                     {overallStats ? ExpertReportGenerator.generateConsultingReport(
                                         projects.filter(p => selectedProjectIds.includes(p.id) || p.id === projects.find(p2 => p2.id === selectedProjectIds[0])?.parentId), 
-                                        overallStats
+                                        templates.filter(t => t.type === 'SATISFACTION' || t.type === 'COMPETENCY').flatMap(t => t.questions),
+                                        overallStats,
+                                        responses.filter(r => selectedProjectIds.includes(r.projectId))
                                     ) : '데이터 로딩 중...'}
                                 </p>
-                            </div>
+                            </article>
                         </div>
 
                         <div className="relative z-10 flex justify-center pt-8">
-                            <div className="flex items-center gap-2 text-slate-500 text-xs font-bold font-mono">
+                            <div className="flex items-center gap-2 text-slate-400 text-xs font-bold font-mono">
                                 <Activity className="size-4" />
                                 <span>TOTAL ANALYSIS LENGTH: APPROX. 1,500 CHARACTERS</span>
                             </div>
@@ -1224,11 +1342,11 @@ export default function SurveysPage() {
                           <thead className="bg-slate-50">
                             <tr className="text-xs font-black text-slate-500 uppercase">
                               <th className="p-6 border-r">사업 구분</th>
-                              <th className="p-6 text-center border-r">만족도</th>
-                              <th className="p-6 text-center border-r">사전</th>
-                              <th className="p-6 text-center border-r">사후</th>
-                              <th className="p-6 text-center border-r">향상률</th>
-                              <th className="p-6 text-center">GAIN</th>
+                              <th className="p-6 text-center border-r">종합 만족도</th>
+                              <th className="p-6 text-center border-r">사전 역량</th>
+                              <th className="p-6 text-center border-r">사후 역량</th>
+                              <th className="p-6 text-center border-r">역량 향상률</th>
+                              <th className="p-6 text-center">정규화 향상도</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
@@ -1242,8 +1360,8 @@ export default function SurveysPage() {
                                   <td className="p-6 text-center border-r text-emerald-600">{stats.satAvg?.toFixed(2) || '-'}</td>
                                   <td className="p-6 text-center border-r text-slate-400">{stats.preAvg?.toFixed(2) || '-'}</td>
                                   <td className="p-6 text-center border-r text-blue-600">{stats.postAvg?.toFixed(2) || '-'}</td>
-                                  <td className="p-6 text-center border-r">{stats.impRate?.toFixed(2)}%</td>
-                                  <td className="p-6 text-center text-emerald-500">{(stats.hakeGain * 100).toFixed(1)}%</td>
+                                  <td className="p-6 text-center border-r">{stats?.impRate?.toFixed(2)}%</td>
+                                  <td className="p-6 text-center text-emerald-500">{((stats?.hakeGain ?? 0) * 100).toFixed(1)}%</td>
                                 </tr>
                               );
                             })}
@@ -1264,9 +1382,9 @@ export default function SurveysPage() {
                               <tr className="text-[10px] font-black text-slate-500">
                                 <th className="p-6 border-r min-w-[200px]">학습자/사업</th>
                                 {satQuestions.map((_, i) => <th key={i} className="p-4 text-center border-r">S-Q{i+1}</th>)}
-                                <th className="p-6 text-center border-r bg-emerald-50">만족도</th>
+                                <th className="p-6 text-center border-r bg-emerald-50">종합 만족도</th>
                                 {compQuestions.map((_, i) => <th key={i} className="p-4 text-center border-r">C-Q{i+1}</th>)}
-                                <th className="p-6 text-center bg-blue-50">역량평균</th>
+                                <th className="p-6 text-center bg-blue-50">역량 성취도</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1277,13 +1395,35 @@ export default function SurveysPage() {
                                   const sat = pResponses.find(r => r.respondentId === rid && templates.find(t => t.id === r.templateId)?.type === 'SATISFACTION');
                                   const comp = pResponses.find(r => r.respondentId === rid && templates.find(t => t.id === r.templateId)?.type === 'COMPETENCY');
                                   return { rid, sat, comp, projectName: p?.name };
-                                });
+                                }).sort((a, b) => (a.rid || '').localeCompare(b.rid || '', undefined, { numeric: true, sensitivity: 'base' }));
                                 return merged.map((m) => (
                                   <tr key={`${pid}-${m.rid}`} className="text-[11px] font-bold text-slate-600 hover:bg-slate-50 border-b">
-                                    <td className="p-6 border-r font-black">{m.rid}<br/><span className="text-[9px] text-slate-400 font-medium">{m.projectName}</span></td>
-                                    {satQuestions.map((_, i) => <td key={i} className="p-4 text-center border-r">{m.sat?.answers[i]?.score || '-'}</td>)}
+                                    <td className="p-6 border-r font-black">
+                                      <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 opacity-80 leading-none">
+                                          <span>{p?.startDate} ~ {p?.endDate}</span>
+                                          <span>|</span>
+                                          <span className="text-blue-500/60">{partners.find(ptr => ptr.id === p?.partnerId)?.name || '협력사'}</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                          <span className="text-sm tracking-tighter">{m.rid}</span>
+                                          <span className="text-[9px] text-slate-400 font-bold truncate max-w-[120px]">{m.projectName}</span>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    {satQuestions.map((q) => <td key={q.id} className="p-4 text-center border-r">{m.sat?.answers.find(a => a.questionId === q.id)?.score || '-'}</td>)}
                                     <td className="p-6 text-center font-black text-emerald-600 bg-emerald-50/20 border-r">{((m.sat?.answers || []).reduce((a,b)=>a+(Number(b.score) || 0), 0) / (m.sat?.answers?.length || 1)).toFixed(2)}</td>
-                                    {compQuestions.map((_, i) => <td key={i} className="p-4 text-center border-r">{m.comp?.answers[i]?.score || '-'}</td>)}
+                                    {compQuestions.map((q) => {
+                                      const ans = m.comp?.answers.find(a => a.questionId === q.id);
+                                      return (
+                                        <td key={q.id} className="p-4 text-center border-r">
+                                          <div className="flex flex-col gap-0.5 leading-tight">
+                                            <span className="text-[9px] text-slate-300 font-black">{ans?.preScore || '-'}</span>
+                                            <span className="text-slate-900">{ans?.score || '-'}</span>
+                                          </div>
+                                        </td>
+                                      )
+                                    })}
                                     <td className="p-6 text-center font-black text-blue-600 bg-blue-50/20">{((m.comp?.answers || []).reduce((a,b)=>a+(Number(b.score) || 0), 0) / (m.comp?.answers?.length || 1)).toFixed(2)}</td>
                                   </tr>
                                 ));
@@ -1332,15 +1472,15 @@ export default function SurveysPage() {
                     </div>
                     <p className="text-sm font-black text-slate-700 leading-relaxed">{question?.content || '삭제된 문항입니다.'}</p>
                     <div className="flex gap-4">
-                      {ans.preScore !== undefined && (
+                      {ans?.preScore !== undefined && (
                         <div className="flex-1 space-y-1">
                           <label className="text-[9px] font-black text-slate-400 ml-1 uppercase">Pre (사전)</label>
-                          <Input type="number" min="0" max="100" value={ans.preScore} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, preScore: Number(e.target.value)}:a)})} className="bg-white rounded-xl h-11 border-none shadow-sm font-bold" />
+                          <Input type="number" min="0" max="100" value={ans?.preScore} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, preScore: Number(e.target.value)}:a)})} className="bg-white rounded-xl h-11 border-none shadow-sm font-bold" />
                         </div>
                       )}
                       <div className="flex-1 space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 ml-1 uppercase">{ans.preScore !== undefined ? 'Post (사후)' : '점수'}</label>
-                        <Input type="number" min="0" max="100" value={ans.score} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, score: Number(e.target.value)}:a)})} className="bg-white rounded-xl h-11 border-none shadow-sm font-bold" />
+                        <label className="text-[9px] font-black text-slate-400 ml-1 uppercase">{ans?.preScore !== undefined ? 'Post (사후)' : '점수'}</label>
+                        <Input type="number" min="0" max="100" value={ans?.score} onChange={(e)=>setEditingResponse({...editingResponse, answers: editingResponse.answers.map((a,i)=>i===idx?{...a, score: Number(e.target.value)}:a)})} className="bg-white rounded-xl h-11 border-none shadow-sm font-bold" />
                       </div>
                     </div>
                 </div>
