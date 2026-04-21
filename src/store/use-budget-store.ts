@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { getPublicUrlFromPath } from '@/lib/storage';
 
 export interface BudgetCategory {
   id: string;
@@ -32,11 +33,12 @@ export interface Expenditure {
   date: string;
   amount: number;
   partnerId?: string;
-  vendor: string; // UI 요구사항
+  vendor: string;
   description: string;
-  attachmentName?: string; // UI 요구사항
-  attachmentOriginalName?: string; // UI 요구사항
-  attachmentUrl?: string; // UI 요구사항
+  status: 'PENDING' | 'COMPLETED'; // 집행예정, 집행완료
+  attachmentName?: string;
+  attachmentOriginalName?: string;
+  attachmentUrl?: string;
   createdAt: number;
 }
 
@@ -61,6 +63,7 @@ interface BudgetState {
     partnerId?: string;
     vendor: string;
     description: string;
+    status: 'PENDING' | 'COMPLETED';
     attachmentName?: string;
     attachmentOriginalName?: string;
     attachmentUrl?: string;
@@ -107,9 +110,10 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
         partnerId: e.partner_id,
         vendor: e.vendor_name || '',
         description: e.description || '',
+        status: e.status || 'COMPLETED',
         attachmentName: attachment?.fileName,
         attachmentOriginalName: attachment?.originalName,
-        attachmentUrl: attachment?.fileUrl,
+        attachmentUrl: attachment?.fileUrl || (attachment?.fileName ? getPublicUrlFromPath('partner-documents', attachment.fileName.includes('/') ? attachment.fileName : `expenditures/${attachment.fileName}`) : undefined),
         createdAt: new Date(e.created_at).getTime()
       };
     });
@@ -191,6 +195,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       partner_id: data.partnerId,
       vendor_name: data.vendor,
       description: data.description,
+      status: data.status,
       attachment: {
         fileName: data.attachmentName,
         originalName: data.attachmentOriginalName,

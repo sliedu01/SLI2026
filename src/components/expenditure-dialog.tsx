@@ -10,6 +10,7 @@ import {
 import { format } from 'date-fns';
 import { FileUploadZone } from './file-upload-zone';
 import { uploadFileToStorage, generateStoragePath } from '@/lib/storage';
+import { cn } from '@/lib/utils';
 
 import { 
   Dialog, 
@@ -41,6 +42,7 @@ export function ExpenditureDialog({ open, onOpenChange, executionItem }: Expendi
   const [selectedPartnerId, setSelectedPartnerId] = React.useState('');
   const [customVendor, setCustomVendor] = React.useState('');
   const [description, setDescription] = React.useState('');
+  const [status, setStatus] = React.useState<'COMPLETED' | 'PENDING'>('COMPLETED');
   const [uploadFile, setUploadFile] = React.useState<{ originalName: string, fileName: string, fileUrl: string, file?: File } | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -73,6 +75,7 @@ export function ExpenditureDialog({ open, onOpenChange, executionItem }: Expendi
         amount: Number(amount),
         vendor: vendorName,
         description,
+        status,
         attachmentOriginalName: uploadFile?.originalName,
         attachmentName: uploadFile?.fileName,
         attachmentUrl: finalUrl,
@@ -185,6 +188,34 @@ export function ExpenditureDialog({ open, onOpenChange, executionItem }: Expendi
               onChange={(e) => setDescription(e.target.value)}
               className="h-14 px-6 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-100"
             />
+          </div>
+
+          <div className="space-y-2.5">
+            <Label className="text-xs font-black text-slate-500 uppercase ml-1">집행 상태</Label>
+            <div className="flex gap-2">
+              <Button 
+                type="button"
+                variant={status === 'COMPLETED' ? 'default' : 'outline'}
+                onClick={() => setStatus('COMPLETED')}
+                className={cn(
+                  "flex-1 h-12 rounded-xl font-black text-xs",
+                  status === 'COMPLETED' ? "bg-emerald-600 hover:bg-emerald-700 shadow-lg" : "bg-white border-slate-200 text-slate-400"
+                )}
+              >
+                집행완료
+              </Button>
+              <Button 
+                type="button"
+                variant={status === 'PENDING' ? 'default' : 'outline'}
+                onClick={() => setStatus('PENDING')}
+                className={cn(
+                  "flex-1 h-12 rounded-xl font-black text-xs",
+                  status === 'PENDING' ? "bg-amber-600 hover:bg-amber-700 shadow-lg" : "bg-white border-slate-200 text-slate-400"
+                )}
+              >
+                집행예정
+              </Button>
+            </div>
           </div>
 
           <div className="pt-2">

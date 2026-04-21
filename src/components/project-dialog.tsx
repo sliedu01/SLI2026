@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Plus, Trash2, CalendarIcon, Users } from 'lucide-react';
 
@@ -70,8 +70,10 @@ export function ProjectDialog({
       if (mode === 'edit' && project) {
         setName(project.name || '');
         setDescription(project.description || '');
-        setStartDate(project.startDate ? new Date(project.startDate) : undefined);
-        setEndDate(project.endDate ? new Date(project.endDate) : undefined);
+        const s = project.startDate ? new Date(project.startDate) : undefined;
+        const e = project.endDate ? new Date(project.endDate) : undefined;
+        setStartDate(s && isValid(s) ? s : undefined);
+        setEndDate(e && isValid(e) ? e : undefined);
         setStartTime(project.startTime || '09:00');
         setEndTime(project.endTime || '18:00');
         setQuota(project.quota || 0);
@@ -82,8 +84,10 @@ export function ProjectDialog({
       } else if (mode === 'add' && parentProject) {
         setName('');
         setDescription(parentProject.description || '');
-        setStartDate(parentProject.startDate ? new Date(parentProject.startDate) : undefined);
-        setEndDate(parentProject.endDate ? new Date(parentProject.endDate) : undefined);
+        const s = parentProject.startDate ? new Date(parentProject.startDate) : undefined;
+        const e = parentProject.endDate ? new Date(parentProject.endDate) : undefined;
+        setStartDate(s && isValid(s) ? s : undefined);
+        setEndDate(e && isValid(e) ? e : undefined);
         setStartTime(parentProject.startTime || '09:00');
         setEndTime(parentProject.endTime || '18:00');
         setQuota(0);
@@ -136,17 +140,19 @@ export function ProjectDialog({
   const updateSession = (id: string, updates: Partial<ProjectSession>) => 
     setSessions(sessions.map(s => s.id === id ? { ...s, ...updates } : s));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSaving, setIsSaving] = React.useState(false);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!name.trim()) { alert('사업명을 입력해주세요.'); return; }
     if (!startDate || !endDate) { alert('기간을 선택해주세요.'); return; }
 
-    const projectData = {
+    const projectData: Omit<Project, 'id' | 'createdAt'> = {
       name: name.trim(),
       description: description.trim(),
-      startDate: format(startDate, 'yyyy-MM-dd'),
-      endDate: format(endDate, 'yyyy-MM-dd'),
+      startDate: startDate && isValid(startDate) ? format(startDate, 'yyyy-MM-dd') : '',
+      endDate: endDate && isValid(endDate) ? format(endDate, 'yyyy-MM-dd') : '',
       startTime,
       endTime,
       quota,
@@ -159,12 +165,15 @@ export function ProjectDialog({
     };
 
     try {
-      if (mode === 'add') addProject(projectData);
-      else if (mode === 'edit' && project) updateProject(project.id, projectData);
+      setIsSaving(true);
+      if (mode === 'add') await addProject(projectData);
+      else if (mode === 'edit' && project) await updateProject(project.id, projectData);
       onOpenChange(false);
     } catch (err) {
       console.error('Failed to save project:', err);
-      alert('저장 중 오류가 발생했습니다.');
+      alert('저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -366,7 +375,13 @@ export function ProjectDialog({
           </div>
           <DialogFooter className="gap-3 sm:gap-0 mt-4 pt-6 border-t border-slate-100 flex gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="font-bold h-12 rounded-xl flex-1 text-slate-500">취소</Button>
-            <Button type="submit" className="font-bold px-10 h-12 rounded-xl flex-[2] bg-slate-900 text-white hover:bg-black transition-all shadow-xl shadow-slate-200">사업 정보 저장하기</Button>
+            <Button 
+              type="submit" 
+              disabled={isSaving}
+              className="font-bold px-10 h-12 rounded-xl flex-[2] bg-slate-900 text-white hover:bg-black transition-all shadow-xl shadow-slate-200"
+            >
+              {isSaving ? '저장 중...' : '사업 정보 저장하기'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

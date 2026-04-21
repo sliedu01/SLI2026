@@ -13,7 +13,9 @@ import {
   Download,
   Building2,
   BarChart4,
-  ArrowRight
+  ArrowRight,
+  Settings2,
+  AlertCircle
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -22,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { useBudgetStore } from '@/store/use-budget-store';
 import { useProjectStore } from '@/store/use-project-store';
 import { ExpenditureDialog } from '@/components/expenditure-dialog';
+import { CategoryManagementDialog } from '@/components/budget/category-management-dialog';
 import { cn } from '@/lib/utils';
 // import { exportToExcel } from '@/lib/excel-export'; // Unused in this file
 import { generateSettlementPDF } from '@/lib/pdf-settlement';
@@ -36,6 +39,7 @@ export default function BudgetPage() {
     addCategory, 
     addManagement, 
     addExecution, 
+    fetchBudgets,
     syncBudgets 
   } = useBudgetStore();
   const { projects } = useProjectStore();
@@ -46,11 +50,12 @@ export default function BudgetPage() {
   
   // 다이얼로그 상태
   const [expenditureDialogOpen, setExpenditureDialogOpen] = React.useState(false);
+  const [categoryManagementOpen, setCategoryManagementOpen] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
-    syncBudgets();
-  }, [syncBudgets]);
+    fetchBudgets(); // fetchBudgets가 syncBudgets를 호출함
+  }, [fetchBudgets]);
 
   if (!mounted) return null;
 
@@ -101,7 +106,7 @@ export default function BudgetPage() {
                 <Plus className="size-4" />
               </Button>
            </div>
-           <div className="space-y-4">
+            <div className="space-y-4">
               <div className="flex justify-between items-end">
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Total Framework Budget</p>
                  <p className="text-xl font-black text-slate-900 leading-none">₩ {totalCatBudget.toLocaleString()}</p>
@@ -109,7 +114,14 @@ export default function BudgetPage() {
               <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min((totalCatSpent / (totalCatBudget || 1)) * 100, 100)}%` }} />
               </div>
-           </div>
+              <Button 
+                variant="outline" 
+                onClick={() => setCategoryManagementOpen(true)}
+                className="w-full rounded-xl text-[10px] h-9 font-black uppercase border-slate-100 text-slate-400 hover:text-slate-900 gap-2 mt-2"
+              >
+                <Settings2 className="size-3" /> 계층 구조(L1/L2) 관리
+              </Button>
+            </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
@@ -236,50 +248,62 @@ export default function BudgetPage() {
            </div>
          ) : (
            <div className="p-12 space-y-12">
-              {/* 항목 정보 헤더 */}
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/20">
-                 <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                       <Badge className="bg-blue-600 text-white border-none font-black text-[10px] uppercase h-6 px-3">Execution LV3</Badge>
-                       {selectedExecution?.projectId && (
-                         <div className="flex items-center gap-2 text-blue-500 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
-                            <ArrowRight className="size-3" />
-                            <span className="text-[10px] font-black uppercase">LinkedIn to Project Tracking</span>
-                         </div>
-                       )}
-                    </div>
-                    <h1 className="text-4xl font-black text-slate-900 tracking-tighter">{selectedExecution?.name}</h1>
-                    <div className="flex items-center gap-10">
-                       <div className="space-y-1">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected Detail Budget</p>
-                          <p className="text-2xl font-black text-slate-900">₩ {selectedExecution?.budgetAmount.toLocaleString()}</p>
-                       </div>
-                       <div className="space-y-1">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Accumulated Spent</p>
-                          <p className="text-2xl font-black text-blue-600">₩ {selectedExecution?.expenditureAmount.toLocaleString()}</p>
-                       </div>
-                    </div>
-                 </div>
-                 
-                 <div className="flex flex-col gap-3 w-full lg:w-auto">
-                    <Button 
-                      onClick={() => setExpenditureDialogOpen(true)}
-                      className="h-14 px-8 rounded-2xl bg-slate-900 text-white font-black gap-3 shadow-2xl shadow-slate-900/10 hover:shadow-slate-900/30 transition-all hover:-translate-y-1"
-                    >
-                       <PlusCircle className="size-5" /> 새 지출 등록
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        const projName = projects.find(p => p.id === selectedExecution?.projectId)?.name || '기본 예산';
-                        generateSettlementPDF(projName, selectedExecution?.name || '', relevantExpenditures);
-                      }}
-                      className="h-12 rounded-xl font-black border-slate-200 text-slate-600 gap-2"
-                    >
-                       <Download className="size-4" /> 정산 보고서(PDF) 출력
-                    </Button>
-                 </div>
-              </div>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/20 relative overflow-hidden group">
+                     <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                        <Wallet className="size-16 text-blue-600" />
+                     </div>
+                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total Budget</p>
+                     <h3 className="text-3xl font-black text-slate-900">₩ {selectedExecution?.budgetAmount.toLocaleString()}</h3>
+                     <div className="mt-4 flex items-center gap-2">
+                        <Badge className="bg-blue-50 text-blue-600 border-none px-2 h-5 text-[9px] font-black uppercase">Execution Item</Badge>
+                     </div>
+                  </div>
+
+                  <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/20 relative overflow-hidden group">
+                     <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                        <Receipt className="size-16 text-emerald-600" />
+                     </div>
+                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Spent To Date</p>
+                     <h3 className="text-3xl font-black text-emerald-600">₩ {selectedExecution?.expenditureAmount.toLocaleString()}</h3>
+                     <div className="mt-4 flex items-center gap-2">
+                        <span className="text-[10px] font-black text-emerald-600">{(selectedExecution?.expenditureAmount! / (selectedExecution?.budgetAmount! || 1) * 100).toFixed(1)}% Usage</span>
+                     </div>
+                  </div>
+
+                  <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/20 relative overflow-hidden group">
+                     <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                        <AlertCircle className="size-16 text-slate-600" />
+                     </div>
+                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Remaining</p>
+                     <h3 className="text-3xl font-black text-slate-900">₩ {(selectedExecution?.budgetAmount! - selectedExecution?.expenditureAmount!).toLocaleString()}</h3>
+                     <div className="mt-4 flex flex-col gap-2">
+                        <Button 
+                          onClick={() => setExpenditureDialogOpen(true)}
+                          className="h-10 rounded-xl bg-slate-900 text-white font-black hover:scale-105 transition-all text-[10px] uppercase shadow-lg shadow-slate-900/20"
+                        >
+                           <PlusCircle className="size-3.5 mr-2" /> New Expense
+                        </Button>
+                     </div>
+                  </div>
+               </div>
+
+               <div className="flex justify-between items-center bg-indigo-600 p-8 rounded-[2.5rem] shadow-2xl shadow-indigo-600/20 text-white">
+                  <div>
+                    <h2 className="text-2xl font-black tracking-tight">{selectedExecution?.name}</h2>
+                    <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest mt-1">Detailed Execution Item Management</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      const projName = projects.find(p => p.id === selectedExecution?.projectId)?.name || '기본 예산';
+                      generateSettlementPDF(projName, selectedExecution?.name || '', relevantExpenditures);
+                    }}
+                    className="bg-white/10 border-white/20 hover:bg-white/30 text-white rounded-xl h-12 px-6 font-black gap-2"
+                  >
+                     <Download className="size-4" /> PDF Report
+                  </Button>
+               </div>
 
               {/* 지출 목록 테이블 */}
               <div className="space-y-6">
@@ -293,18 +317,24 @@ export default function BudgetPage() {
                  <Card className="rounded-[3rem] border-none shadow-2xl shadow-slate-200/40 bg-white overflow-hidden">
                     <div className="overflow-x-auto">
                        <table className="w-full text-left border-collapse">
-                          <thead>
-                             <tr className="bg-slate-50/50">
-                                <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">일자 / 시간</th>
-                                <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">적요 (지출 목적)</th>
-                                <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">지출처 (공급자)</th>
-                                <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">금액 (KRW)</th>
-                                <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">증빙 현황</th>
-                             </tr>
-                          </thead>
+                           <thead>
+                              <tr className="bg-slate-50/50">
+                                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date / Time</th>
+                                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</th>
+                                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor</th>
+                                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amount (KRW)</th>
+                                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Evidence</th>
+                              </tr>
+                           </thead>
                           <tbody className="divide-y divide-slate-50">
                              {relevantExpenditures.sort((a,b) => b.date.localeCompare(a.date)).map(exp => (
                                <tr key={exp.id} className="group hover:bg-slate-50/30 transition-all">
+                                  <td className="px-8 py-6">
+                                     <Badge className={cn("text-[9px] font-black uppercase", exp.attachmentName ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600")}>
+                                        {exp.attachmentName ? "Verified" : "Pending"}
+                                     </Badge>
+                                  </td>
                                   <td className="px-8 py-6">
                                      <div className="flex items-center gap-3">
                                         <Clock className="size-4 text-slate-300" />
@@ -370,6 +400,11 @@ export default function BudgetPage() {
           executionItem={selectedExecution}
         />
       )}
+
+      <CategoryManagementDialog 
+        open={categoryManagementOpen}
+        onOpenChange={setCategoryManagementOpen}
+      />
     </div>
   );
 }

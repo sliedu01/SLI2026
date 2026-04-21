@@ -25,7 +25,17 @@ export async function uploadFileToStorage(
     .from(bucket)
     .getPublicUrl(data.path);
 
-  return publicUrl;
+  return publicUrl || '';
+}
+
+/**
+ * 저장소 경로를 기반으로 공용 URL을 가져오거나 재생성합니다.
+ */
+export function getPublicUrlFromPath(bucket: string, path: string): string {
+  const { data: { publicUrl } } = supabase.storage
+    .from(bucket)
+    .getPublicUrl(path);
+  return publicUrl || '';
 }
 
 /**

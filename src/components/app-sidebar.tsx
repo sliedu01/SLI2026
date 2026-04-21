@@ -4,6 +4,8 @@ import {
   ClipboardCheck,
   FileSpreadsheet,
   LayoutGrid,
+  Video,
+  CalendarDays,
   Settings,
   Users,
 } from "lucide-react"
@@ -36,9 +38,9 @@ const data = {
       icon: LayoutGrid,
     },
     {
-      title: "예산 및 정산",
-      url: "/budget",
-      icon: FileSpreadsheet,
+      title: "협력업체 관리",
+      url: "/partners",
+      icon: Users,
     },
     {
       title: "설문 및 성과 관리",
@@ -46,9 +48,19 @@ const data = {
       icon: ClipboardCheck,
     },
     {
-      title: "협력업체 관리",
-      url: "/partners",
-      icon: Users,
+      title: "회의 관리",
+      url: "/meetings",
+      icon: Video,
+    },
+    {
+      title: "캘린더(일정)",
+      url: "/calendar",
+      icon: CalendarDays,
+    },
+    {
+      title: "예산 및 정산",
+      url: "/budget",
+      icon: FileSpreadsheet,
     },
   ],
   admin: [

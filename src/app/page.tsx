@@ -41,7 +41,7 @@ export default function Home() {
   // Stores
   const { projects } = useProjectStore();
   const { categories, executions } = useBudgetStore();
-  const { responses } = useSurveyStore();
+  const { responses, getAggregatedStats } = useSurveyStore();
   const { partners } = usePartnerStore();
 
   React.useEffect(() => {
@@ -57,17 +57,14 @@ export default function Home() {
   const budgetExecutionRate = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
   const totalPartners = partners.length;
   
-  // 설문 만족도 집계
-  const allSatisfactionScores = responses.flatMap(r => 
-    r.answers
-      .map(a => a.score)
-      .filter((v): v is number => typeof v === 'number' && v > 0)
-  );
-  
-  const avgSatisfaction = allSatisfactionScores.length > 0 
-    ? (allSatisfactionScores.reduce((a, b) => a + b, 0) / allSatisfactionScores.length) 
-    : 0;
-  const satisfactionIndex = (avgSatisfaction / 5) * 100;
+  // 전문가 성과 지산 기반 통계 집계 (프로그램 단위 전체 합산)
+  const programProjectIds = projects.filter(p => p.level === 4).map(p => p.id);
+  const surveyStats = getAggregatedStats(projects, programProjectIds, undefined, 'UNIFIED');
+  const overallStats = surveyStats['_overall'];
+
+  // ROI 지표 - 학습 효율(Gain) 기준 정규화 (0~100)
+  const avgSatisfaction = overallStats?.satAvg || 0;
+  const hakeGainPercent = Math.round((overallStats?.hakeGain || 0) * 100);
 
   // 2. 사업별 시각화 데이터
   const dashboardData = projects.filter(p => p.level === 1 || p.level === 4).map(p => {
@@ -77,9 +74,9 @@ export default function Home() {
     const pSpent = projectExecutions.reduce((s, ex) => s + ex.expenditureAmount, 0);
     const executionRate = pBudget > 0 ? (pSpent / pBudget) * 100 : 0;
 
-    // 성과 지표
-    const pResponses = responses.filter(r => r.projectId === p.id);
-    const performance = pResponses.length > 0 ? 85 : 0; // 시뮬레이션
+    // 성과 지표: 실제 학습 효율(Gain) 연동
+    const pStats = surveyStats[p.id];
+    const performance = pStats ? Math.round(pStats.hakeGain * 100) : 0;
 
     return {
       name: p.name,
@@ -116,11 +113,12 @@ export default function Home() {
       </div>
 
       {/* KPI 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {[
           { label: '활성 사업 수', value: `${totalProjects}건`, sub: '전주 대비 +1', icon: LayoutGrid, color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: '누적 집행율', value: `${budgetExecutionRate.toFixed(2)}%`, sub: `₩${(totalSpent/1000000).toFixed(2)}M 집행`, icon: Wallet, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-          { label: '평균 교육 성과', value: `${satisfactionIndex.toFixed(2)}점`, sub: '100점 만점 기준', icon: Zap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: '운영 만족도 (AVG)', value: `${avgSatisfaction.toFixed(2)}점`, sub: '5점 만점 기준', icon: Zap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: '학습 효율 및 전이도 (GAIN)', value: `${hakeGainPercent}%`, sub: 'Hake\'s Gain 성과 환산', icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: '협력 파트너', value: `${totalPartners}개사`, sub: '문서 보호 100%', icon: Building2, color: 'text-amber-600', bg: 'bg-amber-50' },
         ].map((kpi, i) => (
           <Card key={i} className="border-none shadow-xl shadow-slate-200/50 rounded-[2rem] overflow-hidden group hover:scale-[1.02] transition-all">
@@ -206,9 +204,10 @@ export default function Home() {
              <div className="space-y-6 text-indigo-100/90 leading-relaxed font-medium text-sm">
                 <div className="p-5 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
                    <p className="italic">
-                      &quot;시스템 분석 결과, 현재 통합 예산 집행률은 {budgetExecutionRate.toFixed(2)}%입니다. 
-                      성과 지수 측면에서는 주요 사업군에서 안정적인 ROI를 기록 중입니다. 
-                      차세대 DX 역량 강화 교육 사업의 성과가 전주 대비 향상되었습니다.&quot;
+                      &quot;통합 성과 분석 결과, 현재 대시보드 기준 운영 만족도는 {avgSatisfaction.toFixed(2)}점이며, 
+                      학습 효율(Gain)은 {hakeGainPercent}%를 기록하고 있습니다. 
+                      {overallStats && overallStats.pValue < 0.05 ? '통계적으로 유의미한 육성 성과가 입증되었으며, ' : ''}
+                      주요 사업군에서 안정적인 ROI를 보이고 있습니다. 차세대 역량 강화 사업의 성취도가 특히 향상되었습니다.&quot;
                    </p>
                 </div>
                 <ul className="space-y-4">

@@ -50,7 +50,7 @@ export default function ProjectsPage() {
     setSort,
     getSortedProjects 
   } = useProjectStore();
-  const { fetchPartners } = usePartnerStore();
+  const { partners, fetchPartners } = usePartnerStore();
 
   const [mounted, setMounted] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
@@ -73,7 +73,7 @@ export default function ProjectsPage() {
     setMounted(true);
     fetchProjects();
     fetchPartners();
-  }, []);
+  }, [fetchProjects, fetchPartners]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -252,14 +252,14 @@ export default function ProjectsPage() {
                     {totalSessions > 0 && (
                       <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 rounded-lg border border-indigo-100/50">
                         <span className="text-[9px] font-black text-indigo-400 uppercase">평균 참가인원</span>
-                        <span className="text-[10px] font-black text-indigo-700">{avgPerSession.toFixed(2)}명</span>
+                        <span className="text-[10px] font-black text-indigo-700">{Math.round(avgPerSession)}명</span>
                       </div>
                     )}
                     {p.quota > 0 && (
                       <div className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-50 rounded-lg border border-rose-100/50">
                         <span className="text-[9px] font-black text-rose-400 uppercase">참석률</span>
                         <span className="text-[10px] font-black text-rose-700">
-                          {((p.participantCount / p.quota) * 100).toFixed(2)}%
+                          {Math.round((p.participantCount / p.quota) * 100)}%
                         </span>
                       </div>
                     )}
@@ -518,28 +518,32 @@ export default function ProjectsPage() {
                       ))}
                    </div>
                    {/* 일정 바 */}
-                   <div 
-                     className={cn(
-                       "h-7 rounded-full shadow-lg relative z-10 flex items-center px-3 group-hover:scale-[1.01] transition-all cursor-pointer group/bar",
-                       p.level === 1 ? "bg-indigo-600 shadow-indigo-100/50" : 
-                       p.level === 2 ? "bg-blue-400 shadow-blue-100/50" : 
-                       "bg-slate-400 shadow-slate-100/50"
-                     )}
-                     style={{ 
-                       marginLeft: `${left}%`, 
-                       width: `${width}%`
-                     }}
-                     onClick={() => handleEdit(p)}
-                   >
-                      <span className="text-[10px] font-black text-white truncate drop-shadow-sm whitespace-nowrap overflow-hidden">
-                         {p.name}
-                      </span>
-                      {/* 툴팁 시뮬레이션 */}
-                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] font-black px-3 py-1.5 rounded-lg opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-xl">
-                         {p.name} ({p.startDate} ~ {p.endDate})
-                         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-900" />
-                      </div>
-                   </div>
+                     <div 
+                       className={cn(
+                         "h-7 rounded-full shadow-lg relative z-10 flex items-center px-3 group-hover:scale-[1.01] transition-all cursor-pointer group/bar",
+                         p.level === 1 ? "bg-indigo-600 shadow-indigo-100/50" : 
+                         p.level === 2 ? "bg-blue-400 shadow-blue-100/50" : 
+                         "bg-slate-400 shadow-slate-100/50"
+                       )}
+                       style={{ 
+                         marginLeft: `${left}%`, 
+                         width: `${width}%`
+                       }}
+                       onClick={() => handleEdit(p)}
+                     >
+                        <span className="text-[10px] font-black text-white truncate drop-shadow-sm whitespace-nowrap overflow-hidden">
+                           {p.partnerId && p.partnerId !== 'none' && partners.find(ptr => ptr.id === p.partnerId) 
+                              ? `[${partners.find(ptr => ptr.id === p.partnerId)!.name}] ${p.name}` 
+                              : p.name}
+                        </span>
+                        {/* 툴팁 시뮬레이션 */}
+                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] font-black px-3 py-1.5 rounded-lg opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-xl">
+                           {p.partnerId && p.partnerId !== 'none' && partners.find(ptr => ptr.id === p.partnerId) 
+                              ? `[${partners.find(ptr => ptr.id === p.partnerId)!.name}] ${p.name}` 
+                              : p.name} ({p.startDate} ~ {p.endDate})
+                           <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-900" />
+                        </div>
+                     </div>
                 </div>
               </div>
              );

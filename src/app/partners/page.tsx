@@ -13,7 +13,8 @@ import {
   Briefcase,
   ChevronRight,
   Download,
-  Upload
+  Upload,
+  TrendingUp
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,7 @@ export default function PartnersPage() {
   const [mounted, setMounted] = React.useState(false);
   const { partners, deletePartner, isLoading, fetchPartners } = usePartnerStore();
   const { projects } = useProjectStore();
-  const { responses, getAggregatedStats } = useSurveyStore();
+  const { getAggregatedStats } = useSurveyStore();
   
   const [searchTerm, setSearchTerm] = React.useState('');
   const [viewDetailId, setViewDetailId] = React.useState<string | null>(null);
@@ -82,9 +83,10 @@ export default function PartnersPage() {
       
       return {
         ...p,
-        avgSatisfaction: pStats && pStats.satCount > 0 ? pStats.satAvg.toFixed(1) : '-',
-        preCompetency: pStats && pStats.compCount > 0 ? pStats.preAvg.toFixed(1) : '-',
-        postCompetency: pStats && pStats.compCount > 0 ? pStats.postAvg.toFixed(1) : '-'
+        avgSatisfaction: pStats && pStats.satCount > 0 ? pStats.satAvg.toFixed(2) : '-',
+        preCompetency: pStats && pStats.compCount > 0 ? pStats.preAvg.toFixed(2) : '-',
+        postCompetency: pStats && pStats.compCount > 0 ? pStats.postAvg.toFixed(2) : '-',
+        hakeGain: pStats && pStats.compCount > 0 ? Math.round(pStats.hakeGain * 100) : 0
       };
     });
   };
@@ -428,7 +430,15 @@ export default function PartnersPage() {
                                         <td className="px-6 py-5">
                                            <div className="flex flex-col">
                                               <span className="text-xs font-black text-slate-800">{item.name}</span>
-                                              <span className="text-[9px] font-bold text-blue-500 uppercase mt-1">Level {item.level}</span>
+                                              <div className="flex items-center gap-2 mt-1">
+                                                 <span className="text-[9px] font-bold text-blue-500 uppercase">Level {item.level}</span>
+                                                 {item.hakeGain !== 0 && (
+                                                   <Badge className="bg-indigo-600 text-white border-none font-black text-[8px] h-4 px-1.5 rounded flex items-center gap-1 shadow-sm">
+                                                     <TrendingUp className="size-2 text-white" />
+                                                     GAIN {item.hakeGain}%
+                                                   </Badge>
+                                                 )}
+                                              </div>
                                            </div>
                                         </td>
                                         <td className="px-6 py-5">

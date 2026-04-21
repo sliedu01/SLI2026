@@ -88,6 +88,7 @@ interface SurveyState {
   addResponse: (response: Omit<SurveyResponse, 'id' | 'createdAt'>) => Promise<void>;
   updateResponse: (id: string, response: Partial<Omit<SurveyResponse, 'id' | 'createdAt'>>) => Promise<void>;
   deleteResponse: (id: string) => Promise<void>;
+  bulkAddResponses: (responses: Array<Omit<SurveyResponse, 'id' | 'createdAt'>>) => Promise<void>;
   clearProjectResponses: (projectId: string) => Promise<void>;
   
   // Helpers
@@ -196,6 +197,19 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
 
   deleteResponse: async (id) => {
     const { error } = await supabase.from('surveys').delete().eq('id', id);
+    if (error) throw error;
+    await get().fetchSurveys();
+  },
+
+  bulkAddResponses: async (responses) => {
+    const { error } = await supabase.from('surveys').insert(
+      responses.map(res => ({
+        project_id: res.projectId,
+        template_id: res.templateId,
+        respondent_id: res.respondentId,
+        answers: res.answers
+      }))
+    );
     if (error) throw error;
     await get().fetchSurveys();
   },
@@ -325,16 +339,41 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
 
       if (combined.count === 0) return null;
 
-      // --- 통계적 정확성 개선: 응답자 단위 집계 ---
+      // --- 통계적 정확성 개선: 로우데이터 기반 단순 산술 평균 (사용자 요청 반영) ---
+      let totalSatSum = 0, totalSatCount = 0, totalPreSum = 0, totalPreCount = 0, totalPostSum = 0, totalPostCount = 0;
+
+      combined.responses.forEach(res => {
+        const tmpl = templateMap.get(res.templateId);
+        if (!tmpl) return;
+        res.answers.forEach((ans) => {
+          if (ans.score === undefined) return;
+          const q = tmpl.questions.find(fq => fq.id === ans.questionId);
+          if (!q) return;
+
+          if (tmpl.type === 'SATISFACTION' && q.type === 'SCALE') {
+            totalSatSum += Number(ans.score);
+            totalSatCount++;
+          } else if (tmpl.type === 'COMPETENCY') {
+            totalPreSum += Number(ans.preScore || 0);
+            totalPreCount++;
+            totalPostSum += Number(ans.score);
+            totalPostCount++;
+          }
+        });
+      });
+
+      const satAvg = totalSatCount > 0 ? totalSatSum / totalSatCount : 0;
+      const preAvg = totalPreCount > 0 ? totalPreSum / totalPreCount : 0;
+      const postAvg = totalPostCount > 0 ? totalPostSum / totalPostCount : 0;
+
+      // respondentAvgs는 T-test와 Cohen's d 계산을 위해서만 유지 (응답자 쌍 비교가 필요하므로)
       const respondents = new Map<string, { preSum: number, preCount: number, postSum: number, postCount: number, satSum: number, satCount: number }>();
-      
       combined.responses.forEach(res => {
         if (!respondents.has(res.respondentId)) {
           respondents.set(res.respondentId, { preSum: 0, preCount: 0, postSum: 0, postCount: 0, satSum: 0, satCount: 0 });
         }
         const r = respondents.get(res.respondentId)!;
         const tmpl = templateMap.get(res.templateId);
-        
         res.answers.forEach((ans, idx) => {
           if (ans.score === undefined) return;
           if (tmpl?.type === 'SATISFACTION' && tmpl.questions[idx]?.type === 'SCALE') {
@@ -357,11 +396,7 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
 
       const finalPreAvgs = respondentAvgs.map(a => a.pre).filter((v): v is number => v !== null);
       const finalPostAvgs = respondentAvgs.map(a => a.post).filter((v): v is number => v !== null);
-      const finalSatAvgs = respondentAvgs.map(a => a.sat).filter((v): v is number => v !== null);
 
-      const preAvg = finalPreAvgs.length > 0 ? finalPreAvgs.reduce((a, b) => a + b, 0) / finalPreAvgs.length : 0;
-      const postAvg = finalPostAvgs.length > 0 ? finalPostAvgs.reduce((a, b) => a + b, 0) / finalPostAvgs.length : 0;
-      const satAvg = finalSatAvgs.length > 0 ? finalSatAvgs.reduce((a, b) => a + b, 0) / finalSatAvgs.length : 0;
 
       const allTemplates = get().templates;
       const satQuestions = allTemplates.filter(t => t.type === 'SATISFACTION').flatMap(t => t.questions.filter(q => q.type === 'SCALE'));
@@ -433,9 +468,9 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
         satAvg,
         preAvg,
         postAvg,
-        satCount: finalSatAvgs.length,
-        compCount: finalPostAvgs.length,
-        count: finalSatAvgs.length || finalPostAvgs.length || combined.count,
+        satCount: totalSatCount,
+        compCount: totalPostCount,
+        count: totalSatCount || totalPostCount || combined.count,
         totalAverage: type === 'SATISFACTION' ? satAvg : postAvg,
         hakeGain: calculateHakeGain(preAvg, postAvg),
         cohensD: calculateCohensD(finalPreAvgs, finalPostAvgs),
@@ -470,9 +505,28 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
       });
 
       if (overallResponses.length > 0) {
-        // 중복 제거
+        // 중복 제거 및 단순 평균 변수 초기화
+        let totalSatSum = 0, totalSatCount = 0, totalPreSum = 0, totalPreCount = 0, totalPostSum = 0, totalPostCount = 0;
         const uniqueResponses = Array.from(new Map(overallResponses.map(r => [r.id, r])).values());
         
+        uniqueResponses.forEach(res => {
+          const tmpl = templateMap.get(res.templateId);
+          res.answers.forEach((ans, idx) => {
+            if (ans.score === undefined) return;
+            if (tmpl?.type === 'SATISFACTION' && tmpl.questions[idx]?.type === 'SCALE') {
+               totalSatSum += Number(ans.score); totalSatCount++;
+            } else if (tmpl?.type === 'COMPETENCY') {
+               totalPreSum += Number(ans.preScore || 0); totalPreCount++;
+               totalPostSum += Number(ans.score); totalPostCount++;
+            }
+          });
+        });
+
+        const sat = totalSatCount > 0 ? totalSatSum / totalSatCount : 0;
+        const pre = totalPreCount > 0 ? totalPreSum / totalPreCount : 0;
+        const post = totalPostCount > 0 ? totalPostSum / totalPostCount : 0;
+
+        // T-test 등을 위한 응답자별 평균 계산
         const respondents = new Map<string, { preSum: number, preCount: number, postSum: number, postCount: number, satSum: number, satCount: number }>();
         uniqueResponses.forEach(res => {
           if (!respondents.has(res.respondentId)) {
@@ -499,44 +553,37 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
 
         const finalPreAvgs = respondentAvgs.map(a => a.pre).filter((v): v is number => v !== null);
         const finalPostAvgs = respondentAvgs.map(a => a.post).filter((v): v is number => v !== null);
-        const finalSatAvgs = respondentAvgs.map(a => a.sat).filter((v): v is number => v !== null);
 
-        const pre = finalPreAvgs.length > 0 ? finalPreAvgs.reduce((a,b)=>a+b,0)/finalPreAvgs.length : 0;
-        const post = finalPostAvgs.length > 0 ? finalPostAvgs.reduce((a,b)=>a+b,0)/finalPostAvgs.length : 0;
-        const sat = finalSatAvgs.length > 0 ? finalSatAvgs.reduce((a,b)=>a+b,0)/finalSatAvgs.length : 0;
-
-        
-      const themeStatsGroup: Record<string, { preSum: number, postSum: number, satSum: number, count: number }> = {};
-      
-      uniqueResponses.forEach(res => {
-        const tmpl = templateMap.get(res.templateId);
-        if(!tmpl) return;
-        res.answers.forEach((ans, idx) => {
-          const q = tmpl.questions[idx];
-          if(!q || !q.theme) return;
-          if(!themeStatsGroup[q.theme]) themeStatsGroup[q.theme] = { preSum: 0, postSum: 0, satSum: 0, count: 0 };
-          const ts = themeStatsGroup[q.theme];
-          if(tmpl.type === 'SATISFACTION' && q.type === 'SCALE') {
-            ts.satSum += Number(ans.score || 0);
-            ts.count++;
-          } else if(tmpl.type === 'COMPETENCY') {
-            ts.preSum += Number(ans.preScore || 0);
-            ts.postSum += Number(ans.score || 0);
-            ts.count++;
-          }
+        const themeStatsGroup: Record<string, { preSum: number, postSum: number, satSum: number, count: number }> = {};
+        uniqueResponses.forEach(res => {
+          const tmpl = templateMap.get(res.templateId);
+          if(!tmpl) return;
+          res.answers.forEach((ans, idx) => {
+            const q = tmpl.questions[idx];
+            if(!q || !q.theme) return;
+            if(!themeStatsGroup[q.theme]) themeStatsGroup[q.theme] = { preSum: 0, postSum: 0, satSum: 0, count: 0 };
+            const ts = themeStatsGroup[q.theme];
+            if(tmpl.type === 'SATISFACTION' && q.type === 'SCALE') {
+              ts.satSum += Number(ans.score || 0);
+              ts.count++;
+            } else if(tmpl.type === 'COMPETENCY') {
+              ts.preSum += Number(ans.preScore || 0);
+              ts.postSum += Number(ans.score || 0);
+              ts.count++;
+            }
+          });
         });
-      });
 
-      const finalThemeStats: Record<string, { preAvg: number; postAvg: number; satAvg: number; average: number; count: number }> = {};
-      Object.entries(themeStatsGroup).forEach(([theme, s]) => {
-        finalThemeStats[theme] = {
-          preAvg: s.count > 0 ? s.preSum / s.count : 0,
-          postAvg: s.count > 0 ? s.postSum / s.count : 0,
-          satAvg: s.count > 0 ? s.satSum / s.count : 0,
-          average: s.count > 0 ? (s.preSum + s.postSum + s.satSum) / s.count : 0,
-          count: s.count
-        };
-      });
+        const finalThemeStats: Record<string, { preAvg: number; postAvg: number; satAvg: number; average: number; count: number }> = {};
+        Object.entries(themeStatsGroup).forEach(([theme, s]) => {
+          finalThemeStats[theme] = {
+            preAvg: s.count > 0 ? s.preSum / s.count : 0,
+            postAvg: s.count > 0 ? s.postSum / s.count : 0,
+            satAvg: s.count > 0 ? s.satSum / s.count : 0,
+            average: s.count > 0 ? (s.preSum + s.postSum + s.satSum) / s.count : 0,
+            count: s.count
+          };
+        });
 
         aggregated['_overall'] = {
           avg: 0, // Placeholder

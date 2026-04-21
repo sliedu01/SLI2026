@@ -134,13 +134,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             }
           }
 
-          // 최종 값 반영
+          // 최종 값 반영 (하위가 있는 경우에만 업데이트하거나, 본인의 데이터가 있으면 유지)
           updatedProjects[idx] = {
             ...updatedProjects[idx],
-            quota: currentQuota || p.quota, // 하위가 없으면 본인 정원 유지
-            participantCount: currentParticipantCount,
-            startDate: minDate,
-            endDate: maxDate
+            quota: children.length > 0 ? currentQuota : p.quota, 
+            participantCount: (children.length > 0 || (p.sessions && p.sessions.length > 0)) 
+              ? currentParticipantCount 
+              : p.participantCount,
+            startDate: minDate || p.startDate,
+            endDate: maxDate || p.endDate
           };
         }
       });
@@ -150,9 +152,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   addProject: async (projectData) => {
-    const { error } = await supabase
-      .from('projects')
-      .insert([{
+      const newRecord = {
         name: projectData.name,
         start_date: projectData.startDate,
         end_date: projectData.endDate,
@@ -162,34 +162,39 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         parent_id: projectData.parentId,
         level: projectData.level,
         partner_id: projectData.partnerId,
-        location: projectData.location || '',
+        location: projectData.location || '', 
         quota: projectData.quota,
         participant_count: projectData.participantCount,
         sessions: projectData.sessions || [],
-      }]);
+      };
+
+      const { error } = await supabase
+        .from('projects')
+        .insert([newRecord]);
 
     if (error) throw error;
     await get().fetchProjects();
   },
 
   updateProject: async (id, updates) => {
+    const updateData: Record<string, unknown> = {};
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.startDate !== undefined) updateData.start_date = updates.startDate;
+    if (updates.endDate !== undefined) updateData.end_date = updates.endDate;
+    if (updates.startTime !== undefined) updateData.start_time = updates.startTime;
+    if (updates.endTime !== undefined) updateData.end_time = updates.endTime;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.parentId !== undefined) updateData.parent_id = updates.parentId;
+    if (updates.level !== undefined) updateData.level = updates.level;
+    if (updates.partnerId !== undefined) updateData.partner_id = updates.partnerId;
+    if (updates.location !== undefined) updateData.location = updates.location; 
+    if (updates.quota !== undefined) updateData.quota = updates.quota;
+    if (updates.participantCount !== undefined) updateData.participant_count = updates.participantCount;
+    if (updates.sessions !== undefined) updateData.sessions = updates.sessions;
+
     const { error } = await supabase
       .from('projects')
-      .update({
-        name: updates.name,
-        start_date: updates.startDate,
-        end_date: updates.endDate,
-        start_time: updates.startTime,
-        end_time: updates.endTime,
-        description: updates.description,
-        parent_id: updates.parentId,
-        level: updates.level,
-        partner_id: updates.partnerId,
-        location: updates.location,
-        quota: updates.quota,
-        participant_count: updates.participantCount,
-        sessions: updates.sessions,
-      })
+      .update(updateData)
       .eq('id', id);
 
     if (error) throw error;
@@ -263,7 +268,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   getSortedProjects: (parentId) => {
-    const { projects, sortKey, sortDirection } = get();
+    const { projects } = get();
     const filtered = projects.filter((p) => p.parentId === parentId);
 
     return [...filtered].sort((a, b) => {

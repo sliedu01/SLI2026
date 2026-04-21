@@ -97,10 +97,21 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
 
     setIsSubmitting(true);
     try {
-      const combinedDocs: PartnerDocument[] = [];
+      // 기존 문서들 중 계약서가 아닌 것들 보관
+      const partner = partners.find(p => p.id === partnerId);
+      const existingOtherDocs = partner ? partner.documents.filter(d => 
+        !['사업자등록증', '통장사본', '보험증권', '사전점검체크리스트'].includes(d.type) && 
+        !d.type.includes('계약서')
+      ) : [];
+
+      const combinedDocs: PartnerDocument[] = [...existingOtherDocs];
       
       // 1. 공통 증빙 서류 업로드 처리
-      for (const [type, info] of Object.entries(docs)) {
+      const commonTypes = ['사업자등록증', '통장사본', '보험증권', '사전점검체크리스트'];
+      for (const type of commonTypes) {
+        const info = docs[type];
+        if (!info) continue;
+
         let finalUrl = info.fileUrl;
         
         // 새로 선택된 파일이 있는 경우에만 클라우드 업로드 수행
@@ -109,13 +120,15 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
           finalUrl = await uploadFileToStorage('partner-documents', path, info.file);
         }
 
-        combinedDocs.push({
-          id: crypto.randomUUID(),
-          type,
-          originalName: info.originalName,
-          fileName: info.fileName,
-          fileUrl: finalUrl
-        });
+        if (finalUrl) {
+          combinedDocs.push({
+            id: crypto.randomUUID(),
+            type,
+            originalName: info.originalName,
+            fileName: info.fileName,
+            fileUrl: finalUrl
+          });
+        }
       }
       
       // 2. 계약서 및 기타 서류 업로드 처리
@@ -129,13 +142,15 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
             finalUrl = await uploadFileToStorage('partner-documents', path, c.file);
           }
 
-          combinedDocs.push({
-            id: c.id,
-            type: `${i+1}회차 계약서`,
-            originalName: c.originalName || c.name,
-            fileName: c.name,
-            fileUrl: finalUrl
-          });
+          if (finalUrl) {
+            combinedDocs.push({
+              id: c.id || crypto.randomUUID(),
+              type: `${i+1}회차 계약서`,
+              originalName: c.originalName || c.name,
+              fileName: c.name,
+              fileUrl: finalUrl
+            });
+          }
         }
       }
 

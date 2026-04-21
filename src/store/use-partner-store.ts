@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase, Json } from '@/lib/supabase';
+import { getPublicUrlFromPath } from '@/lib/storage';
 
 export interface PartnerDocument {
   id: string;
@@ -58,7 +59,15 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
         phone2: p.phone2 || '',
         email: p.email || '',
         address: p.address || '',
-        documents: (p.documents as unknown as PartnerDocument[]) || [],
+        documents: ((p.documents as unknown as PartnerDocument[]) || []).map(d => {
+          // 파일 URL이 없거나 만료된 구형 데이터인 경우 복구 시도
+          if (!d.fileUrl && d.fileName) {
+            const bucket = d.type.includes('계약서') ? 'partner-documents' : 'partner-documents';
+            const path = d.fileName.includes('/') ? d.fileName : `partners/${d.fileName}`;
+            return { ...d, fileUrl: getPublicUrlFromPath(bucket, path) };
+          }
+          return d;
+        }),
         createdAt: new Date(p.created_at).getTime(),
       }));
       set({ partners: mappedPartners });
