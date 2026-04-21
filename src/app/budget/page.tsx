@@ -15,7 +15,9 @@ import {
   BarChart4,
   ArrowRight,
   Settings2,
-  AlertCircle
+  AlertCircle,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -23,6 +25,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useBudgetStore } from '@/store/use-budget-store';
 import { useProjectStore } from '@/store/use-project-store';
+import { usePartnerStore } from '@/store/use-partner-store';
 import { ExpenditureDialog } from '@/components/expenditure-dialog';
 import { CategoryManagementDialog } from '@/components/budget/category-management-dialog';
 import { cn } from '@/lib/utils';
@@ -35,12 +38,14 @@ export default function BudgetPage() {
     categories, 
     managements, 
     expenditures, 
-    addCategory, 
+    addCategory,
     addManagement, 
     fetchBudgets,
-    syncBudgets 
+    syncBudgets,
+    deleteExpenditure
   } = useBudgetStore();
   const { projects } = useProjectStore();
+  const { partners } = usePartnerStore();
 
   const [expandedCats, setExpandedCats] = React.useState<Set<string>>(new Set());
   const [selectedManagementId, setSelectedManagementId] = React.useState<string | null>(null);
@@ -48,6 +53,7 @@ export default function BudgetPage() {
   // 다이얼로그 상태
   const [expenditureDialogOpen, setExpenditureDialogOpen] = React.useState(false);
   const [categoryManagementOpen, setCategoryManagementOpen] = React.useState(false);
+  const [editingExpenditure, setEditingExpenditure] = React.useState<any>(null);
 
   React.useEffect(() => {
     setMounted(true);
@@ -57,7 +63,9 @@ export default function BudgetPage() {
   if (!mounted) return null;
 
   const totalCatBudget = categories.reduce((sum, c) => sum + c.totalBudget, 0);
-  const totalCatSpent = categories.reduce((sum, c) => sum + c.totalExpenditure, 0);
+  const totalCatSpent = categories.reduce((sum, c) => sum + (c.totalExpenditure || 0), 0);
+  const totalCatExpected = categories.reduce((sum, c) => sum + (c.totalExpectedExpenditure || 0), 0);
+  const totalExecution = totalCatSpent + totalCatExpected;
 
   const toggleCat = (id: string) => {
     setExpandedCats(prev => {
@@ -71,6 +79,25 @@ export default function BudgetPage() {
   const relevantExpenditures = selectedManagementId 
     ? expenditures.filter(exp => exp.managementId === selectedManagementId)
     : expenditures;
+
+  const handleEditExpenditure = (exp: any) => {
+    setEditingExpenditure(exp);
+    setExpenditureDialogOpen(true);
+  };
+
+  const handleDeleteExpenditure = async (exp: any) => {
+    // subagent 등 환경에서 confirm이 안 될 수 있으므로 window.confirm 명시
+    const ok = window.confirm(`'${exp.subDetail}' 지출 내역을 삭제하시겠습니까?\n첨부된 증빙 파일도 함께 삭제됩니다.`);
+    if (ok) {
+      try {
+        await deleteExpenditure(exp.id, exp.attachmentName);
+        alert('삭제되었습니다.');
+      } catch (err) {
+        console.error('Delete error:', err);
+        alert('삭제 중 오류가 발생했습니다.');
+      }
+    }
+  };
 
   return (
     <div className="flex bg-slate-50/50 rounded-[3rem] border border-slate-200/60 overflow-hidden h-[calc(100vh-140px)] animate-in fade-in duration-700 shadow-2xl shadow-slate-200/20">
@@ -302,6 +329,7 @@ export default function BudgetPage() {
                                     <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">지출처</th>
                                     <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">증빙</th>
                                     <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">첨부</th>
+                                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">작업</th>
                                  </tr>
                               </thead>
                              <tbody className="divide-y divide-slate-50">
@@ -333,8 +361,28 @@ export default function BudgetPage() {
                                                   <FileText className="size-3" />
                                                   <span className="text-[9px] font-black truncate max-w-[80px]">{exp.attachmentOriginalName}</span>
                                                   <Download className="size-2.5 opacity-0 group-hover/file:opacity-100" />
-                                               </div>
+                                                </div>
                                              ) : <span className="text-[9px] font-bold text-slate-200">-</span>}
+                                          </div>
+                                       </td>
+                                       <td className="px-6 py-4">
+                                          <div className="flex justify-center gap-2">
+                                             <Button 
+                                               variant="ghost" 
+                                               size="icon" 
+                                               onClick={() => handleEditExpenditure(exp)}
+                                               className="size-8 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                             >
+                                                <Edit2 className="size-3.5" />
+                                             </Button>
+                                             <Button 
+                                               variant="ghost" 
+                                               size="icon" 
+                                               onClick={() => handleDeleteExpenditure(exp)}
+                                               className="size-8 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                             >
+                                                <Trash2 className="size-3.5" />
+                                             </Button>
                                           </div>
                                        </td>
                                     </tr>
@@ -352,8 +400,12 @@ export default function BudgetPage() {
 
       <ExpenditureDialog 
         open={expenditureDialogOpen}
-        onOpenChange={setExpenditureDialogOpen}
+        onOpenChange={(open) => {
+          setExpenditureDialogOpen(open);
+          if (!open) setEditingExpenditure(null);
+        }}
         initialManagementId={selectedManagementId || undefined}
+        initialData={editingExpenditure}
       />
 
       <CategoryManagementDialog 

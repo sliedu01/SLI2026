@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
-import { getPublicUrlFromPath } from '@/lib/storage';
+import { getPublicUrlFromPath, deleteFileFromStorage, moveFileInStorage } from '@/lib/storage';
 
 export interface BudgetCategory {
   id: string;
@@ -8,6 +8,7 @@ export interface BudgetCategory {
   projectId?: string;
   totalBudget: number;
   totalExpenditure: number;
+  totalExpectedExpenditure: number;
 }
 
 export interface BudgetManagement {
@@ -87,6 +88,26 @@ interface BudgetState {
     attachmentOriginalName?: string;
     attachmentUrl?: string;
   }) => Promise<void>;
+  updateExpenditure: (id: string, data: {
+    managementId: string;
+    subDetail: string;
+    date: string;
+    amount: number;
+    supplyAmount: number;
+    vatAmount: number;
+    proofType: string;
+    partnerId?: string;
+    vendor: string;
+    description: string;
+    status: 'PENDING' | 'COMPLETED';
+    attachmentName?: string;
+    attachmentOriginalName?: string;
+    attachmentUrl?: string;
+  }, storageOptions?: {
+    prevPath?: string;
+    newPath?: string;
+  }) => Promise<void>;
+  deleteExpenditure: (id: string, attachmentPath?: string) => Promise<void>;
 }
 
 export const useBudgetStore = create<BudgetState>((set, get) => ({
@@ -107,7 +128,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     ]);
 
     const mappedCats: BudgetCategory[] = (cats.data || []).map(c => ({
-      id: c.id, name: c.name, projectId: c.project_id, totalBudget: 0, totalExpenditure: 0
+      id: c.id, name: c.name, projectId: c.project_id, totalBudget: 0, totalExpenditure: 0, totalExpectedExpenditure: 0
     }));
 
     const mappedMans: BudgetManagement[] = (mans.data || []).map(m => ({
@@ -199,7 +220,8 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       return {
         ...cat,
         totalBudget: children.reduce((sum, c) => sum + (c.totalBudget || 0), 0),
-        totalExpenditure: children.reduce((sum, c) => sum + (c.totalExpenditure || 0), 0)
+        totalExpenditure: children.reduce((sum, c) => sum + (c.totalExpenditure || 0), 0),
+        totalExpectedExpenditure: children.reduce((sum, c) => sum + (c.totalExpectedExpenditure || 0), 0)
       };
     });
 
@@ -258,7 +280,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       const { error } = await supabase.from('expenditures').insert([{
         management_id: data.managementId,
         sub_detail: data.subDetail,
-        date: data.date,
+        date: data.date || null,
         amount: data.amount,
         supply_amount: data.supplyAmount,
         vat_amount: data.vatAmount,
@@ -281,6 +303,70 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       await get().fetchBudgets();
     } catch (err) {
       console.error('addExpenditure unexpected error:', err);
+      throw err;
+    }
+  },
+
+  updateExpenditure: async (id, data, storageOptions) => {
+    try {
+      let finalAttachmentName = data.attachmentName;
+      let finalAttachmentUrl = data.attachmentUrl;
+
+      // 파일명 변경이 필요한 경우 (메타데이터 변경으로 인한 리네임)
+      if (storageOptions?.prevPath && storageOptions?.newPath && storageOptions.prevPath !== storageOptions.newPath) {
+        try {
+          finalAttachmentUrl = await moveFileInStorage('partner-documents', storageOptions.prevPath, storageOptions.newPath);
+          finalAttachmentName = storageOptions.newPath;
+        } catch (storageErr) {
+          console.warn('Storage rename failed, proceeding with DB update only:', storageErr);
+        }
+      }
+
+      const { error } = await supabase.from('expenditures').update({
+        management_id: data.managementId,
+        sub_detail: data.subDetail,
+        date: data.date || null,
+        amount: data.amount,
+        supply_amount: data.supplyAmount,
+        vat_amount: data.vatAmount,
+        proof_type: data.proofType,
+        partner_id: data.partnerId,
+        vendor_name: data.vendor,
+        description: data.description,
+        status: data.status,
+        attachment: finalAttachmentName ? {
+          fileName: finalAttachmentName,
+          originalName: data.attachmentOriginalName,
+          fileUrl: finalAttachmentUrl
+        } : null
+      }).eq('id', id);
+
+      if (error) throw error;
+      await get().fetchBudgets();
+    } catch (err) {
+      console.error('updateExpenditure error:', err);
+      throw err;
+    }
+  },
+
+  deleteExpenditure: async (id, attachmentPath) => {
+    try {
+      // 1. DB 레코드 삭제
+      const { error } = await supabase.from('expenditures').delete().eq('id', id);
+      if (error) throw error;
+
+      // 2. 스토리지 파일 삭제 (경로가 있는 경우)
+      if (attachmentPath) {
+        try {
+          await deleteFileFromStorage('partner-documents', attachmentPath);
+        } catch (storageErr) {
+          console.warn('Failed to delete storage file during expenditure deletion:', storageErr);
+        }
+      }
+
+      await get().fetchBudgets();
+    } catch (err) {
+      console.error('deleteExpenditure error:', err);
       throw err;
     }
   },

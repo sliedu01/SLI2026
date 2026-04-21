@@ -38,11 +38,36 @@ export function getPublicUrlFromPath(bucket: string, path: string): string {
   return publicUrl || '';
 }
 
-/**
- * 파일 경로 생성을 위한 헬퍼 (특수문자 제거 및 타임스탬프 추가)
- */
 export function generateStoragePath(folder: string, filename: string): string {
-  const timestamp = Date.now();
-  const cleanName = filename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-  return `${folder}/${timestamp}_${cleanName}`;
+  // 한글, 영문, 숫자, 특수기호(.-_)를 제외한 나머지 및 공백을 언더바(_)로 치환
+  const cleanName = filename.replace(/[^a-zA-Z0-9\uAC00-\uD7A3.\-_]/g, '_');
+  return `${folder}/${cleanName}`;
+}
+
+/**
+ * 스토리지에서 파일 삭제
+ */
+export async function deleteFileFromStorage(bucket: string, path: string) {
+  const { error } = await supabase.storage.from(bucket).remove([path]);
+  if (error) {
+    console.error('Storage delete error:', error);
+    throw error;
+  }
+}
+
+/**
+ * 스토리지 내 파일 이동 (Rename)
+ */
+export async function moveFileInStorage(bucket: string, fromPath: string, toPath: string): Promise<string> {
+  const { error } = await supabase.storage.from(bucket).copy(fromPath, toPath);
+  if (error) {
+    console.error('Storage copy error:', error);
+    throw error;
+  }
+  
+  // 성공적으로 복사된 경우 원본 삭제
+  await deleteFileFromStorage(bucket, fromPath);
+  
+  // 이동된 파일의 공용 URL 반환
+  return getPublicUrlFromPath(bucket, toPath);
 }

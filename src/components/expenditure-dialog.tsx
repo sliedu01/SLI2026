@@ -28,16 +28,18 @@ import { usePartnerStore } from '@/store/use-partner-store';
 import { useBudgetStore, BudgetExecution } from '@/store/use-budget-store';
 import { useProjectStore } from '@/store/use-project-store';
 import { formatWithCommas, formatInputNumber, parseCommaNumber } from '@/lib/number-format';
+import { Expenditure } from '@/store/use-budget-store';
 
 interface ExpenditureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialManagementId?: string;
+  initialData?: Expenditure;
 }
 
-export function ExpenditureDialog({ open, onOpenChange, initialManagementId }: ExpenditureDialogProps) {
+export function ExpenditureDialog({ open, onOpenChange, initialManagementId, initialData }: ExpenditureDialogProps) {
   const { partners } = usePartnerStore();
-  const { categories, managements, addExpenditure } = useBudgetStore();
+  const { categories, managements, addExpenditure, updateExpenditure } = useBudgetStore();
 
   const [date, setDate] = React.useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedCategoryId, setSelectedCategoryId] = React.useState('');
@@ -53,16 +55,45 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId }: E
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isMaximized, setIsMaximized] = React.useState(false);
 
-  // 초기 로드시 managementId가 있으면 상위 카테고리 자동 선택
+  // 초기 로드시 managementId가 있으면 상위 카테고리 자동 선택 또는 수정 데이터 로드
   React.useEffect(() => {
-    if (initialManagementId) {
-      const man = managements.find(m => m.id === initialManagementId);
-      if (man) {
-        setSelectedCategoryId(man.categoryId);
-        setSelectedManagementId(initialManagementId);
+    if (open) {
+      if (initialData) {
+        // 수정 모드
+        const man = managements.find(m => m.id === initialData.managementId);
+        setDate(initialData.date || '');
+        setSelectedCategoryId(man?.categoryId || '');
+        setSelectedManagementId(initialData.managementId);
+        setSubDetail(initialData.subDetail);
+        setSupplyAmount(formatWithCommas(initialData.supplyAmount));
+        setVatAmount(formatWithCommas(initialData.vatAmount));
+        setProofType(initialData.proofType);
+        setSelectedPartnerId(initialData.partnerId || (initialData.vendor ? 'custom' : ''));
+        setCustomVendor(initialData.vendor || '');
+        setDescription(initialData.description || '');
+        if (initialData.attachmentName) {
+          setUploadFile({
+            originalName: initialData.attachmentOriginalName || '첨부파일',
+            fileName: initialData.attachmentName,
+            fileUrl: initialData.attachmentUrl || ''
+          });
+        } else {
+          setUploadFile(null);
+        }
+      } else if (initialManagementId) {
+        // 신규 등록 모드 (관리세목 선택된 경우)
+        const man = managements.find(m => m.id === initialManagementId);
+        if (man) {
+          setSelectedCategoryId(man.categoryId);
+          setSelectedManagementId(initialManagementId);
+        }
+        resetForm();
+      } else {
+        // 기본 신규 등록
+        resetForm();
       }
     }
-  }, [initialManagementId, managements]);
+  }, [open, initialData, initialManagementId, managements]);
 
   const filteredManagements = managements.filter(m => m.categoryId === selectedCategoryId);
 
@@ -91,15 +122,43 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId }: E
         ? customVendor
         : partners.find(p => p.id === selectedPartnerId)?.name || '';
 
+      const lv1Name = categories.find(c => c.id === selectedCategoryId)?.name || '';
+      const lv2Name = managements.find(m => m.id === selectedManagementId)?.name || '';
+
+      // 파일명 생성 함수
+      const getTargetFileName = (original: string) => {
+        const datePart = date ? date.replace(/-/g, '').slice(2) : '000000';
+        const lv1Part = lv1Name.substring(0, 2);
+        const lv2Part = lv2Name.substring(0, 2);
+        const rand = Math.floor(Math.random() * 900 + 100).toString();
+        const ext = original.includes('.') ? original.split('.').pop() : '';
+        return `${datePart}_${lv1Part}_${lv2Part}_${subDetail}_${total}_${rand}${ext ? '.' + ext : ''}`;
+      };
+
       let finalUrl = uploadFile?.fileUrl;
       let storagePath = uploadFile?.fileName;
 
+      // 1. 새 파일 업로드인 경우
       if (uploadFile?.file) {
-        storagePath = generateStoragePath('expenditures', uploadFile.fileName);
+        const newFileName = getTargetFileName(uploadFile.originalName);
+        storagePath = generateStoragePath('expenditures', newFileName);
         finalUrl = await uploadFileToStorage('partner-documents', storagePath, uploadFile.file);
+        
+        if (finalUrl?.startsWith('data:')) {
+          throw new Error('파일 저장소 업로드에 실패했습니다.');
+        }
+      } 
+      // 2. 기존 파일이 있고 파일명 구성 요소(날짜, 비목 등)가 변경된 경우 (수정 모드)
+      else if (initialData?.attachmentName && uploadFile && !uploadFile.file) {
+        const newFileName = getTargetFileName(uploadFile.originalName);
+        const newPath = `expenditures/${newFileName}`;
+        
+        if (initialData.attachmentName !== newPath) {
+          // 파일명 변경 옵션을 Store에 전달
+        }
       }
 
-      await addExpenditure({
+      const commonData = {
         managementId: selectedManagementId,
         subDetail,
         date,
@@ -110,13 +169,27 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId }: E
         partnerId: selectedPartnerId === 'custom' ? undefined : selectedPartnerId,
         vendor: vendorName,
         description,
-        status: date ? 'COMPLETED' : 'PENDING',
+        status: (date ? 'COMPLETED' : 'PENDING') as 'COMPLETED' | 'PENDING',
         attachmentOriginalName: uploadFile?.originalName,
         attachmentName: storagePath,
         attachmentUrl: finalUrl,
-      });
+      };
 
-      alert('정산 데이터가 성공적으로 등록되었습니다.');
+      if (initialData) {
+        // 수정 시 파일명 동기화 체크
+        const newFileName = getTargetFileName(uploadFile?.originalName || 'file');
+        const newPath = generateStoragePath('expenditures', newFileName);
+        
+        await updateExpenditure(initialData.id, commonData, {
+          prevPath: initialData.attachmentName,
+          newPath: uploadFile ? newPath : undefined
+        });
+        alert('정산 데이터가 성공적으로 수정되었습니다.');
+      } else {
+        await addExpenditure(commonData);
+        alert('정산 데이터가 성공적으로 등록되었습니다.');
+      }
+
       onOpenChange(false);
       resetForm();
     } catch (err: unknown) {
@@ -145,9 +218,13 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId }: E
         isMaximized ? "max-w-[1700px] w-[98vw] h-[95vh]" : "max-w-lg"
       )}>
         <DialogHeader className="bg-emerald-600 p-8 text-white relative">
-          <DialogTitle className="text-2xl font-black">정산 데이터 입력</DialogTitle>
+          <DialogTitle className="text-2xl font-black">
+            {initialData ? '정산 데이터 수정' : '정산 데이터 입력'}
+          </DialogTitle>
           <div className="flex flex-col gap-1 mt-1">
-             <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.2em]">Settlement Data Entry</p>
+             <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.2em]">
+               {initialData ? 'Edit Settlement Data' : 'Settlement Data Entry'}
+             </p>
           </div>
           <div className="absolute top-8 right-8 flex items-center gap-2">
             <Button
@@ -323,14 +400,16 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId }: E
              <FileUploadZone
                label="증빙 파일 업로드"
                value={uploadFile}
-               onRename={(originalName) => {
-                 const cleanDate = date ? date.replace(/-/g, '').slice(2) : '260000';
-                 const catName = categories.find(c => c.id === selectedCategoryId)?.name || '비목';
-                 const manName = managements.find(m => m.id === selectedManagementId)?.name || '세목';
-                 const series = Math.floor(Math.random() * 90 + 10).toString(); 
-                 const namePrefix = `${cleanDate}_${catName.slice(0,2)}_${manName.slice(0,2)}_${subDetail.slice(0,3)}_${series}_`;
-                 return `${namePrefix}${originalName}`;
-               }}
+                onRename={(originalName) => {
+                  const datePart = date ? date.replace(/-/g, '').slice(2) : '000000';
+                  const lv1Name = categories.find(c => c.id === selectedCategoryId)?.name || '비목';
+                  const lv2Name = managements.find(m => m.id === selectedManagementId)?.name || '세목';
+                  const total = parseCommaNumber(supplyAmount) + parseCommaNumber(vatAmount);
+                  const rand = Math.floor(Math.random() * 900 + 100).toString();
+                  const ext = originalName.includes('.') ? originalName.split('.').pop() : '';
+                  
+                  return `${datePart}_${lv1Name.slice(0,2)}_${lv2Name.slice(0,2)}_${subDetail}_${total}_${rand}${ext ? '.' + ext : ''}`;
+                }}
                onChange={(fileInfo) => setUploadFile(fileInfo)}
                className="h-auto"
              />
@@ -350,7 +429,7 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId }: E
             disabled={isSubmitting}
             className="flex-[2] h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-xl shadow-emerald-100 active:scale-95 transition-all outline-none border-none"
           >
-            {isSubmitting ? '저장 중...' : '집행 내역 등록 완료'}
+            {isSubmitting ? '저장 중...' : (initialData ? '수정 완료' : '집행 내역 등록 완료')}
           </Button>
         </DialogFooter>
       </DialogContent>
