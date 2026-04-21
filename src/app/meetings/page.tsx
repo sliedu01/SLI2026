@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useMeetingStore, Meeting } from "@/store/use-meeting-store";
+import { useProjectStore } from "@/store/use-project-store";
 import { 
   Video, 
   Plus, 
@@ -10,9 +12,12 @@ import {
   Edit3, 
   ChevronLeft,
   CalendarDays,
-  FileText
+  FileText,
+  Maximize2,
+  Minimize2,
+  X,
+  LayoutGrid
 } from "lucide-react";
-import { useMeetingStore, Meeting } from "@/store/use-meeting-store";
 import { MeetingMinutesDoc } from "@/components/meetings/meeting-minutes-doc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,28 +39,49 @@ export default function MeetingsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [editingMeeting, setEditingMeeting] = React.useState<Partial<Meeting>>({});
   const [sortOrder, setSortOrder] = React.useState<'asc' | 'desc'>('asc');
+  const [isMaximized, setIsMaximized] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [meetingToDelete, setMeetingToDelete] = React.useState<Meeting | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const { projects, fetchProjects } = useProjectStore();
+  const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     fetchMeetings();
+    fetchProjects();
   }, []);
 
-  // 사업 선택 시 첫 번째 회의 자동 선택
+  const lv1Projects = React.useMemo(() => 
+    projects.filter(p => p.level === 1), 
+  [projects]);
+
+  // 사업 선택 시 해당 회의록만 필터링
   const filteredMeetings = React.useMemo(() => {
     const sorted = getSortedMeetings();
-    return sortOrder === 'asc' ? sorted : [...sorted].reverse();
-  }, [meetings, sortOrder]);
+    const filtered = selectedProjectId 
+      ? sorted.filter(m => m.projectId === selectedProjectId)
+      : sorted;
+    return sortOrder === 'asc' ? filtered : [...filtered].reverse();
+  }, [meetings, sortOrder, selectedProjectId]);
 
   React.useEffect(() => {
-    if (filteredMeetings.length > 0 && !selectedMeetingId) {
-      setSelectedMeetingId(filteredMeetings[0].id);
+    if (filteredMeetings.length > 0) {
+      const isStillInList = filteredMeetings.some(m => m.id === selectedMeetingId);
+      if (!isStillInList) {
+        setSelectedMeetingId(filteredMeetings[0].id);
+      }
+    } else {
+      setSelectedMeetingId(null);
     }
-  }, [filteredMeetings]);
+  }, [filteredMeetings, selectedMeetingId]);
 
   const selectedMeeting = React.useMemo(() => 
     filteredMeetings.find(m => m.id === selectedMeetingId), 
   [filteredMeetings, selectedMeetingId]);
 
   const handleCreateMeeting = async () => {
+    setIsSaving(true);
     try {
       await addMeeting({
         ...editingMeeting as Meeting,
@@ -68,28 +94,46 @@ export default function MeetingsPage() {
       });
       setIsNewDialogOpen(false);
       setEditingMeeting({});
-    } catch (error) {
-      alert("회의 등록 중 오류가 발생했습니다.");
+    } catch (error: any) {
+      console.error("Meeting creation failed:", error);
+      alert(`회의 등록 중 오류가 발생했습니다: ${error.message || error}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleUpdateMeeting = async () => {
     if (!selectedMeetingId) return;
+    setIsSaving(true);
     try {
       await updateMeeting(selectedMeetingId, editingMeeting);
       setIsEditDialogOpen(false);
-    } catch (error) {
-      alert("회의 수정 중 오류가 발생했습니다.");
+    } catch (error: any) {
+      console.error("Meeting update failed:", error);
+      alert(`회의 수정 중 오류가 발생했습니다: ${error.message || error}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleDeleteMeeting = async (id: string) => {
-    if (!confirm("정말 이 회의록을 삭제하시겠습니까?")) return;
+  const handleDeleteClick = (meeting: Meeting) => {
+    setMeetingToDelete(meeting);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!meetingToDelete) return;
+    setIsDeleting(true);
     try {
-      await deleteMeeting(id);
-      if (selectedMeetingId === id) setSelectedMeetingId(null);
-    } catch (error) {
-      alert("회의 삭제 중 오류가 발생했습니다.");
+      await deleteMeeting(meetingToDelete.id);
+      if (selectedMeetingId === meetingToDelete.id) setSelectedMeetingId(null);
+      setIsDeleteDialogOpen(false);
+      setMeetingToDelete(null);
+    } catch (error: any) {
+      console.error("Meeting deletion failed:", error);
+      alert(`회의 삭제 중 오류가 발생했습니다: ${error.message || error}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -109,7 +153,13 @@ export default function MeetingsPage() {
         <div className="flex items-center gap-3">
           <Button 
             onClick={() => {
-              setEditingMeeting({ title: '', attendees: [], content: [] });
+              const selectedProject = projects.find(p => p.id === selectedProjectId);
+              setEditingMeeting({ 
+                title: selectedProject ? selectedProject.name : '', 
+                projectId: selectedProjectId || undefined,
+                attendees: [], 
+                content: [] 
+              });
               setIsNewDialogOpen(true);
             }} 
             className="rounded-xl h-12 bg-slate-900 hover:bg-slate-800 font-black gap-2 px-6 shadow-lg"
@@ -120,12 +170,49 @@ export default function MeetingsPage() {
       </div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-hidden min-h-0">
-          
-          {/* 좌측 리스트 (4/12) */}
-          <div className="lg:col-span-4 flex flex-col min-h-0 print:hidden">
+          {/* 좌측 사업 리스트 (2/12) */}
+          <div className="lg:col-span-2 flex flex-col min-h-0 print:hidden">
             <Card className="flex-1 border-none bg-white rounded-[2rem] shadow-xl overflow-hidden flex flex-col">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <h3 className="font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <div className="p-5 border-b border-slate-100 bg-slate-50/50">
+                <h3 className="font-black text-slate-900 tracking-tight flex items-center gap-2 text-sm">
+                  <LayoutGrid className="size-4 text-indigo-500" /> 사업 선택
+                </h3>
+              </div>
+              <div className="flex-1 overflow-auto p-3 space-y-2">
+                <div 
+                  onClick={() => setSelectedProjectId(null)}
+                  className={cn(
+                    "p-3 rounded-xl cursor-pointer transition-all border-2 text-xs font-bold",
+                    selectedProjectId === null 
+                      ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100" 
+                      : "bg-white border-transparent hover:bg-slate-50 text-slate-500"
+                  )}
+                >
+                  전체 회의록
+                </div>
+                {lv1Projects.map((p) => (
+                  <div 
+                    key={p.id}
+                    onClick={() => setSelectedProjectId(p.id)}
+                    className={cn(
+                      "p-3 rounded-xl cursor-pointer transition-all border-2 text-xs font-bold",
+                      selectedProjectId === p.id 
+                        ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100" 
+                        : "bg-white border-transparent hover:bg-slate-50 text-slate-500"
+                    )}
+                  >
+                    {p.name}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+          
+          {/* 중앙 회의 리스트 (3/12) */}
+          <div className="lg:col-span-3 flex flex-col min-h-0 print:hidden">
+            <Card className="flex-1 border-none bg-white rounded-[2rem] shadow-xl overflow-hidden flex flex-col">
+              <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 className="font-black text-slate-900 tracking-tight flex items-center gap-2 text-sm">
                   <CalendarDays className="size-4 text-indigo-500" /> 회의록 리스트
                 </h3>
                 <Button 
@@ -134,7 +221,7 @@ export default function MeetingsPage() {
                   className="rounded-lg font-black text-[10px] uppercase tracking-widest text-slate-400 hover:bg-slate-100"
                   onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                 >
-                  <ArrowUpDown className="size-3 mr-1" /> {sortOrder === 'asc' ? '날짜오름차순' : '날짜내림차순'}
+                  <ArrowUpDown className="size-3 mr-1" /> {sortOrder === 'asc' ? '날짜▲' : '날짜▼'}
                 </Button>
               </div>
               <div className="flex-1 overflow-auto p-4 space-y-3">
@@ -175,7 +262,7 @@ export default function MeetingsPage() {
                            className="size-7 rounded-lg hover:bg-white hover:text-red-600"
                            onClick={(e) => {
                              e.stopPropagation();
-                             handleDeleteMeeting(m.id);
+                             handleDeleteClick(m);
                            }}
                          >
                            <Trash2 className="size-3" />
@@ -203,7 +290,7 @@ export default function MeetingsPage() {
             </Card>
           </div>
 
-          <div className="lg:col-span-8 flex flex-col min-h-0">
+          <div className="lg:col-span-7 flex flex-col min-h-0">
              <div className="flex-1 overflow-auto rounded-[2rem] shadow-2xl bg-white border border-slate-100 print:overflow-visible print:border-none print:shadow-none">
                 {selectedMeeting ? (
                   <MeetingMinutesDoc 
@@ -228,30 +315,101 @@ export default function MeetingsPage() {
           setEditingMeeting({});
         }
       }}>
-        <DialogContent className="max-w-[1400px] w-[95vw] max-h-[95vh] overflow-auto rounded-[2rem] p-0 border-none shadow-2xl">
-          <div className="bg-slate-900 p-8 text-white">
+        <DialogContent 
+          showCloseButton={false}
+          style={{ 
+            maxWidth: isMaximized ? '1700px' : '1200px', 
+            width: isMaximized ? '98vw' : '90vw',
+          }}
+          className={cn(
+            "p-0 overflow-hidden rounded-[2rem] border-none shadow-2xl transition-all duration-300 !translate-x-[-50%] !translate-y-[-50%]",
+            isMaximized ? "h-[95vh] sm:!max-w-none" : "h-[85vh] sm:!max-w-none"
+          )}
+        >
+          <div className="bg-slate-900 p-8 text-white relative shrink-0">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black flex items-center gap-3">
                 <Video className="size-6 text-indigo-400" />
                 {isNewDialogOpen ? "신규 회의록 등록" : "회의록 수정"}
               </DialogTitle>
             </DialogHeader>
+            <div className="absolute top-8 right-8 flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMaximized(!isMaximized);
+                }}
+                className="text-slate-400 hover:text-white relative z-[60]"
+              >
+                {isMaximized ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
+              </Button>
+              <button 
+                onClick={() => {
+                   setIsNewDialogOpen(false);
+                   setIsEditDialogOpen(false);
+                   setEditingMeeting({});
+                }}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="size-6" />
+              </button>
+            </div>
           </div>
-          <div className="bg-white">
+          <div className={cn(
+            "bg-white overflow-y-auto custom-scrollbar flex-1",
+            isMaximized ? "h-[calc(95vh-80px)]" : "h-[calc(85vh-80px)]"
+          )}>
             <MeetingMinutesDoc 
               meeting={editingMeeting}
               isEditing={true}
               onUpdate={setEditingMeeting}
+              onSubmit={isNewDialogOpen ? handleCreateMeeting : handleUpdateMeeting}
+              onCancel={() => {
+                setIsNewDialogOpen(false);
+                setIsEditDialogOpen(false);
+                setEditingMeeting({});
+              }}
+              isSaving={isSaving}
+              projects={projects}
             />
           </div>
-          <DialogFooter className="p-8 bg-slate-50 flex gap-3 border-t border-slate-100">
-             <Button variant="outline" onClick={() => { setIsNewDialogOpen(false); setIsEditDialogOpen(false); }} className="rounded-xl font-bold border-slate-200">
-               취소
+        </DialogContent>
+      </Dialog>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-[400px] p-0 overflow-hidden border-none rounded-3xl shadow-2xl">
+          <div className="bg-red-50 p-8 flex flex-col items-center text-center space-y-4">
+             <div className="size-16 rounded-full bg-red-100 flex items-center justify-center animate-bounce">
+                <Trash2 className="size-8 text-red-600" />
+             </div>
+             <div className="space-y-2">
+                <h3 className="text-xl font-black text-slate-900">회의록 삭제</h3>
+                <p className="text-sm font-bold text-slate-500 leading-relaxed">
+                  정말 <span className="text-red-600">[{meetingToDelete?.title}]</span> 회의록을 삭제하시겠습니까?<br/>
+                  이 작업은 되돌릴 수 없습니다.
+                </p>
+             </div>
+          </div>
+          <div className="p-6 bg-white flex gap-3">
+             <Button 
+                variant="outline" 
+                onClick={() => setIsDeleteDialogOpen(false)}
+                className="flex-1 h-12 rounded-xl font-black border-slate-200"
+                disabled={isDeleting}
+             >
+                취소
              </Button>
-             <Button onClick={isNewDialogOpen ? handleCreateMeeting : handleUpdateMeeting} className="rounded-xl font-black bg-slate-900 px-8">
-               {isNewDialogOpen ? "등록하기" : "수정 완료"}
+             <Button 
+                onClick={handleConfirmDelete}
+                className="flex-1 h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black shadow-lg shadow-red-100"
+                disabled={isDeleting}
+             >
+                {isDeleting ? "삭제 중..." : "확인 및 삭제"}
              </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

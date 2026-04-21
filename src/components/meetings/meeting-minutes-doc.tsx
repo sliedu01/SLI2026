@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Meeting, MeetingAttendee, MeetingContent } from "@/store/use-meeting-store";
+import { Project } from "@/store/use-project-store";
 import { cn } from "@/lib/utils";
 
 interface MeetingMinutesDocProps {
@@ -13,14 +14,26 @@ interface MeetingMinutesDocProps {
   isEditing?: boolean;
   onUpdate?: (updates: Partial<Meeting>) => void;
   onPrint?: () => void;
+  onSubmit?: () => void; // 저장 버튼 클릭 시 호출
+  onCancel?: () => void; // 취소 버튼 클릭 시 호출
+  isSaving?: boolean;
+  projects?: Project[];
 }
 
 export function MeetingMinutesDoc({ 
   meeting = {}, 
   isEditing = false,
   onUpdate,
-  onPrint
+  onPrint,
+  onSubmit,
+  onCancel,
+  isSaving = false,
+  projects = []
 }: MeetingMinutesDocProps) {
+  
+  const lv1Projects = React.useMemo(() => 
+    projects.filter(p => p.level === 1),
+  [projects]);
   
   const handleChange = (field: keyof Meeting, value: any) => {
     if (onUpdate) onUpdate({ ...meeting, [field]: value });
@@ -58,9 +71,9 @@ export function MeetingMinutesDoc({
 
   return (
     <div className={cn(
-      "bg-white relative print:shadow-none print:border-none print:p-0 min-h-[1000px]",
+      "bg-white relative print:shadow-none print:border-none print:p-0",
       isEditing 
-        ? "p-4 md:p-6 lg:p-8" 
+        ? "p-6 md:p-10 lg:p-16" 
         : "p-8 md:p-16 lg:p-24 shadow-2xl rounded-[1rem] border border-slate-200"
     )}>
       
@@ -76,14 +89,44 @@ export function MeetingMinutesDoc({
       {/* 헤더 */}
       <div className="text-center mb-16 px-10">
         {isEditing ? (
-          <div className="space-y-2">
-            <p className="text-xs font-black text-slate-400 text-left mb-1">회의 제목 / 사업명</p>
-            <Input 
-              value={meeting.title || ''} 
-              onChange={(e) => handleChange('title', e.target.value)}
-              className="text-2xl font-black text-center h-16 rounded-xl border-dashed border-slate-300 focus:border-slate-900 transition-all"
-              placeholder="사업명 또는 회의 주제를 입력하세요"
-            />
+          <div className="space-y-6 bg-slate-50 p-8 rounded-3xl border-2 border-dashed border-slate-200">
+            <div className="text-center space-y-2">
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">연동 사업 선택 (LV1)</p>
+              <select 
+                value={meeting.projectId || ''}
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  const project = projects.find(p => p.id === selectedId);
+                  if (project) {
+                    if (onUpdate) onUpdate({ 
+                      ...meeting, 
+                      projectId: selectedId, 
+                      title: project.name 
+                    });
+                  } else {
+                    if (onUpdate) onUpdate({ 
+                      ...meeting, 
+                      projectId: undefined 
+                    });
+                  }
+                }}
+                className="w-full max-w-2xl h-14 bg-white rounded-xl border-2 border-slate-200 font-bold px-4 focus:border-indigo-500 outline-none transition-all cursor-pointer"
+              >
+                <option value="">사업을 선택해 주세요 (필터링된 LV1 리스트)</option>
+                {lv1Projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest text-center">회의 제목</p>
+              <Input 
+                value={meeting.title || ''} 
+                onChange={(e) => handleChange('title', e.target.value)}
+                className="text-2xl font-black text-center h-16 rounded-xl border-none bg-white shadow-inner focus:ring-2 focus:ring-indigo-100 transition-all font-serif"
+                placeholder="사업명 또는 회의 주제를 입력하세요"
+              />
+            </div>
           </div>
         ) : (
           <h1 className="text-2xl md:text-3xl font-black text-slate-900 border-b-4 border-slate-900 pb-4 inline-block tracking-tighter leading-tight">
@@ -102,29 +145,31 @@ export function MeetingMinutesDoc({
             <table className="w-full border-collapse">
               <tbody>
                 <tr className="border-b border-slate-900">
-                  <td className="w-32 bg-slate-50 p-4 font-black text-slate-700 text-center border-r border-slate-900">일시</td>
-                  <td className="p-4">
+                  <td className="w-24 md:w-48 bg-slate-50 p-6 font-black text-slate-700 text-center border-r border-slate-900 shrink-0">일시</td>
+                  <td className="p-6">
                     {isEditing ? (
-                      <div className="flex gap-4 items-center">
+                      <div className="flex flex-wrap gap-4 items-center">
                         <Input 
                           type="date" 
                           value={meeting.date || ''} 
                           onChange={(e) => handleChange('date', e.target.value)}
-                          className="w-40"
+                          className="w-full md:w-56 h-14 rounded-xl font-bold text-lg"
                         />
-                        <Input 
-                          type="time" 
-                          value={meeting.startTime || ''} 
-                          onChange={(e) => handleChange('startTime', e.target.value)}
-                          className="w-32"
-                        />
-                        <span>~</span>
-                        <Input 
-                          type="time" 
-                          value={meeting.endTime || ''} 
-                          onChange={(e) => handleChange('endTime', e.target.value)}
-                          className="w-32"
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            type="time" 
+                            value={meeting.startTime || ''} 
+                            onChange={(e) => handleChange('startTime', e.target.value)}
+                            className="w-32 h-12 rounded-xl font-bold"
+                          />
+                          <span className="font-bold text-slate-400">~</span>
+                          <Input 
+                            type="time" 
+                            value={meeting.endTime || ''} 
+                            onChange={(e) => handleChange('endTime', e.target.value)}
+                            className="w-32 h-12 rounded-xl font-bold"
+                          />
+                        </div>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 text-slate-700 font-bold">
@@ -137,13 +182,14 @@ export function MeetingMinutesDoc({
                   </td>
                 </tr>
                 <tr className="border-b border-slate-900">
-                  <td className="bg-slate-50 p-4 font-black text-slate-700 text-center border-r border-slate-900">장소</td>
-                  <td className="p-4">
+                  <td className="w-24 md:w-48 bg-slate-50 p-6 font-black text-slate-700 text-center border-r border-slate-900 shrink-0">장소</td>
+                  <td className="p-6">
                     {isEditing ? (
                       <Input 
                         value={meeting.location || ''} 
                         onChange={(e) => handleChange('location', e.target.value)}
                         placeholder="회의 장소를 입력하세요 (100자 이내)"
+                        className="w-full h-14 rounded-xl font-bold text-lg"
                       />
                     ) : (
                       <div className="flex items-center gap-2 text-slate-700 font-bold">
@@ -154,8 +200,8 @@ export function MeetingMinutesDoc({
                   </td>
                 </tr>
                 <tr>
-                  <td className="bg-slate-50 p-4 font-black text-slate-700 text-center border-r border-slate-900">참석자</td>
-                  <td className="p-4">
+                  <td className="w-24 md:w-48 bg-slate-50 p-6 font-black text-slate-700 text-center border-r border-slate-900 shrink-0">참석자</td>
+                  <td className="p-6">
                     {isEditing ? (
                       <div className="space-y-3">
                         {(meeting.attendees || []).map((att, idx) => (
@@ -215,6 +261,7 @@ export function MeetingMinutesDoc({
                         value={meeting.purpose || ''} 
                         onChange={(e) => handleChange('purpose', e.target.value)}
                         placeholder="회의 목적을 입력하세요 (200자 이내)"
+                        className="w-full h-12 rounded-xl font-bold"
                       />
                     ) : (
                       <span className="text-slate-700 font-bold">{meeting.purpose || '-'}</span>
@@ -229,6 +276,7 @@ export function MeetingMinutesDoc({
                         value={meeting.agenda || ''} 
                         onChange={(e) => handleChange('agenda', e.target.value)}
                         placeholder="주요 안건을 입력하세요 (300자 이내)"
+                        className="w-full min-h-[80px] rounded-xl font-medium"
                       />
                     ) : (
                       <p className="text-slate-700 font-bold whitespace-pre-wrap">{meeting.agenda || '-'}</p>
@@ -236,13 +284,14 @@ export function MeetingMinutesDoc({
                   </td>
                 </tr>
                 <tr className="border-b border-slate-900">
-                  <td className="bg-slate-50 p-4 font-black text-slate-700 text-center border-r border-slate-900">준비사항</td>
+                  <td className="w-24 md:w-40 bg-slate-50 p-4 font-black text-slate-700 text-center border-r border-slate-900 shrink-0">준비사항</td>
                   <td className="p-4">
                     {isEditing ? (
                       <Input 
                         value={meeting.preparations || ''} 
                         onChange={(e) => handleChange('preparations', e.target.value)}
                         placeholder="회의 전 준비사항을 입력하세요"
+                        className="w-full h-12 rounded-xl font-bold"
                       />
                     ) : (
                       <span className="text-slate-700 font-bold">{meeting.preparations || '-'}</span>
@@ -250,7 +299,7 @@ export function MeetingMinutesDoc({
                   </td>
                 </tr>
                 <tr className="border-b border-slate-900">
-                  <td className="bg-slate-50 p-4 font-black text-slate-700 text-center border-r border-slate-900">회의내용</td>
+                  <td className="w-24 md:w-40 bg-slate-50 p-4 font-black text-slate-700 text-center border-r border-slate-900 shrink-0">회의내용</td>
                   <td className="p-4">
                     {isEditing ? (
                       <div className="space-y-4">
@@ -293,7 +342,7 @@ export function MeetingMinutesDoc({
                   </td>
                 </tr>
                 <tr className="border-b border-slate-900">
-                  <td className="bg-slate-50 p-4 font-black text-slate-700 text-center border-r border-slate-900">기타사항</td>
+                  <td className="w-24 md:w-40 bg-slate-50 p-4 font-black text-slate-700 text-center border-r border-slate-900 shrink-0">기타사항</td>
                   <td className="p-4">
                      {isEditing ? (
                        <Input 
@@ -307,7 +356,7 @@ export function MeetingMinutesDoc({
                   </td>
                 </tr>
                 <tr>
-                  <td className="bg-slate-50 p-4 font-black text-slate-700 text-center border-r border-slate-900">차기일정</td>
+                  <td className="w-24 md:w-40 bg-slate-50 p-4 font-black text-slate-700 text-center border-r border-slate-900 shrink-0">차기일정</td>
                   <td className="p-4">
                      {isEditing ? (
                        <Input 
@@ -325,6 +374,26 @@ export function MeetingMinutesDoc({
           </div>
         </section>
       </div>
+
+      {/* 저장/취소 버튼 (isEditing 모드 전용) */}
+      {isEditing && (
+        <div className="mt-12 flex gap-6 print:hidden px-20 pb-32">
+          <Button 
+            variant="outline" 
+            onClick={onCancel}
+            className="flex-1 h-20 rounded-2xl border-2 border-slate-200 text-slate-600 font-black text-2xl hover:bg-slate-50 shadow-lg"
+          >
+            취소하기
+          </Button>
+          <Button 
+            onClick={onSubmit}
+            disabled={isSaving}
+            className="flex-[3] h-20 rounded-2xl bg-indigo-600 text-white font-black text-2xl shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? "처리 중..." : "회의록 저장 및 최종 확정"}
+          </Button>
+        </div>
+      )}
 
       {/* 푸터 (브라우저에서만 보임) */}
       <div className="mt-20 pt-8 border-t border-slate-100 text-center print:hidden">

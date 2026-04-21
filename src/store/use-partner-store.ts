@@ -60,9 +60,9 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
         email: p.email || '',
         address: p.address || '',
         documents: ((p.documents as unknown as PartnerDocument[]) || []).map(d => {
-          // 파일 URL이 없거나 만료된 구형 데이터인 경우 복구 시도
-          if (!d.fileUrl && d.fileName) {
-            const bucket = d.type.includes('계약서') ? 'partner-documents' : 'partner-documents';
+          // 파일 경로(fileName)가 있다면 항상 최신 공용 URL을 재생성하여 유실 방지
+          if (d.fileName) {
+            const bucket = 'partner-documents';
             const path = d.fileName.includes('/') ? d.fileName : `partners/${d.fileName}`;
             return { ...d, fileUrl: getPublicUrlFromPath(bucket, path) };
           }

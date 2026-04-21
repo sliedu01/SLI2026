@@ -25,6 +25,7 @@ export interface Meeting {
   content: MeetingContent[];
   others: string;
   nextSchedule: string;
+  projectId?: string;
   createdAt: number;
 }
 
@@ -71,6 +72,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
         content: m.content || [],
         others: m.others || '',
         nextSchedule: m.next_schedule || '',
+        projectId: m.project_id || undefined,
         createdAt: new Date(m.created_at).getTime(),
       }));
       set({ meetings: mapped });
@@ -94,9 +96,13 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
         content: meetingData.content,
         others: meetingData.others,
         next_schedule: meetingData.nextSchedule,
+        project_id: meetingData.projectId,
       }]);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Add meeting error details:', error);
+      throw error;
+    }
     await get().fetchMeetings();
   },
 
@@ -114,6 +120,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
     if (updates.content !== undefined) updateData.content = updates.content;
     if (updates.others !== undefined) updateData.others = updates.others;
     if (updates.nextSchedule !== undefined) updateData.next_schedule = updates.nextSchedule;
+    if (updates.projectId !== undefined) updateData.project_id = updates.projectId;
 
     const { error } = await supabase
       .from('meetings')

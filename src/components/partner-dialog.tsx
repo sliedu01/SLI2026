@@ -6,7 +6,9 @@ import {
   Plus, 
   Trash2,
   RefreshCw,
-  Info
+  Info,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 import { 
@@ -24,6 +26,7 @@ import { Project } from '@/store/use-project-store';
 import { FileUploadZone } from './file-upload-zone';
 import { Separator } from '@/components/ui/separator';
 import { uploadFileToStorage, generateStoragePath } from '@/lib/storage';
+import { cn } from '@/lib/utils';
 
 interface PartnerDialogProps {
   open: boolean;
@@ -32,6 +35,14 @@ interface PartnerDialogProps {
   mode?: 'add' | 'edit';
   partnerId?: string;
 }
+
+// 안전한 ID 생성 헬퍼
+const generateSafeId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+};
 
 export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partnerId }: PartnerDialogProps) {
   const { partners, addPartner, updatePartner } = usePartnerStore();
@@ -43,6 +54,7 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
   const [email, setEmail] = React.useState('');
   const [address, setAddress] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isMaximized, setIsMaximized] = React.useState(false);
   
   // 가변 계약서 리스트
   const [contracts, setContracts] = React.useState<{id: string, name: string, originalName?: string, fileUrl?: string, file?: File}[]>([{ id: 'c1', name: '' }]);
@@ -113,19 +125,25 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
         if (!info) continue;
 
         let finalUrl = info.fileUrl;
+        let storagePath = info.fileName;
         
         // 새로 선택된 파일이 있는 경우에만 클라우드 업로드 수행
         if (info.file) {
-          const path = generateStoragePath('partners', info.fileName);
-          finalUrl = await uploadFileToStorage('partner-documents', path, info.file);
+          storagePath = generateStoragePath('partners', info.fileName);
+          finalUrl = await uploadFileToStorage('partner-documents', storagePath, info.file);
         }
 
         if (finalUrl) {
+          // [중요] 만약 업로드를 거치지 않아 여전히 Base64(data:) 형태라면 데이터베이스 저장을 차단
+          if (finalUrl.startsWith('data:')) {
+            throw new Error(`${type} 파일 업로드에 실패했습니다. 다시 시도해 주세요.`);
+          }
+
           combinedDocs.push({
-            id: crypto.randomUUID(),
+            id: generateSafeId(),
             type,
             originalName: info.originalName,
-            fileName: info.fileName,
+            fileName: storagePath,
             fileUrl: finalUrl
           });
         }
@@ -136,18 +154,24 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
         const c = contracts[i];
         if (c.name) {
           let finalUrl = c.fileUrl;
+          let storagePath = c.name;
           
           if (c.file) {
-            const path = generateStoragePath('partners', c.name);
-            finalUrl = await uploadFileToStorage('partner-documents', path, c.file);
+            storagePath = generateStoragePath('partners', c.name);
+            finalUrl = await uploadFileToStorage('partner-documents', storagePath, c.file);
           }
 
           if (finalUrl) {
+            // [중요] 만약 업로드를 거치지 않아 여전히 Base64(data:) 형태라면 데이터베이스 저장을 차단
+            if (finalUrl.startsWith('data:')) {
+              throw new Error(`${i+1}회차 계약서 파일 업로드에 실패했습니다. 다시 시도해 주세요.`);
+            }
+
             combinedDocs.push({
-              id: c.id || crypto.randomUUID(),
+              id: c.id || generateSafeId(),
               type: `${i+1}회차 계약서`,
               originalName: c.originalName || c.name,
-              fileName: c.name,
+              fileName: storagePath,
               fileUrl: finalUrl
             });
           }
@@ -171,10 +195,15 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
       }
 
       onOpenChange(false);
-    } catch (err) {
-      const error = err as Error;
-      console.error('Submit error:', error);
-      alert(`데이터 저장 및 파일 업로드 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
+    } catch (err: any) {
+      console.error('Submit error:', err);
+      // 구체적인 에러 메시지 제공
+      const errorMsg = err?.message || '알 수 없는 오류';
+      if (errorMsg.includes('storage') || errorMsg.includes('upload')) {
+        alert(`파일 업로드 중 오류가 발생했습니다. 저장소(Bucket) 권한이나 네트워크를 확인해주세요.\n(에러: ${errorMsg})`);
+      } else {
+        alert(`데이터 저장 중 오류가 발생했습니다: ${errorMsg}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -182,7 +211,10 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] md:max-w-4xl lg:max-w-5xl p-0 overflow-hidden rounded-[2rem] border-none shadow-2xl">
+      <DialogContent className={cn(
+        "p-0 overflow-hidden rounded-[2rem] border-none shadow-2xl transition-all duration-300",
+        isMaximized ? "max-w-[1700px] w-[98vw] h-[95vh]" : "max-w-[95vw] md:max-w-4xl lg:max-w-5xl"
+      )}>
         <DialogHeader className="bg-slate-900 p-8 text-white relative">
            <DialogTitle className="text-2xl font-black">
              {mode === 'add' ? '협력업체 신규 등록' : '협력업체 정보 수정'}
@@ -190,15 +222,28 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
            <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">
              Global Partner Registry & Compliance
            </p>
-           <button 
-             onClick={() => onOpenChange(false)}
-             className="absolute top-8 right-8 text-slate-400 hover:text-white transition-colors"
-           >
-             <X className="size-6" />
-           </button>
+            <div className="absolute top-8 right-8 flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsMaximized(!isMaximized)}
+                className="text-slate-400 hover:text-white"
+              >
+                {isMaximized ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
+              </Button>
+              <button 
+                onClick={() => onOpenChange(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="size-6" />
+              </button>
+            </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="p-10 space-y-10 max-h-[75vh] overflow-y-auto custom-scrollbar bg-slate-50/50">
+        <form onSubmit={handleSubmit} className={cn(
+          "p-10 space-y-10 overflow-y-auto custom-scrollbar bg-slate-50/50",
+          isMaximized ? "h-[calc(95vh-160px)]" : "max-h-[75vh]"
+        )}>
           <section className="space-y-6">
             <div className="grid gap-2.5">
               <Label className="text-xs font-black text-blue-600 ml-1 uppercase">업체명 <span className="text-red-500">*</span></Label>
@@ -335,7 +380,7 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
                   type="button" 
                   variant="ghost" 
                   size="sm" 
-                  onClick={() => setContracts(prev => [...prev, { id: crypto.randomUUID(), name: '' }])}
+                  onClick={() => setContracts(prev => [...prev, { id: generateSafeId(), name: '' }])}
                   className="h-8 rounded-lg font-black text-[10px] text-blue-600 hover:bg-blue-50"
                 >
                   <Plus className="size-3 mr-1" /> 서류 항목 추가
@@ -363,10 +408,11 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
                               ...newList[i],
                               name: fileInfo.fileName,
                               originalName: fileInfo.originalName,
-                              fileUrl: fileInfo.fileUrl
+                              fileUrl: fileInfo.fileUrl,
+                              file: fileInfo.file // [수정] 실제 파일 객체 보관
                             };
                           } else {
-                            newList[i] = { ...newList[i], name: '', originalName: '', fileUrl: '' };
+                            newList[i] = { ...newList[i], name: '', originalName: '', fileUrl: '', file: undefined };
                           }
                           setContracts(newList);
                         }}
@@ -380,37 +426,37 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
                            <Trash2 className="size-3.5" />
                         </button>
                       )}
-                   </div>
-                ))}
-             </div>
-          </section>
-        </form>
-
-        <DialogFooter className="p-8 bg-white border-t border-slate-50 flex gap-3">
-          <Button 
-            type="button" 
-            variant="ghost" 
-            onClick={() => onOpenChange(false)}
-            className="flex-1 h-16 rounded-2xl border-slate-100 text-slate-500 font-black"
-          >
-            취소
-          </Button>
-          <Button 
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="flex-[2] h-16 rounded-2xl bg-slate-900 text-white font-black shadow-2xl hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? (
-              <div className="flex items-center gap-2">
-                <RefreshCw className="size-5 animate-spin" />
-                <span>처리 중...</span>
+                    </div>
+                 ))}
               </div>
-            ) : (
-              mode === 'add' ? '업체 등록하기' : '정보 수정 완료'
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+           </section>
+         </form>
+ 
+         <DialogFooter className="p-8 bg-white border-t border-slate-50 flex gap-3">
+           <Button 
+             type="button" 
+             variant="ghost" 
+             onClick={() => onOpenChange(false)}
+             className="flex-1 h-16 rounded-2xl border-slate-100 text-slate-500 font-black"
+           >
+             취소
+           </Button>
+           <Button 
+             onClick={handleSubmit}
+             disabled={isSubmitting}
+             className="flex-[2] h-16 rounded-2xl bg-slate-900 text-white font-black shadow-2xl hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+           >
+             {isSubmitting ? (
+               <div className="flex items-center gap-2">
+                 <RefreshCw className="size-5 animate-spin" />
+                 <span>처리 중...</span>
+               </div>
+             ) : (
+               mode === 'add' ? '업체 등록하기' : '정보 수정 완료'
+             )}
+           </Button>
+         </DialogFooter>
+       </DialogContent>
+     </Dialog>
   );
 }

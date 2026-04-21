@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { format, isValid } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Plus, Trash2, CalendarIcon, Users } from 'lucide-react';
+import { Plus, Trash2, CalendarIcon, Users, Maximize2, Minimize2, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -64,6 +64,7 @@ export function ProjectDialog({
   const [partnerId, setPartnerId] = React.useState<string>('none');
   const [location, setLocation] = React.useState('');
   const [sessions, setSessions] = React.useState<ProjectSession[]>([]);
+  const [isMaximized, setIsMaximized] = React.useState(false);
 
   React.useEffect(() => {
     if (open) {
@@ -179,18 +180,42 @@ export function ProjectDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl">
+      <DialogContent className={cn(
+        "p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl transition-all duration-300",
+        isMaximized ? "max-w-[1700px] w-[98vw] h-[95vh]" : "max-w-[95vw] md:max-w-4xl lg:max-w-5xl"
+      )}>
         <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black tracking-tight text-slate-900">
+          <DialogHeader className="bg-slate-900 p-8 text-white relative">
+            <DialogTitle className="text-2xl font-black">
               {mode === 'add' ? '신규 사업 등록' : '사업 정보 수정'}
             </DialogTitle>
-            <DialogDescription className="text-sm font-medium text-slate-500">
-              Lv {level}. {level === 1 ? '사업' : level === 2 ? '세부 사업' : level === 3 ? '단위 과업' : '강좌/활동'} 정보를 입력해주세요.
+            <DialogDescription className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">
+              Lv {level}. {level === 1 ? '사업' : level === 2 ? '세부 사업' : level === 3 ? '단위 과업' : '강좌/활동'} 정보 관리
             </DialogDescription>
+            <div className="absolute top-8 right-8 flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                onClick={() => setIsMaximized(!isMaximized)}
+                className="text-slate-400 hover:text-white"
+              >
+                {isMaximized ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
+              </Button>
+              <button 
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="size-6" />
+              </button>
+            </div>
           </DialogHeader>
           
-          <div className="grid gap-6 py-6">
+          <div className={cn(
+            "p-10 space-y-10 overflow-y-auto custom-scrollbar bg-slate-50/50",
+            isMaximized ? "h-[calc(95vh-160px)]" : "max-h-[70vh]"
+          )}>
             <div className="grid gap-6">
               <div className="grid gap-2">
                 <Label htmlFor="name" className="text-xs font-black text-slate-400 uppercase tracking-wider">사업명</Label>
@@ -373,12 +398,12 @@ export function ProjectDialog({
               <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="상세 내용" className="min-h-[80px] font-medium rounded-xl" />
             </div>
           </div>
-          <DialogFooter className="gap-3 sm:gap-0 mt-4 pt-6 border-t border-slate-100 flex gap-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="font-bold h-12 rounded-xl flex-1 text-slate-500">취소</Button>
+          <DialogFooter className="p-8 bg-white border-t border-slate-50 flex gap-3">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="flex-1 h-14 rounded-2xl font-black text-slate-400 hover:text-slate-600">취소</Button>
             <Button 
               type="submit" 
               disabled={isSaving}
-              className="font-bold px-10 h-12 rounded-xl flex-[2] bg-slate-900 text-white hover:bg-black transition-all shadow-xl shadow-slate-200"
+              className="flex-[2] h-14 rounded-2xl bg-slate-900 text-white font-black shadow-xl hover:bg-slate-800 transition-all"
             >
               {isSaving ? '저장 중...' : '사업 정보 저장하기'}
             </Button>
