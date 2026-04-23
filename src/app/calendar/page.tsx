@@ -17,6 +17,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function CalendarPage() {
   const { 
@@ -41,7 +47,22 @@ export default function CalendarPage() {
   const lv1Projects = projects.filter(p => p.level === 1);
   const effectiveSelectedIds = selectedLv1Ids.length > 0 ? selectedLv1Ids : lv1Projects.map(p => p.id);
 
+  const [selectedLv2Ids, setSelectedLv2Ids] = React.useState<string[]>([]);
+
+  const lv2Projects = React.useMemo(() => 
+    projects.filter(p => p.level === 2 && effectiveSelectedIds.includes(p.parentId!)),
+    [projects, effectiveSelectedIds]
+  );
+
+  // LV1 필터가 바뀔 때 LV2 선택 초기화 (선택된 LV2가 현재 활성 LV1에 속하지 않는 경우 대비)
+  React.useEffect(() => {
+    setSelectedLv2Ids(prev => prev.filter(id => lv2Projects.some(p => p.id === id)));
+  }, [lv2Projects]);
+
+  const effectiveLv2Ids = selectedLv2Ids.length > 0 ? selectedLv2Ids : lv2Projects.map(p => p.id);
+
   const getDescendantIds = React.useCallback((parentIds: string[]): string[] => {
+    if (parentIds.length === 0) return [];
     let result = [...parentIds];
     const children = projects.filter(p => p.parentId && parentIds.includes(p.parentId));
     if (children.length > 0) {
@@ -50,7 +71,7 @@ export default function CalendarPage() {
     return result;
   }, [projects]);
 
-  const filteredProjectIds = React.useMemo(() => getDescendantIds(effectiveSelectedIds), [getDescendantIds, effectiveSelectedIds]);
+  const filteredProjectIds = React.useMemo(() => getDescendantIds(effectiveLv2Ids), [getDescendantIds, effectiveLv2Ids]);
 
   const getLv2Name = React.useCallback((parentId: string | null): string => {
     if (!parentId) return '';
@@ -144,6 +165,14 @@ export default function CalendarPage() {
     }
   };
 
+  const toggleLv2 = (id: string) => {
+    if (selectedLv2Ids.includes(id)) {
+      setSelectedLv2Ids(selectedLv2Ids.filter(sid => sid !== id));
+    } else {
+      setSelectedLv2Ids([...selectedLv2Ids, id]);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="flex justify-between items-center bg-white/50 backdrop-blur-xl p-8 rounded-[2rem] border border-slate-100 shadow-xl">
@@ -202,6 +231,49 @@ export default function CalendarPage() {
               </div>
             </PopoverContent>
           </Popover>
+
+          <div className="h-12 w-px bg-slate-100 mx-2" />
+
+          {/* LV2 필터링 버튼 (1, 2, 3...) */}
+          <TooltipProvider delay={0}>
+            <div className="flex items-center gap-2">
+              {lv2Projects.map((p, index) => {
+                const isSelected = selectedLv2Ids.includes(p.id);
+                return (
+                  <Tooltip key={p.id}>
+                    <TooltipTrigger render={
+                      <Button
+                        variant={isSelected ? "default" : "outline"}
+                        size="icon"
+                        onClick={() => toggleLv2(p.id)}
+                        className={cn(
+                          "size-10 rounded-xl font-black text-lg transition-all active:scale-90",
+                          isSelected 
+                            ? "bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 text-white" 
+                            : "border-slate-200 text-slate-300 hover:text-indigo-600 hover:border-indigo-200"
+                        )}
+                      >
+                        {index + 1}
+                      </Button>
+                    } />
+                    <TooltipContent side="bottom" className="rounded-xl border-none shadow-2xl p-3 bg-slate-900">
+                      <p className="font-black text-xs text-white">{p.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+              {lv2Projects.length > 0 && selectedLv2Ids.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setSelectedLv2Ids([])}
+                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 ml-2"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </TooltipProvider>
         </div>
         <Button className="rounded-xl h-12 bg-slate-900 font-black gap-2 px-6">
           <Plus className="size-4" /> 일정 등록
