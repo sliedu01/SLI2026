@@ -63,22 +63,37 @@ export default function CalendarPage() {
 
   const getDescendantIds = React.useCallback((parentIds: string[]): string[] => {
     if (parentIds.length === 0) return [];
-    let result = [...parentIds];
-    const children = projects.filter(p => p.parentId && parentIds.includes(p.parentId));
-    if (children.length > 0) {
-      result = [...result, ...getDescendantIds(children.map(c => c.id))];
-    }
-    return result;
+    const visited = new Set<string>();
+    
+    const collect = (ids: string[], depth: number = 0): string[] => {
+      if (ids.length === 0 || depth > 10) return []; // 보안: 최대 10단계까지만 탐색
+      let result = [...ids];
+      const children = projects.filter(p => p.parentId && ids.includes(p.parentId) && !visited.has(p.id));
+      
+      children.forEach(c => visited.add(c.id));
+      
+      if (children.length > 0) {
+        result = [...result, ...collect(children.map(c => c.id), depth + 1)];
+      }
+      return result;
+    };
+    
+    return collect(parentIds);
   }, [projects]);
 
   const filteredProjectIds = React.useMemo(() => getDescendantIds(effectiveLv2Ids), [getDescendantIds, effectiveLv2Ids]);
 
   const getLv2Name = React.useCallback((parentId: string | null): string => {
-    if (!parentId) return '';
-    const parent = projects.find(p => p.id === parentId);
-    if (!parent) return '';
-    if (parent.level === 2) return parent.name;
-    return getLv2Name(parent.parentId);
+    const visited = new Set<string>();
+    const find = (id: string | null, depth: number = 0): string => {
+      if (!id || depth > 5 || visited.has(id)) return '';
+      visited.add(id);
+      const parent = projects.find(p => p.id === id);
+      if (!parent) return '';
+      if (parent.level === 2) return parent.name;
+      return find(parent.parentId, depth + 1);
+    };
+    return find(parentId);
   }, [projects]);
 
   const events = React.useMemo(() => {
@@ -140,7 +155,8 @@ export default function CalendarPage() {
       // 1. 실행 내역(LV3 budget)이 있는 경우 프로젝트와 직접 연결 확인
       let isVisible = false;
       if (exp.executionId) {
-        const execution = useBudgetStore.getState().executions.find(e => e.id === exp.executionId);
+        const executions = useBudgetStore.getState().executions || [];
+        const execution = executions.find(e => e.id === exp.executionId);
         if (execution?.projectId && filteredProjectIds.includes(execution.projectId)) {
           isVisible = true;
         }
@@ -149,14 +165,13 @@ export default function CalendarPage() {
       // 2. 실행 내역이 없거나 연결 안 된 경우 카테고리(LV1) 기준으로 최소한의 필터링
       if (!isVisible && category && category.projectId && effectiveSelectedIds.includes(category.projectId)) {
         // LV2 필터가 활성화된 경우, 해당 LV1에 속한 모든 지출을 보여줄지 아니면 숨길지 결정
-        // 여기서는 LV1이 일치하면 일단 보여주되, LV2 필터링은 프로젝트 중심이므로 유지
         isVisible = selectedLv2Ids.length === 0; 
       }
       
       if (isVisible) {
         allEvents.push({
           id: `exp-${exp.id}`,
-          title: `${management?.name || '관리세목'}, ${exp.subDetail}, ${exp.vendor}, ${exp.amount.toLocaleString()}원`,
+          title: `${management?.name || '관리세목'}, ${exp.subDetail}, ${exp.vendor}, ${(exp.amount || 0).toLocaleString()}원`,
           start: exp.date,
           allDay: true,
           extendedProps: {
