@@ -86,38 +86,41 @@ export default function CalendarPage() {
 
     // 1. 사업 관리 (필터링 적용)
     projects
-      .filter(p => p.level === 3 && filteredProjectIds.includes(p.id))
-      .forEach(lv3 => {
-        const lv2Name = getLv2Name(lv3.parentId);
-        const partner = partners.find(ptr => ptr.id === lv3.partnerId);
+      .filter(p => (p.level === 2 || p.level === 3) && filteredProjectIds.includes(p.id))
+      .forEach(p => {
+        const lv2Name = p.level === 2 ? p.name : getLv2Name(p.parentId);
+        const partner = partners.find(ptr => ptr.id === p.partnerId);
         const partnerName = partner?.name || '미지정';
 
-        if (lv3.sessions && lv3.sessions.length > 0) {
-          lv3.sessions.forEach((s, idx) => {
+        if (p.level === 3 && p.sessions && p.sessions.length > 0) {
+          p.sessions.forEach((s, idx) => {
             if (!s.startDate) return;
             allEvents.push({
-              id: `session-${lv3.id}-${idx}`,
-              title: `${lv2Name}_${partnerName}_${s.content || lv3.name}`,
+              id: `session-${p.id}-${idx}`,
+              title: `${lv2Name}_${partnerName}_${s.content || p.name}`,
               start: `${s.startDate}T${s.startTime || '09:00'}:00`,
               end: `${s.endDate || s.startDate}T${s.endTime || '18:00'}:00`,
-              extendedProps: { type: 'project', partner: partnerName, location: lv3.location }
+              extendedProps: { type: 'project', partner: partnerName, location: p.location }
             });
           });
-        } else if (lv3.startDate) {
+        } else if (p.startDate) {
           allEvents.push({
-            id: `project-${lv3.id}`,
-            title: `${lv2Name}_${partnerName}_${lv3.name}`,
-            start: `${lv3.startDate}T${lv3.startTime || '09:00'}:00`,
-            end: `${lv3.endDate || lv3.startDate}T${lv3.endTime || '18:00'}:00`,
-            extendedProps: { type: 'project', partner: partnerName, location: lv3.location }
+            id: `project-${p.id}`,
+            title: p.level === 2 ? `[${p.name}] 전체 일정` : `${lv2Name}_${partnerName}_${p.name}`,
+            start: `${p.startDate}T${p.startTime || '09:00'}:00`,
+            end: `${p.endDate || p.startDate}T${p.endTime || '18:00'}:00`,
+            extendedProps: { type: 'project', partner: partnerName, location: p.location }
           });
         }
       });
 
-    // 2. 회의 관리 (회의는 현재 프로젝트 연결이 없으나, 나중에 연결될 경우를 대비해 필터링 로직 준비 가능)
-    // 현재는 전체 회의 표시
+    // 2. 회의 관리 (필터링 적용)
     meetings.forEach(m => {
       if (!m.date) return;
+      
+      // 프로젝트가 지정된 경우 필터링
+      if (m.projectId && !filteredProjectIds.includes(m.projectId)) return;
+      
       allEvents.push({
         id: `meeting-${m.id}`,
         title: `${m.location}, ${m.startTime}`,
@@ -127,15 +130,30 @@ export default function CalendarPage() {
       });
     });
 
-    // 3. 예산 및 정산 (선택된 LV1 사업 관련 지출만)
+    // 3. 예산 및 정산 (선택된 LV2 사업 관련 지출만)
     expenditures.forEach(exp => {
       if (!exp.date || exp.date.trim() === '') return;
       
       const management = managements.find(m => m.id === exp.managementId);
       const category = management ? categories.find(c => c.id === management.categoryId) : null;
       
-      // 카테고리가 해당 LV1 프로젝트에 속하는지 확인
-      if (category && category.projectId && effectiveSelectedIds.includes(category.projectId)) {
+      // 1. 실행 내역(LV3 budget)이 있는 경우 프로젝트와 직접 연결 확인
+      let isVisible = false;
+      if (exp.executionId) {
+        const execution = useBudgetStore.getState().executions.find(e => e.id === exp.executionId);
+        if (execution?.projectId && filteredProjectIds.includes(execution.projectId)) {
+          isVisible = true;
+        }
+      } 
+      
+      // 2. 실행 내역이 없거나 연결 안 된 경우 카테고리(LV1) 기준으로 최소한의 필터링
+      if (!isVisible && category && category.projectId && effectiveSelectedIds.includes(category.projectId)) {
+        // LV2 필터가 활성화된 경우, 해당 LV1에 속한 모든 지출을 보여줄지 아니면 숨길지 결정
+        // 여기서는 LV1이 일치하면 일단 보여주되, LV2 필터링은 프로젝트 중심이므로 유지
+        isVisible = selectedLv2Ids.length === 0; 
+      }
+      
+      if (isVisible) {
         allEvents.push({
           id: `exp-${exp.id}`,
           title: `${management?.name || '관리세목'}, ${exp.subDetail}, ${exp.vendor}, ${exp.amount.toLocaleString()}원`,
