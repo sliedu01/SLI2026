@@ -175,6 +175,8 @@ export default function CalendarPage() {
 
   const isLoading = isProjectsLoading || isMeetingsLoading || isBudgetLoading;
 
+  const [isMultiSelect, setIsMultiSelect] = React.useState(false);
+
   const toggleLv1 = (id: string) => {
     if (selectedLv1Ids.includes(id)) {
       setSelectedLv1Ids(selectedLv1Ids.filter(sid => sid !== id));
@@ -184,10 +186,19 @@ export default function CalendarPage() {
   };
 
   const toggleLv2 = (id: string) => {
-    if (selectedLv2Ids.includes(id)) {
-      setSelectedLv2Ids(selectedLv2Ids.filter(sid => sid !== id));
+    if (isMultiSelect) {
+      if (selectedLv2Ids.includes(id)) {
+        setSelectedLv2Ids(selectedLv2Ids.filter(sid => sid !== id));
+      } else {
+        setSelectedLv2Ids([...selectedLv2Ids, id]);
+      }
     } else {
-      setSelectedLv2Ids([...selectedLv2Ids, id]);
+      // 단일 선택 모드: 이미 선택된 것을 누르면 해제(전체보기), 아니면 그것만 선택
+      if (selectedLv2Ids.length === 1 && selectedLv2Ids[0] === id) {
+        setSelectedLv2Ids([]);
+      } else {
+        setSelectedLv2Ids([id]);
+      }
     }
   };
 
@@ -252,44 +263,79 @@ export default function CalendarPage() {
 
           <div className="h-12 w-px bg-slate-100 mx-2" />
 
-          {/* LV2 필터링 버튼 (1, 2, 3...) */}
+          {/* LV2 필터링 버튼 (전체, 다중, 단일 선택 지원) */}
           <TooltipProvider delay={0}>
-            <div className="flex items-center gap-2">
-              {lv2Projects.map((p, index) => {
-                const isSelected = selectedLv2Ids.includes(p.id);
-                return (
-                  <Tooltip key={p.id}>
-                    <TooltipTrigger render={
-                      <Button
-                        variant={isSelected ? "default" : "outline"}
-                        size="icon"
-                        onClick={() => toggleLv2(p.id)}
-                        className={cn(
-                          "size-10 rounded-xl font-black text-lg transition-all active:scale-90",
-                          isSelected 
-                            ? "bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 text-white" 
-                            : "border-slate-200 text-slate-300 hover:text-indigo-600 hover:border-indigo-200"
-                        )}
-                      >
-                        {index + 1}
-                      </Button>
-                    } />
-                    <TooltipContent side="bottom" className="rounded-xl border-none shadow-2xl p-3 bg-slate-900">
-                      <p className="font-black text-xs text-white">{p.name}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-              {lv2Projects.length > 0 && selectedLv2Ids.length > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setSelectedLv2Ids([])}
-                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 ml-2"
-                >
-                  Clear
-                </Button>
-              )}
+            <div className="flex items-center gap-3">
+              {/* 전체 선택 버튼 */}
+              <Tooltip>
+                <TooltipTrigger render={
+                  <Button
+                    variant={selectedLv2Ids.length === 0 ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedLv2Ids([])}
+                    className={cn(
+                      "h-10 px-4 rounded-xl font-black text-xs transition-all",
+                      selectedLv2Ids.length === 0 
+                        ? "bg-slate-900 text-white shadow-lg" 
+                        : "border-slate-200 text-slate-400 hover:text-slate-900"
+                    )}
+                  >
+                    전체
+                  </Button>
+                } />
+                <TooltipContent side="bottom" className="rounded-xl p-2 bg-slate-900 text-[10px] font-bold text-white">
+                  모든 사업 일정 표시
+                </TooltipContent>
+              </Tooltip>
+
+              <div className="flex items-center gap-1.5 p-1 bg-slate-50 rounded-2xl border border-slate-100">
+                {lv2Projects.map((p, index) => {
+                  const isSelected = selectedLv2Ids.includes(p.id);
+                  return (
+                    <Tooltip key={p.id}>
+                      <TooltipTrigger render={
+                        <Button
+                          variant={isSelected ? "default" : "outline"}
+                          size="icon"
+                          onClick={() => toggleLv2(p.id)}
+                          className={cn(
+                            "size-9 rounded-xl font-black text-sm transition-all active:scale-90 border-none",
+                            isSelected 
+                              ? "bg-white text-indigo-600 shadow-md ring-2 ring-indigo-500/20" 
+                              : "bg-transparent text-slate-300 hover:text-slate-600"
+                          )}
+                        >
+                          {index + 1}
+                        </Button>
+                      } />
+                      <TooltipContent side="bottom" className="rounded-xl border-none shadow-2xl p-3 bg-slate-900">
+                        <p className="font-black text-xs text-white">{p.name}</p>
+                        <p className="text-[9px] text-slate-400 mt-0.5 font-bold">{isMultiSelect ? '다중 선택 중' : '단일 선택 모드'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+
+              {/* 모드 전환 토글 */}
+              <Tooltip>
+                <TooltipTrigger render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsMultiSelect(!isMultiSelect)}
+                    className={cn(
+                      "size-10 rounded-xl transition-all",
+                      isMultiSelect ? "text-blue-600 bg-blue-50" : "text-slate-300 hover:bg-slate-50"
+                    )}
+                  >
+                    <ListChecks className={cn("size-5 transition-transform", isMultiSelect && "scale-110")} />
+                  </Button>
+                } />
+                <TooltipContent side="bottom" className="rounded-xl p-2 bg-slate-900 text-[10px] font-bold text-white">
+                  {isMultiSelect ? '다중 선택 모드 ON' : '다중 선택 모드로 전환'}
+                </TooltipContent>
+              </Tooltip>
             </div>
           </TooltipProvider>
         </div>
