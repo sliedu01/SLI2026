@@ -36,7 +36,9 @@ export default function CalendarPage() {
   const { expenditures, fetchBudgets, managements, categories, isLoading: isBudgetLoading } = useBudgetStore();
   const { partners, fetchPartners } = usePartnerStore();
 
+  const [hasMounted, setHasMounted] = React.useState(false);
   React.useEffect(() => {
+    setHasMounted(true);
     fetchProjects();
     fetchMeetings();
     fetchBudgets();
@@ -97,99 +99,97 @@ export default function CalendarPage() {
   }, [projects]);
 
   const events = React.useMemo(() => {
-    const allEvents: CalendarEvent[] = [];
+    try {
+      const allEvents: CalendarEvent[] = [];
 
-    // 1. 사업 관리 (필터링 적용)
-    projects
-      .filter(p => (p.level === 2 || p.level === 3) && filteredProjectIds.includes(p.id))
-      .forEach(p => {
-        const lv2Name = p.level === 2 ? p.name : getLv2Name(p.parentId);
-        const partner = partners.find(ptr => ptr.id === p.partnerId);
-        const partnerName = partner?.name || '미지정';
+      // 1. 사업 관리 (필터링 적용)
+      projects
+        .filter(p => (p.level === 2 || p.level === 3) && filteredProjectIds.includes(p.id))
+        .forEach(p => {
+          const lv2Name = p.level === 2 ? p.name : getLv2Name(p.parentId);
+          const partner = partners.find(ptr => ptr.id === p.partnerId);
+          const partnerName = partner?.name || '미지정';
 
-        if (p.level === 3 && p.sessions && p.sessions.length > 0) {
-          p.sessions.forEach((s, idx) => {
-            if (!s.startDate) return;
+          if (p.level === 3 && p.sessions && p.sessions.length > 0) {
+            p.sessions.forEach((s, idx) => {
+              if (!s.startDate) return;
+              allEvents.push({
+                id: `session-${p.id}-${idx}`,
+                title: `${lv2Name}_${partnerName}_${s.content || p.name}`,
+                start: `${s.startDate}T${s.startTime || '09:00'}:00`,
+                end: `${s.endDate || s.startDate}T${s.endTime || '18:00'}:00`,
+                extendedProps: { type: 'project', partner: partnerName, location: p.location }
+              });
+            });
+          } else if (p.startDate) {
             allEvents.push({
-              id: `session-${p.id}-${idx}`,
-              title: `${lv2Name}_${partnerName}_${s.content || p.name}`,
-              start: `${s.startDate}T${s.startTime || '09:00'}:00`,
-              end: `${s.endDate || s.startDate}T${s.endTime || '18:00'}:00`,
+              id: `project-${p.id}`,
+              title: p.level === 2 ? `[${p.name}] 전체 일정` : `${lv2Name}_${partnerName}_${p.name}`,
+              start: `${p.startDate}T${p.startTime || '09:00'}:00`,
+              end: `${p.endDate || p.startDate}T${p.endTime || '18:00'}:00`,
               extendedProps: { type: 'project', partner: partnerName, location: p.location }
             });
-          });
-        } else if (p.startDate) {
-          allEvents.push({
-            id: `project-${p.id}`,
-            title: p.level === 2 ? `[${p.name}] 전체 일정` : `${lv2Name}_${partnerName}_${p.name}`,
-            start: `${p.startDate}T${p.startTime || '09:00'}:00`,
-            end: `${p.endDate || p.startDate}T${p.endTime || '18:00'}:00`,
-            extendedProps: { type: 'project', partner: partnerName, location: p.location }
-          });
-        }
-      });
-
-    // 2. 회의 관리 (필터링 적용)
-    meetings.forEach(m => {
-      if (!m.date) return;
-      
-      // 프로젝트가 지정된 경우 필터링
-      if (m.projectId && !filteredProjectIds.includes(m.projectId)) return;
-      
-      allEvents.push({
-        id: `meeting-${m.id}`,
-        title: `${m.location}, ${m.startTime}`,
-        start: `${m.date}T${m.startTime || '00:00'}:00`,
-        end: `${m.date}T${m.endTime || '23:59'}:00`,
-        extendedProps: { type: 'meeting', location: m.location }
-      });
-    });
-
-    // 3. 예산 및 정산 (선택된 LV2 사업 관련 지출만)
-    expenditures.forEach(exp => {
-      if (!exp.date || exp.date.trim() === '') return;
-      
-      const management = managements.find(m => m.id === exp.managementId);
-      const category = management ? categories.find(c => c.id === management.categoryId) : null;
-      
-      // 1. 실행 내역(LV3 budget)이 있는 경우 프로젝트와 직접 연결 확인
-      let isVisible = false;
-      if (exp.executionId) {
-        const executions = useBudgetStore.getState().executions || [];
-        const execution = executions.find(e => e.id === exp.executionId);
-        if (execution?.projectId && filteredProjectIds.includes(execution.projectId)) {
-          isVisible = true;
-        }
-      } 
-      
-      // 2. 실행 내역이 없거나 연결 안 된 경우 카테고리(LV1) 기준으로 최소한의 필터링
-      if (!isVisible && category && category.projectId && effectiveSelectedIds.includes(category.projectId)) {
-        // LV2 필터가 활성화된 경우, 해당 LV1에 속한 모든 지출을 보여줄지 아니면 숨길지 결정
-        isVisible = selectedLv2Ids.length === 0; 
-      }
-      
-      if (isVisible) {
-        allEvents.push({
-          id: `exp-${exp.id}`,
-          title: `${management?.name || '관리세목'}, ${exp.subDetail}, ${exp.vendor}, ${(exp.amount || 0).toLocaleString()}원`,
-          start: exp.date,
-          allDay: true,
-          extendedProps: {
-            type: 'budget',
-            category: category?.name,
-            subDetail: exp.subDetail,
-            vendor: exp.vendor,
-            amount: exp.amount
           }
         });
-      }
-    });
 
-    return allEvents;
-  }, [projects, filteredProjectIds, effectiveSelectedIds, meetings, expenditures, partners, managements, categories, getLv2Name]);
+      // 2. 회의 관리 (필터링 적용)
+      meetings.forEach(m => {
+        if (!m.date) return;
+        if (m.projectId && !filteredProjectIds.includes(m.projectId)) return;
+        
+        allEvents.push({
+          id: `meeting-${m.id}`,
+          title: `${m.location}, ${m.startTime}`,
+          start: `${m.date}T${m.startTime || '00:00'}:00`,
+          end: `${m.date}T${m.endTime || '23:59'}:00`,
+          extendedProps: { type: 'meeting', location: m.location }
+        });
+      });
+
+      // 3. 예산 및 정산 (필터링 적용)
+      expenditures.forEach(exp => {
+        if (!exp.date || exp.date.trim() === '') return;
+        const management = managements.find(m => m.id === exp.managementId);
+        const category = management ? categories.find(c => c.id === management.categoryId) : null;
+        
+        let isVisible = false;
+        if (exp.executionId) {
+          const executions = useBudgetStore.getState().executions || [];
+          const execution = executions.find(e => e.id === exp.executionId);
+          if (execution?.projectId && filteredProjectIds.includes(execution.projectId)) {
+            isVisible = true;
+          }
+        } 
+        
+        if (!isVisible && category && category.projectId && effectiveSelectedIds.includes(category.projectId)) {
+          isVisible = selectedLv2Ids.length === 0; 
+        }
+        
+        if (isVisible) {
+          allEvents.push({
+            id: `exp-${exp.id}`,
+            title: `${management?.name || '관리세목'}, ${exp.subDetail}, ${exp.vendor}, ${(exp.amount || 0).toLocaleString()}원`,
+            start: exp.date,
+            allDay: true,
+            extendedProps: {
+              type: 'budget',
+              category: category?.name,
+              subDetail: exp.subDetail,
+              vendor: exp.vendor,
+              amount: exp.amount
+            }
+          });
+        }
+      });
+
+      return allEvents;
+    } catch (e) {
+      console.error("Error processing calendar events:", e);
+      return [];
+    }
+  }, [projects, filteredProjectIds, effectiveSelectedIds, selectedLv2Ids, meetings, expenditures, partners, managements, categories, getLv2Name]);
 
   const isLoading = isProjectsLoading || isMeetingsLoading || isBudgetLoading;
-
   const [isMultiSelect, setIsMultiSelect] = React.useState(false);
 
   const toggleLv1 = (id: string) => {
@@ -208,7 +208,6 @@ export default function CalendarPage() {
         setSelectedLv2Ids([...selectedLv2Ids, id]);
       }
     } else {
-      // 단일 선택 모드: 이미 선택된 것을 누르면 해제(전체보기), 아니면 그것만 선택
       if (selectedLv2Ids.length === 1 && selectedLv2Ids[0] === id) {
         setSelectedLv2Ids([]);
       } else {
@@ -216,6 +215,14 @@ export default function CalendarPage() {
       }
     }
   };
+
+  if (!hasMounted) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="size-10 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -227,10 +234,7 @@ export default function CalendarPage() {
             </h1>
             <p className="text-slate-500 font-medium mt-1">교육 사업 및 주요 이벤트를 통합 관리합니다.</p>
           </div>
-
           <div className="h-12 w-px bg-slate-100 mx-2" />
-
-          {/* 사업 필터링 UI */}
           <Popover>
             <PopoverTrigger render={
               <Button variant="outline" className="h-12 rounded-2xl border-slate-200 bg-white font-black gap-2 px-6 shadow-sm hover:bg-slate-50">
@@ -275,13 +279,9 @@ export default function CalendarPage() {
               </div>
             </PopoverContent>
           </Popover>
-
           <div className="h-12 w-px bg-slate-100 mx-2" />
-
-          {/* LV2 필터링 버튼 (전체, 다중, 단일 선택 지원) */}
           <TooltipProvider delay={0}>
             <div className="flex items-center gap-3">
-              {/* 전체 선택 버튼 */}
               <Tooltip>
                 <TooltipTrigger render={
                   <Button
@@ -302,7 +302,6 @@ export default function CalendarPage() {
                   모든 사업 일정 표시
                 </TooltipContent>
               </Tooltip>
-
               <div className="flex items-center gap-1.5 p-1 bg-slate-50 rounded-2xl border border-slate-100">
                 {lv2Projects.map((p, index) => {
                   const isSelected = selectedLv2Ids.includes(p.id);
@@ -331,8 +330,6 @@ export default function CalendarPage() {
                   );
                 })}
               </div>
-
-              {/* 모드 전환 토글 */}
               <Tooltip>
                 <TooltipTrigger render={
                   <Button
@@ -384,8 +381,8 @@ export default function CalendarPage() {
                   <div key={e.id} className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100">
                     <p className={cn(
                       "text-[10px] font-black uppercase mb-1",
-                      e.extendedProps.type === 'project' ? "text-emerald-600" :
-                      e.extendedProps.type === 'meeting' ? "text-amber-600" : "text-indigo-600"
+                      e.extendedProps?.type === 'project' ? "text-emerald-600" :
+                      e.extendedProps?.type === 'meeting' ? "text-amber-600" : "text-indigo-600"
                     )}>
                       {format(new Date(e.start), 'MM.dd')}
                     </p>
