@@ -18,13 +18,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useProjectStore } from '@/store/use-project-store';
+import { useProjectStore, Project } from '@/store/use-project-store';
 import { useBudgetStore } from '@/store/use-budget-store';
 import { useSurveyStore } from '@/store/use-survey-store';
 import { usePartnerStore } from '@/store/use-partner-store';
 import { cn } from "@/lib/utils";
 
-// Charts
 import { 
   BarChart, 
   Bar, 
@@ -34,59 +33,145 @@ import {
   Tooltip, 
   ResponsiveContainer
 } from 'recharts';
+import { ProjectDialog } from '@/components/project-dialog';
+import { Edit2, Trash2, PlusCircle, CheckSquare, Square } from 'lucide-react';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function Home() {
   const [mounted, setMounted] = React.useState(false);
   
+  // Dialog States
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [dialogMode, setDialogMode] = React.useState<'add' | 'edit'>('add');
+  const [selectedProject, setSelectedProject] = React.useState<Project | undefined>();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [projectToDelete, setProjectToDelete] = React.useState<string | null>(null);
+
   // Stores
-  const { projects } = useProjectStore();
-  const { categories, executions } = useBudgetStore();
-  const { responses, getAggregatedStats } = useSurveyStore();
-  const { partners } = usePartnerStore();
+  const { projects, selectedLv1Ids, setSelectedLv1Ids, deleteProject, fetchProjects } = useProjectStore();
+  const { categories, expenditures, fetchBudgets, managements } = useBudgetStore();
+  const { responses, getAggregatedStats, fetchSurveys } = useSurveyStore();
+  const { partners, fetchPartners } = usePartnerStore();
 
   React.useEffect(() => {
     setMounted(true);
-  }, []);
+    fetchProjects();
+    fetchBudgets();
+    fetchSurveys();
+    fetchPartners();
+  }, [fetchProjects, fetchBudgets, fetchSurveys, fetchPartners]);
 
   if (!mounted) return null;
 
-  // 1. KPI 집계 데이터
-  const totalProjects = projects.length;
-  const totalBudget = categories.reduce((sum, c) => sum + c.totalBudget, 0);
-  const totalSpent = categories.reduce((sum, c) => sum + c.totalExpenditure, 0);
+  // 0. 프로젝트 필터링 로직
+  const lv1Projects = projects.filter(p => p.level === 1);
+  
+  // 선택된 사업이 없으면 전체 선택으로 간주하거나, 비어있는 상태로 유지
+  // 여기서는 사용자가 명시적으로 선택한 것만 필터링하거나, 아무것도 선택 안 했으면 전체를 보여줌
+  const effectiveSelectedIds = selectedLv1Ids.length > 0 ? selectedLv1Ids : lv1Projects.map(p => p.id);
+
+  // 선택된 LV1 프로젝트의 모든 하위 프로젝트 ID 수집
+  const getDescendantIds = (parentIds: string[]): string[] => {
+    let result = [...parentIds];
+    const children = projects.filter(p => p.parentId && parentIds.includes(p.parentId));
+    if (children.length > 0) {
+      result = [...result, ...getDescendantIds(children.map(c => c.id))];
+    }
+    return result;
+  };
+
+  const filteredProjectIds = getDescendantIds(effectiveSelectedIds);
+  const filteredProjects = projects.filter(p => filteredProjectIds.includes(p.id));
+
+  // 1. KPI 집계 데이터 (필터링 반영)
+  const totalProjectsCount = filteredProjects.length;
+  
+  // 예산 데이터 필터링
+  // BudgetCategory -> Project mapping (Category has projectId)
+  const filteredCategories = categories.filter(c => c.projectId && effectiveSelectedIds.includes(c.projectId));
+  const totalBudget = filteredCategories.reduce((sum, c) => sum + c.totalBudget, 0);
+  const totalSpent = filteredCategories.reduce((sum, c) => sum + c.totalExpenditure, 0);
   const budgetExecutionRate = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+  
+  // 파트너는 전체 유지 (또는 필터링된 프로젝트에 참여 중인 파트너만?)
+  // 여기서는 시스템 전체 파트너 유지
   const totalPartners = partners.length;
   
-  // 전문가 성과 지산 기반 통계 집계 (프로그램 단위 전체 합산)
-  const programProjectIds = projects.filter(p => p.level === 4).map(p => p.id);
+  // 전문가 성과 지산 기반 통계 집계 (필터링된 프로그램 단위 전체 합산)
+  const programProjectIds = filteredProjects.filter(p => p.level === 4).map(p => p.id);
   const surveyStats = getAggregatedStats(projects, programProjectIds, undefined, 'UNIFIED');
   const overallStats = surveyStats['_overall'];
 
-  // ROI 지표 - 학습 효율(Gain) 기준 정규화 (0~100)
   const avgSatisfaction = overallStats?.satAvg || 0;
   const hakeGainPercent = Math.round((overallStats?.hakeGain || 0) * 100);
 
-  // 2. 사업별 시각화 데이터
-  const dashboardData = projects.filter(p => p.level === 1 || p.level === 4).map(p => {
-    // 사업비 항목들 합산 (LV3 중 해당 프로젝트 ID가 있는 것)
-    const projectExecutions = executions.filter(ex => ex.projectId === p.id);
-    const pBudget = projectExecutions.reduce((s, ex) => s + ex.budgetAmount, 0);
-    const pSpent = projectExecutions.reduce((s, ex) => s + ex.expenditureAmount, 0);
-    const executionRate = pBudget > 0 ? (pSpent / pBudget) * 100 : 0;
+  // 2. 사업별 시각화 데이터 (선택된 LV1들만)
+  const dashboardData = lv1Projects
+    .filter(p => effectiveSelectedIds.includes(p.id))
+    .map(p => {
+      const descendants = getDescendantIds([p.id]);
+      
+      // 해당 LV1 및 하위 프로젝트들의 예산 집계
+      const projectCats = categories.filter(c => c.projectId && descendants.includes(c.projectId));
+      const pBudget = projectCats.reduce((s, c) => s + c.totalBudget, 0);
+      const pSpent = projectCats.reduce((s, c) => s + c.totalExpenditure, 0);
+      const executionRate = pBudget > 0 ? (pSpent / pBudget) * 100 : 0;
 
-    // 성과 지표: 실제 학습 효율(Gain) 연동
-    const pStats = surveyStats[p.id];
-    const performance = pStats ? Math.round(pStats.hakeGain * 100) : 0;
+      // 성과 지표: 하위 프로그램들의 평균 Gain
+      const pStats = surveyStats[p.id];
+      const performance = pStats ? Math.round(pStats.hakeGain * 100) : 0;
 
-    return {
-      name: p.name,
-      executionRate: Number(executionRate.toFixed(2)),
-      performance: performance,
-      budget: pBudget,
-      spent: pSpent,
-      id: p.id
-    };
-  }).filter(d => d.budget > 0);
+      return {
+        name: p.name,
+        executionRate: Number(executionRate.toFixed(2)),
+        performance: performance,
+        budget: pBudget,
+        spent: pSpent,
+        id: p.id
+      };
+    });
+
+  const toggleLv1 = (id: string) => {
+    if (selectedLv1Ids.includes(id)) {
+      setSelectedLv1Ids(selectedLv1Ids.filter(sid => sid !== id));
+    } else {
+      setSelectedLv1Ids([...selectedLv1Ids, id]);
+    }
+  };
+
+  const handleAddLv1 = () => {
+    setDialogMode('add');
+    setSelectedProject(undefined);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditLv1 = (e: React.MouseEvent, project: Project) => {
+    e.stopPropagation();
+    setDialogMode('edit');
+    setSelectedProject(project);
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setProjectToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (projectToDelete) {
+      await deleteProject(projectToDelete);
+      setProjectToDelete(null);
+      setDeleteConfirmOpen(false);
+    }
+  };
 
   return (
     <div className="space-y-10 animate-in fade-in duration-1000">
@@ -115,7 +200,7 @@ export default function Home() {
       {/* KPI 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {[
-          { label: '활성 사업 수', value: `${totalProjects}건`, sub: '전주 대비 +1', icon: LayoutGrid, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: '활성 사업 수', value: `${totalProjectsCount}건`, sub: '필터링 적용됨', icon: LayoutGrid, color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: '누적 집행율', value: `${budgetExecutionRate.toFixed(2)}%`, sub: `₩${(totalSpent/1000000).toFixed(2)}M 집행`, icon: Wallet, color: 'text-indigo-600', bg: 'bg-indigo-50' },
           { label: '운영 만족도 (AVG)', value: `${avgSatisfaction.toFixed(2)}점`, sub: '5점 만점 기준', icon: Zap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { label: '학습 효율 및 전이도 (GAIN)', value: `${hakeGainPercent}%`, sub: 'Hake\'s Gain 성과 환산', icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -136,6 +221,105 @@ export default function Home() {
           </Card>
         ))}
       </div>
+
+      {/* 프로젝트 관리 및 선택 */}
+      <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-10">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <CheckSquare className="size-6 text-indigo-600" /> 사업 선택 및 관리 (LV1)
+            </h2>
+            <p className="text-sm font-medium text-slate-400 mt-1">분석 및 관리를 진행할 LV1 사업을 선택하세요. (신규 등록 및 수정 가능)</p>
+          </div>
+          <Button onClick={handleAddLv1} className="rounded-2xl h-12 bg-slate-900 font-black gap-2 px-6">
+            <PlusCircle className="size-4" /> 신규 LV1 사업 등록
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {lv1Projects.map(p => {
+            const isSelected = selectedLv1Ids.includes(p.id);
+            return (
+              <div 
+                key={p.id}
+                onClick={() => toggleLv1(p.id)}
+                className={cn(
+                  "relative p-6 rounded-3xl border-2 transition-all cursor-pointer group",
+                  isSelected 
+                    ? "border-indigo-600 bg-indigo-50/30 ring-4 ring-indigo-50" 
+                    : "border-slate-100 hover:border-slate-200 bg-slate-50/30"
+                )}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    {isSelected ? (
+                      <CheckSquare className="size-6 text-indigo-600" />
+                    ) : (
+                      <Square className="size-6 text-slate-300" />
+                    )}
+                    <span className="font-black text-slate-900 text-lg tracking-tight">{p.name}</span>
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={(e) => handleEditLv1(e, p)}
+                      className="size-8 rounded-lg hover:bg-white hover:text-indigo-600"
+                    >
+                      <Edit2 className="size-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={(e) => handleDeleteClick(e, p.id)}
+                      className="size-8 rounded-lg hover:bg-white hover:text-rose-600"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-4 text-[11px] font-bold text-slate-400">
+                  <span>{p.startDate} ~ {p.endDate}</span>
+                  <div className="size-1 rounded-full bg-slate-300" />
+                  <span>하위 {projects.filter(cp => cp.parentId === p.id).length}개 사업</span>
+                </div>
+              </div>
+            );
+          })}
+          {lv1Projects.length === 0 && (
+            <div className="col-span-full py-12 text-center text-slate-400 font-bold border-2 border-dashed border-slate-100 rounded-3xl">
+              등록된 LV1 사업이 없습니다.
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <ProjectDialog 
+        open={isDialogOpen} 
+        onOpenChange={setIsDialogOpen}
+        mode={dialogMode}
+        project={selectedProject}
+        level={1}
+        parentId={null}
+      />
+
+      {/* 삭제 확인 다이얼로그 */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-md p-8 rounded-[2rem]">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-xl font-black flex items-center gap-2">
+               사업 삭제 확인
+            </DialogTitle>
+            <DialogDescription className="text-sm font-medium text-slate-500 mt-2">
+              이 사업을 삭제하시겠습니까? 해당 사업에 속한 모든 하위 사업과 예산, 지출 데이터가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 mt-4">
+            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)} className="rounded-xl font-black">취소</Button>
+            <Button onClick={confirmDelete} className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black px-8">삭제 실행</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 분석 섹션 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

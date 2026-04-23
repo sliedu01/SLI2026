@@ -58,9 +58,11 @@ interface BudgetState {
   executions: BudgetExecution[];
   expenditures: Expenditure[];
   isLoading: boolean;
+  activeProjectId: string | null;
   
   // Actions
-  fetchBudgets: () => Promise<void>;
+  fetchBudgets: (projectId?: string) => Promise<void>;
+  setActiveProjectId: (id: string | null) => void;
   syncBudgets: () => void;
   
   addCategory: (name: string) => Promise<void>;
@@ -116,12 +118,22 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
   executions: [],
   expenditures: [],
   isLoading: false,
+  activeProjectId: null,
 
-  fetchBudgets: async () => {
+  setActiveProjectId: (id) => set({ activeProjectId: id }),
+
+  fetchBudgets: async (projectId) => {
     set({ isLoading: true });
     
+    const targetProjectId = projectId || get().activeProjectId;
+    
+    let catsQuery = supabase.from('budget_categories').select('*').order('created_at', { ascending: true });
+    if (targetProjectId) {
+      catsQuery = catsQuery.eq('project_id', targetProjectId);
+    }
+
     const [cats, mans, execs, exps] = await Promise.all([
-      supabase.from('budget_categories').select('*').order('created_at', { ascending: true }),
+      catsQuery,
       supabase.from('budget_managements').select('*').order('created_at', { ascending: true }),
       supabase.from('budget_executions').select('*').order('created_at', { ascending: true }),
       supabase.from('expenditures').select('*').order('created_at', { ascending: true }),
@@ -232,7 +244,11 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
   },
 
   addCategory: async (name) => {
-    const { error } = await supabase.from('budget_categories').insert([{ name }]);
+    const { activeProjectId } = get();
+    const { error } = await supabase.from('budget_categories').insert([{ 
+      name,
+      project_id: activeProjectId 
+    }]);
     if (error) throw error;
     await get().fetchBudgets();
   },

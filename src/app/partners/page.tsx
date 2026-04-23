@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { usePartnerStore, Partner } from '@/store/use-partner-store';
-import { useProjectStore } from '@/store/use-project-store';
+import { useProjectStore, getAggregatedProject } from '@/store/use-project-store';
 import { useSurveyStore } from '@/store/use-survey-store';
 import { PartnerDialog } from '@/components/partner-dialog';
 import { exportToExcel } from '@/lib/excel-export';
@@ -34,7 +34,7 @@ import { supabase } from '@/lib/supabase';
 export default function PartnersPage() {
   const [mounted, setMounted] = React.useState(false);
   const { partners, deletePartner, isLoading, fetchPartners } = usePartnerStore();
-  const { projects } = useProjectStore();
+  const { projects, fetchProjects, selectedLv1Ids } = useProjectStore();
   const { getAggregatedStats } = useSurveyStore();
   
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -48,13 +48,28 @@ export default function PartnersPage() {
   React.useEffect(() => {
     setMounted(true);
     fetchPartners();
-  }, [fetchPartners]);
+    fetchProjects();
+  }, [fetchPartners, fetchProjects]);
 
   if (!mounted) return null;
 
   const filteredPartners = partners.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           p.manager.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // 글로벌 LV1 필터링 적용
+    if (selectedLv1Ids.length > 0) {
+      const partnerProjectIds = projects.filter(proj => proj.partnerId === p.id).map(proj => proj.id);
+      const isRelatedToSelectedLv1 = partnerProjectIds.some(pid => {
+        let current = projects.find(proj => proj.id === pid);
+        while (current && current.parentId && current.level > 1) {
+          current = projects.find(proj => proj.id === current!.parentId);
+        }
+        return current && selectedLv1Ids.includes(current.id);
+      });
+      if (!isRelatedToSelectedLv1) return false;
+    }
+
     return matchesSearch;
   });
 
@@ -72,7 +87,21 @@ export default function PartnersPage() {
 
   // 특정 파트너가 참여한 사업 내역 추출
   const getPartnerProjects = (partnerId: string) => {
-    const partnerProjects = projects.filter(p => p.partnerId === partnerId);
+    // 실시간으로 프로젝트 데이터를 집계하여 최신 상태 유지 (세션 및 하위 프로젝트 반영)
+    const partnerProjects = projects
+      .filter(p => p.partnerId === partnerId)
+      .filter(p => {
+        if (selectedLv1Ids.length === 0) return true;
+        let current = p;
+        while (current.parentId && current.level > 1) {
+          const parent = projects.find(proj => proj.id === current.parentId);
+          if (!parent) break;
+          current = parent;
+        }
+        return selectedLv1Ids.includes(current.id);
+      })
+      .map(p => getAggregatedProject(p, projects));
+      
     const projectIds = partnerProjects.map(p => p.id);
     
     // 통합 통계 엔진 호출 (UNIFIED 타입으로 만족도와 역량 데이터 모두 수집)
@@ -449,7 +478,7 @@ export default function PartnersPage() {
                                         </td>
                                         <td className="px-6 py-5 text-center">
                                            <div className="flex flex-col items-center">
-                                              <span className="text-xs font-black text-slate-700">{item.participantCount} / {item.quota}</span>
+                                              <span className="text-xs font-black text-slate-700">{item.quota} / {item.participantCount}</span>
                                               <div className="w-16 h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
                                                  <div 
                                                    className="h-full bg-blue-500 rounded-full" 

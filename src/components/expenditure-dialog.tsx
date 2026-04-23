@@ -125,14 +125,25 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
       const lv1Name = categories.find(c => c.id === selectedCategoryId)?.name || '';
       const lv2Name = managements.find(m => m.id === selectedManagementId)?.name || '';
 
-      // 파일명 생성 함수
+      // 파일명 생성 함수 (YYMMDD_비목_세목_세세목_금액_랜덤)
       const getTargetFileName = (original: string) => {
         const datePart = date ? date.replace(/-/g, '').slice(2) : '000000';
-        const lv1Part = lv1Name.substring(0, 2);
-        const lv2Part = lv2Name.substring(0, 2);
+        
+        // 파일명에 부적합한 문자 제거 및 언더바로 치환 (Storage 유틸리티와 동기화)
+        const sanitize = (str: string) => str
+          .replace(/[^a-zA-Z0-9\uAC00-\uD7A3\-]/g, '_')
+          .replace(/_{2,}/g, '_')
+          .replace(/^_+|_+$/g, '');
+        
+        const lv1Part = sanitize(lv1Name);
+        const lv2Part = sanitize(lv2Name);
+        const subPart = sanitize(subDetail);
+        
         const rand = Math.floor(Math.random() * 900 + 100).toString();
-        const ext = original.includes('.') ? original.split('.').pop() : '';
-        return `${datePart}_${lv1Part}_${lv2Part}_${subDetail}_${total}_${rand}${ext ? '.' + ext : ''}`;
+        const ext = original.includes('.') ? original.split('.').pop() : 'pdf';
+        
+        // 사용자가 요청한 형식: 지출일자_비목명_관리세목명_세세목명_금액
+        return `${datePart}_${lv1Part}_${lv2Part}_${subPart}_${total}_${rand}.${ext}`;
       };
 
       let finalUrl = uploadFile?.fileUrl;
@@ -140,10 +151,18 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
 
       // 1. 새 파일 업로드인 경우
       if (uploadFile?.file) {
-        const newFileName = getTargetFileName(uploadFile.originalName);
-        storagePath = generateStoragePath('expenditures', newFileName);
+        const fullKoreanName = getTargetFileName(uploadFile.originalName);
+        
+        // Storage Key는 한글이 포함되면 'Invalid key' 오류가 발생하므로 영문/숫자 위주의 안전한 경로 생성
+        const datePart = date ? date.replace(/-/g, '').slice(2) : '000000';
+        const safeFileName = `exp_${datePart}_${total}_${Math.floor(Math.random() * 9000 + 1000)}.pdf`;
+        
+        storagePath = generateStoragePath('expenditures', safeFileName);
         finalUrl = await uploadFileToStorage('partner-documents', storagePath, uploadFile.file);
         
+        // attachmentOriginalName을 사용자가 요청한 한글 파일명으로 설정
+        uploadFile.originalName = fullKoreanName;
+
         if (finalUrl?.startsWith('data:')) {
           throw new Error('파일 저장소 업로드에 실패했습니다.');
         }
@@ -176,9 +195,8 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
       };
 
       if (initialData) {
-        // 수정 시 파일명 동기화 체크
-        const newFileName = getTargetFileName(uploadFile?.originalName || 'file');
-        const newPath = generateStoragePath('expenditures', newFileName);
+        // 수정 시 파일명 동기화 체크 (기존 파일이 있는 경우)
+        let newPath = storagePath;
         
         await updateExpenditure(initialData.id, commonData, {
           prevPath: initialData.attachmentName,
@@ -192,9 +210,11 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
 
       onOpenChange(false);
       resetForm();
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('Submit execution failed:', err);
-      alert('저장 중 오류가 발생했습니다.');
+      // 구체적인 에러 메시지 표시
+      const errorMessage = err?.message || err?.details || '알 수 없는 오류가 발생했습니다.';
+      alert(`저장 중 오류가 발생했습니다.\n상세내용: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -400,16 +420,17 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
              <FileUploadZone
                label="증빙 파일 업로드"
                value={uploadFile}
-                onRename={(originalName) => {
-                  const datePart = date ? date.replace(/-/g, '').slice(2) : '000000';
-                  const lv1Name = categories.find(c => c.id === selectedCategoryId)?.name || '비목';
-                  const lv2Name = managements.find(m => m.id === selectedManagementId)?.name || '세목';
-                  const total = parseCommaNumber(supplyAmount) + parseCommaNumber(vatAmount);
-                  const rand = Math.floor(Math.random() * 900 + 100).toString();
-                  const ext = originalName.includes('.') ? originalName.split('.').pop() : '';
-                  
-                  return `${datePart}_${lv1Name.slice(0,2)}_${lv2Name.slice(0,2)}_${subDetail}_${total}_${rand}${ext ? '.' + ext : ''}`;
-                }}
+                 onRename={(originalName) => {
+                   const datePart = date ? date.replace(/-/g, '').slice(2) : '000000';
+                   const lv1Name = categories.find(c => c.id === selectedCategoryId)?.name || '비목';
+                   const lv2Name = managements.find(m => m.id === selectedManagementId)?.name || '세목';
+                   const total = parseCommaNumber(supplyAmount) + parseCommaNumber(vatAmount);
+                   const rand = Math.floor(Math.random() * 900 + 100).toString();
+                   const ext = originalName.includes('.') ? originalName.split('.').pop() : 'pdf';
+                   
+                   const sanitize = (str: string) => str.replace(/[\/\\:*?"<>|]/g, '').trim();
+                   return `${datePart}_${sanitize(lv1Name)}_${sanitize(lv2Name)}_${sanitize(subDetail)}_${total}_${rand}.${ext}`;
+                 }}
                onChange={(fileInfo) => setUploadFile(fileInfo)}
                className="h-auto"
              />

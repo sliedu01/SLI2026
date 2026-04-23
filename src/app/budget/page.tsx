@@ -17,8 +17,10 @@ import {
   Settings2,
   AlertCircle,
   Edit2,
-  Trash2
+  Trash2,
+  FileSpreadsheet
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -42,9 +44,11 @@ export default function BudgetPage() {
     addManagement, 
     fetchBudgets,
     syncBudgets,
-    deleteExpenditure
+    deleteExpenditure,
+    activeProjectId,
+    setActiveProjectId
   } = useBudgetStore();
-  const { projects } = useProjectStore();
+  const { projects, fetchProjects, selectedLv1Ids } = useProjectStore();
   const { partners } = usePartnerStore();
 
   const [expandedCats, setExpandedCats] = React.useState<Set<string>>(new Set());
@@ -57,10 +61,41 @@ export default function BudgetPage() {
 
   React.useEffect(() => {
     setMounted(true);
-    fetchBudgets(); // fetchBudgets가 syncBudgets를 호출함
-  }, [fetchBudgets]);
+    fetchProjects();
+    fetchBudgets();
+  }, [fetchProjects, fetchBudgets]);
+
+  // 카테고리 로드시 기본으로 모두 펼치기
+  React.useEffect(() => {
+    if (categories.length > 0) {
+      setExpandedCats(new Set(categories.map(c => c.id)));
+    }
+  }, [categories]);
+
+  // LV1 사업들 필터링 (글로벌 필터 반영)
+  const lv1Projects = projects.filter(p => p.level === 1 && (selectedLv1Ids.length === 0 || selectedLv1Ids.includes(p.id)));
+
+  // 글로벌 필터 변경 시 activeProjectId 동기화
+  React.useEffect(() => {
+    if (!mounted) return;
+    
+    // 현재 선택된 사업이 필터링된 목록에 없으면 첫 번째 사업으로 변경
+    if (lv1Projects.length > 0) {
+      const isCurrentProjectValid = lv1Projects.some(p => p.id === activeProjectId);
+      if (!isCurrentProjectValid) {
+        const nextId = lv1Projects[0].id;
+        setActiveProjectId(nextId);
+        fetchBudgets(nextId);
+      }
+    } else if (projects.filter(p => p.level === 1).length > 0) {
+        // 필터링된 결과가 아예 없는데(선택은 되어있음), 전체 사업은 있는 경우
+        // 이 경우는 드물지만 안전을 위해 처리
+    }
+  }, [mounted, selectedLv1Ids, lv1Projects, activeProjectId, setActiveProjectId, fetchBudgets]);
 
   if (!mounted) return null;
+
+  const currentProject = lv1Projects.find(p => p.id === activeProjectId);
 
   const totalCatBudget = categories.reduce((sum, c) => sum + c.totalBudget, 0);
   const totalCatSpent = categories.reduce((sum, c) => sum + (c.totalExpenditure || 0), 0);
@@ -98,6 +133,56 @@ export default function BudgetPage() {
       }
     }
   };
+  // 엑셀 다운로드 핸들러 (정산데이터 현황)
+  const handleExportExcel = () => {
+    const excelData: any[] = [];
+    categories.forEach(cat => {
+      const catMans = managements.filter(m => m.categoryId === cat.id);
+      catMans.forEach(man => {
+        const manExps = expenditures.filter(exp => exp.managementId === man.id);
+        const usageRate = ((man.totalExpenditure / (man.budgetAmount || 1)) * 100).toFixed(1) + '%';
+        if (manExps.length === 0) {
+          excelData.push({
+            '비목(LV1)': cat.name, '관리세목(LV2)': man.name, '세세목(LV3)': '-',
+            '배정예산': man.budgetAmount, '집행액': 0, '집행예정액': 0, '집행잔액': man.balance, '사용율': usageRate
+          });
+        } else {
+          manExps.forEach(exp => {
+            excelData.push({
+              '비목(LV1)': cat.name, '관리세목(LV2)': man.name, '세세목(LV3)': exp.subDetail,
+              '배정예산': man.budgetAmount, '집행액': exp.date ? exp.amount : 0, '집행예정액': !exp.date ? exp.amount : 0, '집행잔액': man.balance, '사용율': usageRate
+            });
+          });
+        }
+      });
+    });
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "정산데이터현황");
+    XLSX.writeFile(workbook, `정산데이터현황_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+  
+  // 지출 상세 로그 엑셀 다운로드 핸들러
+  const handleExportLogExcel = () => {
+    const excelData = relevantExpenditures.sort((a,b) => (b.date || '').localeCompare(a.date || '')).map((exp, idx) => {
+      const cat = categories.find(c => c.id === managements.find(m => m.id === exp.managementId)?.categoryId);
+      const man = managements.find(m => m.id === exp.managementId);
+      return {
+        '번호': idx + 1,
+        '일자': exp.date || '예정',
+        '비목(LV1)': cat?.name || '-',
+        '관리세목(LV2)': man?.name || '-',
+        '세세목(LV3)': exp.subDetail,
+        '총액': exp.amount,
+        '지출처': exp.vendor,
+        '증빙': exp.proofType === 'TAX_INVOICE' ? '세금계산서' : exp.proofType === 'RECEIPT' ? '영수증' : exp.proofType === 'DEPOSIT' ? '입금증' : exp.proofType === 'CARD' ? '카드전표' : '기타'
+      };
+    });
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "지출상세로그");
+    XLSX.writeFile(workbook, `지출상세로그_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   return (
     <div className="flex bg-slate-50/50 rounded-[3rem] border border-slate-200/60 overflow-hidden h-[calc(100vh-140px)] animate-in fade-in duration-700 shadow-2xl shadow-slate-200/20">
@@ -121,7 +206,29 @@ export default function BudgetPage() {
               </Button>
            </div>
             <div className="space-y-4">
-              <div className="flex justify-between items-end">
+              {/* 사업 선택 영역 */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">선택된 사업</p>
+                <div className="relative group/select">
+                  <select 
+                    value={activeProjectId || ''} 
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setActiveProjectId(id);
+                      fetchBudgets(id);
+                    }}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-[11px] font-black text-slate-900 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all hover:border-slate-200"
+                  >
+                    <option value="" disabled>사업을 선택하세요</option>
+                    {lv1Projects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-3 text-slate-400 pointer-events-none group-hover/select:text-slate-600 transition-colors" />
+                </div>
+              </div>
+
+              <div className="flex justify-between items-end pt-2">
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">배정예산</p>
                  <p className="text-xl font-black text-slate-900 leading-none">₩ {formatWithCommas(totalCatBudget)}</p>
               </div>
@@ -211,12 +318,12 @@ export default function BudgetPage() {
 
       {/* 우측: 정산 데이터 현황 */}
       <div className="flex-1 flex flex-col h-full bg-slate-50/30 overflow-hidden">
-         {!selectedManagementId && expenditures.length === 0 ? (
+         {!activeProjectId ? (
            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-6">
               <div className="p-8 bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-100 animate-bounce">
                  <Receipt className="size-20 opacity-10" />
               </div>
-              <p className="font-black text-sm uppercase tracking-[0.2em]">정산 데이터를 등록하거나 항목을 선택하세요</p>
+              <p className="font-black text-sm uppercase tracking-[0.2em]">사업을 선택하세요</p>
            </div>
          ) : (
            <div className="flex-1 flex flex-col overflow-hidden">
@@ -226,69 +333,133 @@ export default function BudgetPage() {
                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
                         <BarChart4 className="size-4 text-indigo-500" /> 정산데이터현황
                      </h3>
-                     <div className="flex items-center gap-4">
+                     <div className="flex items-center gap-2">
                         <Button 
                          size="sm"
                          onClick={() => setExpenditureDialogOpen(true)}
                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] rounded-lg px-4 h-8 shadow-lg shadow-indigo-100"
                         >
-                          <PlusCircle className="size-3.5 mr-2" /> 정산 데이터 입력
+                           <PlusCircle className="size-3.5 mr-2" /> 지출 추가
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          size="sm"
+                          onClick={handleExportExcel}
+                          className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 font-black text-[10px] rounded-lg px-4 h-8"
+                        >
+                          <FileSpreadsheet className="size-3 mr-2" /> 엑셀 다운로드
                         </Button>
                      </div>
                   </div>
-                  
                   <div className="flex-1 overflow-auto custom-scrollbar">
-                     <table className="w-full text-left border-collapse min-w-[1000px]">
+                     <table className="w-full text-left border-collapse min-w-[900px]">
                         <thead className="sticky top-0 bg-slate-50 z-20">
                            <tr>
-                              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100">비목(LV1)</th>
-                              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100">관리세목(LV2)</th>
-                              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 text-right">배정예산</th>
-                              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 text-right">집행액</th>
-                              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 text-right">집행예정액</th>
-                              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right bg-blue-50/50">집행잔액</th>
+                              <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 w-32">비목(LV1)</th>
+                              <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 w-40">관리세목(LV2)</th>
+                              <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 w-48">세세목(LV3)</th>
+                              <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 text-right w-32">배정예산</th>
+                              <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 text-right w-28">집행액</th>
+                              <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 text-right w-28">집행예정액</th>
+                              <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 text-right bg-blue-50/50 w-32">집행잔액</th>
+                              <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 text-right w-20">사용율</th>
+                              <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center w-24">관리</th>
                            </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
-                           {categories.map(cat => {
-                             const catMans = managements.filter(m => m.categoryId === cat.id);
-                             return (
-                               <React.Fragment key={cat.id}>
-                                  {catMans.map((man, idx) => (
-                                     <tr 
-                                        key={man.id} 
-                                        onClick={() => setSelectedManagementId(man.id === selectedManagementId ? null : man.id)}
-                                        className={cn(
-                                          "group cursor-pointer transition-all",
-                                          selectedManagementId === man.id ? "bg-indigo-50/50" : "hover:bg-slate-50/50"
-                                        )}
-                                     >
-                                        <td className="px-6 py-4 text-[11px] font-bold text-slate-400 border-r border-slate-50">
-                                           {idx === 0 ? cat.name : ""}
-                                        </td>
-                                        <td className="px-6 py-4 border-r border-slate-50">
-                                           <span className="text-[11px] font-black text-slate-700">{man.name}</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-[11px] font-bold text-slate-500 border-r border-slate-50">
-                                           {formatWithCommas(man.budgetAmount)}
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-[11px] font-black text-emerald-600 border-r border-slate-50">
-                                           {formatWithCommas(man.totalExpenditure)}
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-[11px] font-black text-amber-600 border-r border-slate-50">
-                                           {formatWithCommas(man.totalExpectedExpenditure)}
-                                        </td>
-                                        <td className="px-6 py-4 text-right bg-blue-50/30">
-                                           <span className="text-[11px] font-black text-blue-700">
-                                              ₩ {formatWithCommas(man.balance)}
-                                           </span>
-                                        </td>
-                                     </tr>
-                                  ))}
-                               </React.Fragment>
-                             );
-                           })}
-                        </tbody>
+                         <tbody className="divide-y divide-slate-50">
+                            {categories.map(cat => {
+                              const catMans = managements.filter(m => m.categoryId === cat.id);
+                              return (
+                                <React.Fragment key={cat.id}>
+                                   {catMans.map((man) => {
+                                      const manExps = expenditures.filter(e => e.managementId === man.id);
+                                      const usageRate = (man.totalExpenditure / (man.budgetAmount || 1)) * 100;
+                                      
+                                      if (manExps.length === 0) {
+                                        return (
+                                          <tr key={`${man.id}-empty`} className="hover:bg-slate-50/50 group transition-all">
+                                            <td className="px-4 py-3 text-[11px] font-bold text-slate-400 border-r border-slate-50">{cat.name}</td>
+                                            <td className="px-4 py-3 text-[11px] font-black text-slate-700 border-r border-slate-50">{man.name}</td>
+                                            <td className="px-4 py-3 text-[11px] font-bold text-slate-300 border-r border-slate-50 italic">-</td>
+                                            <td className="px-4 py-3 text-right text-[11px] font-bold text-slate-500 border-r border-slate-50">{formatWithCommas(man.budgetAmount)}</td>
+                                            <td className="px-4 py-3 text-right text-[11px] font-black text-emerald-600 border-r border-slate-50">0</td>
+                                            <td className="px-4 py-3 text-right text-[11px] font-black text-amber-600 border-r border-slate-50">0</td>
+                                            <td className="px-4 py-3 text-right bg-blue-50/30 border-r border-slate-50">
+                                              <span className="text-[11px] font-black text-blue-700">₩ {formatWithCommas(man.balance)}</span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-[11px] font-black text-slate-400 border-r border-slate-50">0.0%</td>
+                                            <td className="px-4 py-3 text-center text-slate-300">-</td>
+                                          </tr>
+                                        );
+                                      }
+
+                                      return manExps.map((exp) => (
+                                        <tr 
+                                           key={exp.id} 
+                                           className={cn(
+                                             "group cursor-pointer transition-all hover:bg-slate-50/50",
+                                             selectedManagementId === man.id && "bg-indigo-50/10"
+                                           )}
+                                        >
+                                           <td className="px-4 py-3 text-[11px] font-bold text-slate-400 border-r border-slate-50">
+                                              {cat.name}
+                                           </td>
+                                           <td className="px-4 py-3 border-r border-slate-50">
+                                              <span className="text-[11px] font-black text-slate-700">{man.name}</span>
+                                           </td>
+                                           <td className="px-4 py-3 border-r border-slate-50">
+                                              <span className="text-[11px] font-black text-indigo-600">{exp.subDetail}</span>
+                                           </td>
+                                           <td className="px-4 py-3 text-right text-[11px] font-bold text-slate-500 border-r border-slate-50">
+                                              {formatWithCommas(man.budgetAmount)}
+                                           </td>
+                                           <td className="px-4 py-3 text-right text-[11px] font-black text-emerald-600 border-r border-slate-50">
+                                              {exp.date ? formatWithCommas(exp.amount) : "0"}
+                                           </td>
+                                           <td className="px-4 py-3 text-right text-[11px] font-black text-amber-600 border-r border-slate-50">
+                                              {!exp.date ? formatWithCommas(exp.amount) : "0"}
+                                           </td>
+                                           <td className="px-4 py-3 text-right bg-blue-50/30 border-r border-slate-50">
+                                              <span className="text-[11px] font-black text-blue-700">
+                                                 ₩ {formatWithCommas(man.balance)}
+                                              </span>
+                                           </td>
+                                           <td className="px-4 py-3 text-right text-[11px] font-black text-indigo-500 border-r border-slate-50">
+                                              {usageRate.toFixed(1)}%
+                                           </td>
+                                           <td className="px-4 py-3">
+                                              <div className="flex justify-center gap-1">
+                                                 <Button 
+                                                   variant="ghost" 
+                                                   size="icon" 
+                                                   onClick={(e) => {
+                                                     e.stopPropagation();
+                                                     handleEditExpenditure(exp);
+                                                   }}
+                                                   className="size-7 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                                 >
+                                                    <Edit2 className="size-3" />
+                                                 </Button>
+                                                 <Button 
+                                                   variant="ghost" 
+                                                   size="icon" 
+                                                   onClick={(e) => {
+                                                     e.stopPropagation();
+                                                     handleDeleteExpenditure(exp);
+                                                   }}
+                                                   className="size-7 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                 >
+                                                    <Trash2 className="size-3" />
+                                                 </Button>
+                                              </div>
+                                           </td>
+                                        </tr>
+                                      ));
+                                   })}
+                                </React.Fragment>
+                              );
+                            })}
+                         </tbody>
                      </table>
                   </div>
                </div>
@@ -303,13 +474,21 @@ export default function BudgetPage() {
                        <Button 
                         variant="outline" 
                         size="sm" 
+                        onClick={handleExportLogExcel}
+                        className="h-8 rounded-lg text-[10px] font-black gap-2 border-emerald-100 text-emerald-600 hover:bg-emerald-50"
+                       >
+                          <FileSpreadsheet className="size-3" /> 엑셀 다운로드
+                       </Button>
+                       <Button 
+                        variant="outline" 
+                        size="sm" 
                         onClick={() => {
                            const managementName = selectedManagementId ? managements.find(m => m.id === selectedManagementId)?.name : "전체";
                            generateSettlementPDF("서울2026", managementName || "정산내역서", relevantExpenditures);
                         }}
                         className="h-8 rounded-lg text-[10px] font-black gap-2 border-slate-200"
                        >
-                          <Download className="size-3" /> PDF 다운로드
+                          <Download className="size-3" /> 증빙자료 PDF 다운로드
                        </Button>
                     </div>
                  </div>

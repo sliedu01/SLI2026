@@ -39,9 +39,26 @@ export function getPublicUrlFromPath(bucket: string, path: string): string {
 }
 
 export function generateStoragePath(folder: string, filename: string): string {
-  // 한글, 영문, 숫자, 특수기호(.-_)를 제외한 나머지 및 공백을 언더바(_)로 치환
-  const cleanName = filename.replace(/[^a-zA-Z0-9\uAC00-\uD7A3.\-_]/g, '_');
-  return `${folder}/${cleanName}`;
+  // 1. 확장자 분리
+  const lastDotIndex = filename.lastIndexOf('.');
+  let name = filename;
+  let ext = '';
+  
+  if (lastDotIndex !== -1) {
+    name = filename.substring(0, lastDotIndex);
+    ext = filename.substring(lastDotIndex + 1);
+  }
+  
+  // 2. 본문 정제: 한글, 영문, 숫자, 대시(-)를 제외한 모든 문자(공백, 마침표 포함)를 언더바(_)로 치환
+  // 연속된 언더바는 하나로 합치고 앞뒤 공백 제거
+  const cleanName = name
+    .replace(/[^a-zA-Z0-9\uAC00-\uD7A3\-]/g, '_')
+    .replace(/_{2,}/g, '_')
+    .replace(/^_+|_+$/g, '');
+    
+  const cleanExt = ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  
+  return `${folder}/${cleanName}${cleanExt ? '.' + cleanExt : ''}`;
 }
 
 /**

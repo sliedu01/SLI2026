@@ -123,7 +123,7 @@ import {
 
 export default function SurveysPage() {
   const [mounted, setMounted] = React.useState(false);
-  const { projects, fetchProjects, getSortedProjects } = useProjectStore();
+  const { projects, fetchProjects, getSortedProjects, selectedLv1Ids } = useProjectStore();
   const { 
     templates, 
     responses, 
@@ -223,7 +223,20 @@ export default function SurveysPage() {
     const end = dataDateRange.end;
     const set = new Set<string>();
     projects.forEach(p => {
-      if (!start || !end || (p.startDate >= start && p.startDate <= end) || (p.endDate >= start && p.endDate <= end)) {
+      // 날짜 필터링
+      const matchesDate = !start || !end || (p.startDate >= start && p.startDate <= end) || (p.endDate >= start && p.endDate <= end);
+      
+      // 글로벌 LV1 필터링 적용
+      let matchesGlobalFilter = true;
+      if (selectedLv1Ids.length > 0) {
+        let root: any = p;
+        while (root && root.parentId && root.level > 1) {
+          root = projects.find(parent => parent.id === root.parentId);
+        }
+        matchesGlobalFilter = root && selectedLv1Ids.includes(root.id);
+      }
+
+      if (matchesDate && matchesGlobalFilter) {
         let curr: (typeof p) | undefined = p;
         while (curr) { 
           set.add(curr.id); 
@@ -232,7 +245,7 @@ export default function SurveysPage() {
       }
     });
     return set;
-  }, [projects, dataDateRange]);
+  }, [projects, dataDateRange, selectedLv1Ids]);
 
   const effectiveProjectIds = selectedProjectIds.length > 0 ? selectedProjectIds : Array.from(visibleProjectIds);
   const aggregatedStats = getAggregatedStats(projects, effectiveProjectIds.length > 0 ? effectiveProjectIds : undefined, undefined, 'UNIFIED');
@@ -648,9 +661,11 @@ export default function SurveysPage() {
                   <div className="space-y-1 flex-1 min-w-[400px]">
                      <label className="text-[10px] font-black text-slate-400">분석 프로그램 선택</label>
                      <Popover open={isProjectSelectorOpen} onOpenChange={setIsProjectSelectorOpen}>
-                        <PopoverTrigger className="w-full">
-                         <Button variant="outline" className="w-full h-12 justify-start px-4 rounded-xl font-black text-sm gap-3 bg-slate-50 border-none"><Layers className="size-4 text-blue-500" /> {selectionPath} <ChevronDown className="size-4 ml-auto opacity-50" /></Button>
-                      </PopoverTrigger>
+                        <PopoverTrigger render={
+                          <Button variant="outline" className="w-full h-12 justify-start px-4 rounded-xl font-black text-sm gap-3 bg-slate-50 border-none">
+                            <Layers className="size-4 text-blue-500" /> {selectionPath} <ChevronDown className="size-4 ml-auto opacity-50" />
+                          </Button>
+                        } />
                         <PopoverContent className="w-[480px] p-0 rounded-[2rem] shadow-2xl bg-white"><div className="p-6 border-b font-black text-sm">프로그램 통합 선택</div><div className="p-4 max-h-[500px] overflow-y-auto">{renderNodes(null)}</div></PopoverContent>
                      </Popover>
                   </div>
@@ -737,7 +752,7 @@ export default function SurveysPage() {
                             const renderTree = (parentId: string | null, depth = 0): React.ReactNode[] => {
                               const sorted = getSortedProjects(parentId);
                               const displayProjects = depth === 0 
-                                ? sorted.filter(p => p.level === 1) 
+                                ? sorted.filter(p => p.level === 1 && (selectedLv1Ids.length === 0 || selectedLv1Ids.includes(p.id))) 
                                 : sorted;
 
                               const sortedRows = displayProjects.filter(p => visibleProjectIds.has(p.id));

@@ -31,12 +31,14 @@ export interface Project {
 
 interface ProjectState {
   projects: Project[];
+  selectedLv1Ids: string[];
   sortKey: 'name' | 'date';
   sortDirection: 'asc' | 'desc';
   isLoading: boolean;
   
   // Actions
   fetchProjects: () => Promise<void>;
+  setSelectedLv1Ids: (ids: string[]) => void;
   addProject: (project: Omit<Project, 'id' | 'createdAt'>) => Promise<void>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
@@ -50,9 +52,12 @@ interface ProjectState {
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
+  selectedLv1Ids: [],
   sortKey: 'name',
   sortDirection: 'asc',
   isLoading: false,
+
+  setSelectedLv1Ids: (ids) => set({ selectedLv1Ids: ids }),
 
   fetchProjects: async () => {
     set({ isLoading: true });
@@ -95,55 +100,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     for (let lv = 4; lv >= 1; lv--) {
       updatedProjects.forEach((p, idx) => {
         if (p.level === lv) {
-          let currentQuota = 0;
-          let currentParticipantCount = 0;
-          let minDate = p.startDate;
-          let maxDate = p.endDate;
-
-          // 1. 해당 사업의 세션(sessions) 기반 통계 및 날짜 계산
-          if (p.sessions && p.sessions.length > 0) {
-            currentParticipantCount = p.sessions.reduce((sum, s) => sum + (s.participantCount || 0), 0);
-            
-            const sessionStartDates = p.sessions.map(s => s.startDate).filter(Boolean);
-            const sessionEndDates = p.sessions.map(s => s.endDate).filter(Boolean);
-            
-            if (sessionStartDates.length > 0) {
-              minDate = sessionStartDates.reduce((min, cur) => cur < min ? cur : min);
-            }
-            if (sessionEndDates.length > 0) {
-              maxDate = sessionEndDates.reduce((max, cur) => cur > max ? cur : max);
-            }
-          }
-          
-          // 2. 하위 사업(children) 기반 통계 합산 (있는 경우 기존 세션 데이터에 추가)
-          const children = updatedProjects.filter(child => child.parentId === p.id);
-          if (children.length > 0) {
-            currentQuota += children.reduce((sum, c) => sum + (c.quota || 0), 0);
-            currentParticipantCount += children.reduce((sum, c) => sum + (c.participantCount || 0), 0);
-            
-            const childStartDates = children.map(c => c.startDate).filter(Boolean);
-            const childEndDates = children.map(c => c.endDate).filter(Boolean);
-            
-            if (childStartDates.length > 0) {
-              const childrenMin = childStartDates.reduce((min, cur) => cur < min ? cur : min);
-              if (!minDate || childrenMin < minDate) minDate = childrenMin;
-            }
-            if (childEndDates.length > 0) {
-              const childrenMax = childEndDates.reduce((max, cur) => cur > max ? cur : max);
-              if (!maxDate || childrenMax > maxDate) maxDate = childrenMax;
-            }
-          }
-
-          // 최종 값 반영 (하위가 있는 경우에만 업데이트하거나, 본인의 데이터가 있으면 유지)
-          updatedProjects[idx] = {
-            ...updatedProjects[idx],
-            quota: children.length > 0 ? currentQuota : p.quota, 
-            participantCount: (children.length > 0 || (p.sessions && p.sessions.length > 0)) 
-              ? currentParticipantCount 
-              : p.participantCount,
-            startDate: minDate || p.startDate,
-            endDate: maxDate || p.endDate
-          };
+          // getAggregatedProject를 사용하여 현재 상태의 하위 데이터를 기반으로 상위 데이터 갱신
+          updatedProjects[idx] = getAggregatedProject(p, updatedProjects);
         }
       });
     }
@@ -285,3 +243,90 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     });
   },
 }));
+
+/**
+ * 프로젝트의 세션과 하위 프로젝트를 기반으로 날짜/시간/인원수를 실시간으로 집계하는 헬퍼 함수
+ */
+export function getAggregatedProject(p: Project, allProjects: Project[]): Project {
+  // 1. 모든 데이터 소스 수집 (세션 및 하위 프로젝트)
+  const children = allProjects.filter(child => child.parentId === p.id);
+  const aggregatedChildren = children.map(c => getAggregatedProject(c, allProjects));
+  
+  const hasSessions = p.sessions && p.sessions.length > 0;
+  const hasChildren = children.length > 0;
+
+  if (!hasSessions && !hasChildren) {
+    return { ...p };
+  }
+
+  // 2. 일시/시간 집계
+  let minDate = "";
+  let maxDate = "";
+  let minStartTime = "";
+  let maxEndTime = "";
+  let totalParticipantCount = 0;
+  let totalQuota = hasChildren ? 0 : (p.quota || 0);
+
+  interface TimeSource {
+    startDate: string;
+    endDate: string;
+    startTime: string;
+    endTime: string;
+    participantCount: number;
+    quota?: number;
+  }
+
+  const sources: TimeSource[] = [];
+  
+  if (hasSessions) {
+    p.sessions!.forEach(s => sources.push({
+      startDate: s.startDate || "",
+      endDate: s.endDate || "",
+      startTime: s.startTime || "",
+      endTime: s.endTime || "",
+      participantCount: s.participantCount || 0
+    }));
+  }
+
+  if (hasChildren) {
+    aggregatedChildren.forEach(c => {
+      sources.push({
+        startDate: c.startDate || "",
+        endDate: c.endDate || "",
+        startTime: c.startTime || "",
+        endTime: c.endTime || "",
+        participantCount: c.participantCount || 0
+      });
+      totalQuota += (c.quota || 0);
+    });
+  }
+
+  if (sources.length > 0) {
+    // 최소 시작일 찾기
+    minDate = sources.map(s => s.startDate).filter(Boolean).reduce((min, cur) => cur < min ? cur : min);
+    // 최대 종료일 찾기
+    maxDate = sources.map(s => s.endDate).filter(Boolean).reduce((max, cur) => cur > max ? cur : max);
+    
+    // 최소 시작일의 가장 빠른 시작 시간
+    const sameMinDaySources = sources.filter(s => s.startDate === minDate);
+    minStartTime = sameMinDaySources.map(s => s.startTime).filter(Boolean).reduce((min, cur) => cur < min ? cur : min, "");
+    
+    // 최대 종료일의 가장 늦은 종료 시간
+    const sameMaxDaySources = sources.filter(s => s.endDate === maxDate);
+    maxEndTime = sameMaxDaySources.map(s => s.endTime).filter(Boolean).reduce((max, cur) => cur > max ? cur : max, "");
+    
+    // 전체 참가 인원 합산
+    totalParticipantCount = sources.reduce((sum, s) => sum + s.participantCount, 0);
+  }
+
+  return {
+    ...p,
+    startDate: minDate || p.startDate,
+    endDate: maxDate || p.endDate,
+    startTime: minStartTime || p.startTime,
+    endTime: maxEndTime || p.endTime,
+    participantCount: totalParticipantCount,
+    quota: totalQuota
+  };
+}
+

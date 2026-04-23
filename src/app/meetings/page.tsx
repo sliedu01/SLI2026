@@ -44,7 +44,7 @@ export default function MeetingsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [meetingToDelete, setMeetingToDelete] = React.useState<Meeting | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const { projects, fetchProjects } = useProjectStore();
+  const { projects, fetchProjects, selectedLv1Ids } = useProjectStore();
   const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -53,17 +53,35 @@ export default function MeetingsPage() {
   }, []);
 
   const lv1Projects = React.useMemo(() => 
-    projects.filter(p => p.level === 1), 
-  [projects]);
+    projects.filter(p => p.level === 1 && (selectedLv1Ids.length === 0 || selectedLv1Ids.includes(p.id))), 
+  [projects, selectedLv1Ids]);
 
   // 사업 선택 시 해당 회의록만 필터링
   const filteredMeetings = React.useMemo(() => {
     const sorted = getSortedMeetings();
-    const filtered = selectedProjectId 
-      ? sorted.filter(m => m.projectId === selectedProjectId)
-      : sorted;
+    
+    // 1. 글로벌 LV1 필터링 적용
+    let filtered = sorted;
+    if (selectedLv1Ids.length > 0) {
+      filtered = filtered.filter(m => {
+        if (!m.projectId) return false;
+        let current = projects.find(p => p.id === m.projectId);
+        while (current && current.parentId && current.level > 1) {
+          const parent = projects.find(p => p.id === current!.parentId);
+          if (!parent) break;
+          current = parent;
+        }
+        return current && selectedLv1Ids.includes(current.id);
+      });
+    }
+
+    // 2. 개별 사업 선택 필터 (기본 기능 유지)
+    if (selectedProjectId) {
+      filtered = filtered.filter(m => m.projectId === selectedProjectId);
+    }
+
     return sortOrder === 'asc' ? filtered : [...filtered].reverse();
-  }, [meetings, sortOrder, selectedProjectId]);
+  }, [meetings, sortOrder, selectedProjectId, selectedLv1Ids, projects]);
 
   React.useEffect(() => {
     if (filteredMeetings.length > 0) {

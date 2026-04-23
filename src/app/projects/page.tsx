@@ -41,14 +41,15 @@ export default function ProjectsPage() {
   const [hasMounted, setHasMounted] = React.useState(false);
   React.useEffect(() => { setHasMounted(true); }, []);
   const { 
-    projects,
-    fetchProjects,
-    deleteProject, 
-    copyProject,
-    sortKey, 
-    sortDirection, 
+    projects, 
+    fetchProjects, 
     setSort,
-    getSortedProjects 
+    getSortedProjects,
+    selectedLv1Ids,
+    copyProject,
+    deleteProject,
+    sortKey,
+    sortDirection
   } = useProjectStore();
   const { partners, fetchPartners } = usePartnerStore();
 
@@ -368,7 +369,7 @@ export default function ProjectsPage() {
     const sorted = getSortedProjects(parentId);
     
     const displayProjects = depth === 0 
-      ? sorted.filter(p => p.level === 1) 
+      ? sorted.filter(p => p.level === 1 && (selectedLv1Ids.length === 0 || selectedLv1Ids.includes(p.id))) 
       : sorted;
 
     return (
@@ -437,8 +438,20 @@ export default function ProjectsPage() {
 
   // --- 간트 차트 컴포넌트 ---
   const GanttView = () => {
-    // 1. 타임라인 범위 계산 (전체 프로젝트 중 최소~최대 날짜)
-    const allDates = projects.flatMap(p => [new Date(p.startDate), new Date(p.endDate)]);
+    // 1. 타임라인 범위 계산
+    const filteredProjects = projects.filter(p => {
+      if (selectedLv1Ids.length === 0) return true;
+      // 상위 레벨 1 프로젝트 찾기
+      let current = p;
+      while (current.parentId && current.level > 1) {
+        const parent = projects.find(prev => prev.id === current.parentId);
+        if (!parent) break;
+        current = parent;
+      }
+      return selectedLv1Ids.includes(current.id);
+    });
+
+    const allDates = filteredProjects.flatMap(p => [new Date(p.startDate), new Date(p.endDate)]);
     if (allDates.length === 0) return (
       <div className="flex flex-col items-center justify-center py-24 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
          <p className="text-slate-400 font-black">표시할 타임라인 데이터가 없습니다.</p>
@@ -490,7 +503,7 @@ export default function ProjectsPage() {
 
         {/* 간체 본문: 프로젝트 바 */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {projects.sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()).map(p => {
+          {filteredProjects.sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()).map(p => {
              const left = getPos(p.startDate);
              const right = getPos(p.endDate);
              const width = Math.max(right - left, 2); // 최소 너비 보장

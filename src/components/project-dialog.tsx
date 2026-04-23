@@ -149,13 +149,28 @@ export function ProjectDialog({
     if (!name.trim()) { alert('사업명을 입력해주세요.'); return; }
     if (!startDate || !endDate) { alert('기간을 선택해주세요.'); return; }
 
+    // 세션이 있는 경우 대표 날짜/시간 추출 (가장 빠른 날짜/시간 ~ 가장 늦은 날짜/시간)
+    let finalStartDate = startDate && isValid(startDate) ? format(startDate, 'yyyy-MM-dd') : '';
+    let finalEndDate = endDate && isValid(endDate) ? format(endDate, 'yyyy-MM-dd') : '';
+    let finalStartTime = startTime;
+    let finalEndTime = endTime;
+
+    if (level >= 3 && sessions.length > 0) {
+      const sortedByStart = [...sessions].sort((a, b) => a.startDate.localeCompare(b.startDate) || a.startTime.localeCompare(b.startTime));
+      const sortedByEnd = [...sessions].sort((a, b) => b.endDate.localeCompare(a.endDate) || b.endTime.localeCompare(a.endTime));
+      finalStartDate = sortedByStart[0].startDate;
+      finalEndDate = sortedByEnd[sortedByEnd.length - 1].endDate;
+      finalStartTime = sortedByStart[0].startTime;
+      finalEndTime = sortedByEnd[sortedByEnd.length - 1].endTime;
+    }
+
     const projectData: Omit<Project, 'id' | 'createdAt'> = {
       name: name.trim(),
       description: description.trim(),
-      startDate: startDate && isValid(startDate) ? format(startDate, 'yyyy-MM-dd') : '',
-      endDate: endDate && isValid(endDate) ? format(endDate, 'yyyy-MM-dd') : '',
-      startTime,
-      endTime,
+      startDate: finalStartDate,
+      endDate: finalEndDate,
+      startTime: finalStartTime,
+      endTime: finalEndTime,
       quota,
       participantCount: level >= 3 ? sessions.reduce((sum, s) => sum + s.participantCount, 0) : participantCount,
       partnerId: partnerId === 'none' ? undefined : partnerId,
