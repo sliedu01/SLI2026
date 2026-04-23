@@ -46,8 +46,12 @@ export default function CalendarPage() {
   }, [fetchProjects, fetchMeetings, fetchBudgets, fetchPartners]);
 
   // 0. 필터링 로직
-  const lv1Projects = projects.filter(p => p.level === 1);
-  const effectiveSelectedIds = selectedLv1Ids.length > 0 ? selectedLv1Ids : lv1Projects.map(p => p.id);
+  const lv1Projects = React.useMemo(() => projects.filter(p => p.level === 1), [projects]);
+  
+  const effectiveSelectedIds = React.useMemo(() => 
+    selectedLv1Ids.length > 0 ? selectedLv1Ids : lv1Projects.map(p => p.id),
+    [selectedLv1Ids, lv1Projects]
+  );
 
   const [selectedLv2Ids, setSelectedLv2Ids] = React.useState<string[]>([]);
 
@@ -58,7 +62,14 @@ export default function CalendarPage() {
 
   // LV1 필터가 바뀔 때 LV2 선택 초기화 (선택된 LV2가 현재 활성 LV1에 속하지 않는 경우 대비)
   React.useEffect(() => {
-    setSelectedLv2Ids(prev => prev.filter(id => lv2Projects.some(p => p.id === id)));
+    setSelectedLv2Ids(prev => {
+      const next = prev.filter(id => lv2Projects.some(p => p.id === id));
+      // 성능 및 루프 방지: 실제 변화가 있을 때만 업데이트
+      if (next.length === prev.length && next.every((id, i) => id === prev[i])) {
+        return prev;
+      }
+      return next;
+    });
   }, [lv2Projects]);
 
   const effectiveLv2Ids = selectedLv2Ids.length > 0 ? selectedLv2Ids : lv2Projects.map(p => p.id);
