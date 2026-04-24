@@ -266,7 +266,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
         
         .event-inner {
           padding: 2px 4px;
-          font-size: 9px !important;
+          font-size: 10px !important;
           font-weight: 900 !important;
           color: #000000 !important;
           white-space: nowrap;
