@@ -98,6 +98,12 @@ function BudgetPageContent() {
         setActiveProjectId(globalId);
         fetchBudgets(globalId);
       }
+    } else {
+      // 글로벌 선택이 없는 경우(전체)
+      if (activeProjectId !== 'all') {
+        setActiveProjectId('all');
+        fetchBudgets(undefined);
+      }
     }
   }, [mounted, selectedLv1Ids, activeProjectId, setActiveProjectId, fetchBudgets]);
 

@@ -23,6 +23,8 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
+import Link from "next/link"
+
 // 메뉴 데이터 구성
 const data = {
   navMain: [
@@ -93,7 +95,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenu>
               {data.navMain.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton render={<a href={item.url} />} tooltip={item.title} className="h-9 px-3">
+                  <SidebarMenuButton render={<Link href={item.url} />} tooltip={item.title} className="h-9 px-3">
                     <item.icon className="size-4" />
                     <span className="text-[11px] font-medium">{item.title}</span>
                   </SidebarMenuButton>
@@ -109,7 +111,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenu>
               {data.admin.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton render={<a href={item.url} />} tooltip={item.title} className="h-9 px-3">
+                  <SidebarMenuButton render={<Link href={item.url} />} tooltip={item.title} className="h-9 px-3">
                     <item.icon className="size-4" />
                     <span className="text-[11px] font-medium">{item.title}</span>
                   </SidebarMenuButton>
