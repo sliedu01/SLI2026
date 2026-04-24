@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, PDFFont } from 'pdf-lib';
 import { jsPDF } from 'jspdf';
 import fontkit from '@pdf-lib/fontkit';
+import { Expenditure } from '@/store/use-budget-store';
 
 /**
  * 지출 증빙 PDF 병합 및 푸터 추가 유틸리티
@@ -8,7 +9,7 @@ import fontkit from '@pdf-lib/fontkit';
 export async function generateSettlementPDF(
   projectName: string, 
   executionName: string, 
-  expenditures: any[]
+  expenditures: Expenditure[]
 ) {
   try {
     // 2. pdf-lib을 이용한 병합
@@ -102,8 +103,9 @@ export async function generateSettlementPDF(
           }
           mergedPdf.addPage(imgPage);
         }
-      } catch (err: any) {
-        console.error(`PDF: Failed to merge ${exp.attachmentOriginalName}:`, err);
+      } catch (err: unknown) {
+        const error = err as Error;
+        console.error(`PDF: Failed to merge ${exp.attachmentOriginalName}:`, error);
       }
     }
 
@@ -120,8 +122,9 @@ export async function generateSettlementPDF(
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
-  } catch (err: any) {
-    console.error('PDF Generation Error:', err);
-    alert(`PDF 생성 중 오류가 발생했습니다.\n상세내용: ${err.message || '알 수 없는 오류'}`);
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error('PDF Generation Error:', error);
+    alert(`PDF 생성 중 오류가 발생했습니다.\n상세내용: ${error.message || '알 수 없는 오류'}`);
   }
 }

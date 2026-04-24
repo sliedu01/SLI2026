@@ -19,6 +19,7 @@ export interface Partner {
   email: string;
   address: string;
   documents: PartnerDocument[];
+  abbreviation?: string; 
   createdAt: number;
 }
 
@@ -45,7 +46,7 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
     // 모든 필드를 가져오도록 수정 (가시성 문제 해결)
     const { data, error } = await supabase
       .from('partners')
-      .select('id, name, manager, phone1, phone2, email, address, documents, created_at')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -70,37 +71,82 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
         }),
         createdAt: new Date(p.created_at).getTime(),
       }));
-      set({ partners: mappedPartners });
+
+      // 로컬 스토리지에서 협력업체 약어 데이터 로드
+      const localAbbrs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('partner_abbreviations') || '{}') : {};
+      
+      const finalizedPartners = mappedPartners.map(p => ({
+        ...p,
+        abbreviation: localAbbrs[p.id] || p.abbreviation || '',
+      }));
+
+      set({ partners: finalizedPartners });
     }
     set({ isLoading: false });
   },
 
   addPartner: async (partnerData) => {
-    const { data, error } = await supabase
-      .from('partners')
-      .insert([{
-        name: partnerData.name,
-        manager: partnerData.manager,
-        phone1: partnerData.phone1,
-        phone2: partnerData.phone2,
-        email: partnerData.email,
-        address: partnerData.address,
-        documents: partnerData.documents as unknown as Json,
-      }])
-      .select()
-      .single();
+    let finalId = '';
+    try {
+      const { data, error } = await supabase
+        .from('partners')
+        .insert([{
+          name: partnerData.name,
+          manager: partnerData.manager,
+          phone1: partnerData.phone1,
+          phone2: partnerData.phone2,
+          email: partnerData.email,
+          address: partnerData.address,
+          documents: partnerData.documents as unknown as Json,
+          abbreviation: partnerData.abbreviation,
+        }])
+        .select()
+        .single();
 
-    if (error) throw error;
+      if (error) {
+        if (error.message?.includes('abbreviation')) {
+          console.warn('Database insert failed for partner abbreviation, retrying without it:', error);
+          const { data: retryData, error: retryError } = await supabase
+            .from('partners')
+            .insert([{
+              name: partnerData.name,
+              manager: partnerData.manager,
+              phone1: partnerData.phone1,
+              phone2: partnerData.phone2,
+              email: partnerData.email,
+              address: partnerData.address,
+              documents: partnerData.documents as unknown as Json,
+            }])
+            .select()
+            .single();
+          
+          if (retryError) throw retryError;
+          finalId = retryData.id;
+        } else {
+          throw error;
+        }
+      } else {
+        finalId = data.id;
+      }
+    } catch (err) {
+      throw err;
+    }
     
-    // 로컬 상태 즉시 업데이트 (선택사항, 구독이 처리할 수도 있음)
+    // 로컬 스토리지에 약어 저장
+    if (typeof window !== 'undefined') {
+      const localAbbrs = JSON.parse(localStorage.getItem('partner_abbreviations') || '{}');
+      if (partnerData.abbreviation) localAbbrs[finalId] = partnerData.abbreviation;
+      localStorage.setItem('partner_abbreviations', JSON.stringify(localAbbrs));
+    }
+
     const newPartner: Partner = {
       ...partnerData,
-      id: data.id,
-      createdAt: new Date(data.created_at).getTime(),
+      id: finalId,
+      createdAt: Date.now(),
     };
     set((state) => ({ partners: [newPartner, ...state.partners] }));
     
-    return data.id;
+    return finalId;
   },
 
   updatePartner: async (id, updates) => {
@@ -114,16 +160,34 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
         email: updates.email,
         address: updates.address,
         documents: updates.documents as unknown as Json,
+        abbreviation: updates.abbreviation,
       })
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      console.warn('Database update failed for partner abbreviation, using local storage fallback:', error);
+      // 로컬 상태 강제 업데이트
+      set((state) => ({
+        partners: state.partners.map((p) => 
+          p.id === id ? { ...p, ...updates } : p
+        ),
+      }));
+    } else {
+      set((state) => ({
+        partners: state.partners.map((p) => 
+          p.id === id ? { ...p, ...updates } : p
+        ),
+      }));
+    }
 
-    set((state) => ({
-      partners: state.partners.map((p) => 
-        p.id === id ? { ...p, ...updates } : p
-      ),
-    }));
+    // 로컬 스토리지에 즉시 저장
+    if (typeof window !== 'undefined') {
+      if (updates.abbreviation !== undefined) {
+        const localAbbrs = JSON.parse(localStorage.getItem('partner_abbreviations') || '{}');
+        localAbbrs[id] = updates.abbreviation;
+        localStorage.setItem('partner_abbreviations', JSON.stringify(localAbbrs));
+      }
+    }
   },
 
   deletePartner: async (id) => {

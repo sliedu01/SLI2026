@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Plus, Trash2, Settings2, FolderTree, Edit2, Check, X } from 'lucide-react';
 import { useBudgetStore } from '@/store/use-budget-store';
 import { formatInputNumber, parseCommaNumber, formatWithCommas } from '@/lib/number-format';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -47,7 +48,7 @@ export function CategoryManagementDialog({ open, onOpenChange }: CategoryManagem
     try {
       await addCategory(newCatName);
       setNewCatName('');
-    } catch (error) {
+    } catch {
       alert('비목 등록 중 오류가 발생했습니다.');
     }
   };
@@ -58,7 +59,7 @@ export function CategoryManagementDialog({ open, onOpenChange }: CategoryManagem
       await addManagement(selectedCatId, newManName, parseCommaNumber(newManBudget));
       setNewManName('');
       setNewManBudget('');
-    } catch (error) {
+    } catch {
       alert('관리세목 등록 중 오류가 발생했습니다.');
     }
   };
@@ -71,7 +72,7 @@ export function CategoryManagementDialog({ open, onOpenChange }: CategoryManagem
         await updateManagement(id, { name: editValue, budgetAmount: parseCommaNumber(editBudget) });
       }
       setEditingId(null);
-    } catch (error) {
+    } catch {
       alert('수정 중 오류가 발생했습니다.');
     }
   };
@@ -81,7 +82,7 @@ export function CategoryManagementDialog({ open, onOpenChange }: CategoryManagem
     try {
       if (type === 'cat') await deleteCategory(id);
       else await deleteManagement(id);
-    } catch (error) {
+    } catch {
       alert('삭제 중 오류가 발생했습니다.');
     }
   };
@@ -292,6 +293,3 @@ export function CategoryManagementDialog({ open, onOpenChange }: CategoryManagem
   );
 }
 
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
-}

@@ -54,6 +54,7 @@ export function ProjectDialog({
   const { partners } = usePartnerStore();
   
   const [name, setName] = React.useState('');
+  const [abbreviation, setAbbreviation] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [startDate, setStartDate] = React.useState<Date | undefined>();
   const [endDate, setEndDate] = React.useState<Date | undefined>();
@@ -70,6 +71,7 @@ export function ProjectDialog({
     if (open) {
       if (mode === 'edit' && project) {
         setName(project.name || '');
+        setAbbreviation(project.abbreviation || '');
         setDescription(project.description || '');
         const s = project.startDate ? new Date(project.startDate) : undefined;
         const e = project.endDate ? new Date(project.endDate) : undefined;
@@ -84,13 +86,14 @@ export function ProjectDialog({
         setSessions(project.sessions || []);
       } else if (mode === 'add' && parentProject) {
         setName('');
+        setAbbreviation('');
         setDescription(parentProject.description || '');
         const s = parentProject.startDate ? new Date(parentProject.startDate) : undefined;
         const e = parentProject.endDate ? new Date(parentProject.endDate) : undefined;
         setStartDate(s && isValid(s) ? s : undefined);
         setEndDate(e && isValid(e) ? e : undefined);
-        setStartTime(parentProject.startTime || '09:00');
-        setEndTime(parentProject.endTime || '18:00');
+        setStartTime('10:00');
+        setEndTime('12:00');
         setQuota(0);
         setParticipantCount(0);
         setPartnerId(parentProject.partnerId || 'none');
@@ -98,11 +101,13 @@ export function ProjectDialog({
         setSessions([]);
       } else {
         setName('');
+        setAbbreviation('');
         setDescription('');
-        setStartDate(undefined);
-        setEndDate(undefined);
-        setStartTime('09:00');
-        setEndTime('18:00');
+        const today = new Date();
+        setStartDate(today);
+        setEndDate(today);
+        setStartTime('10:00');
+        setEndTime('12:00');
         setQuota(0);
         setParticipantCount(0);
         setPartnerId('none');
@@ -122,8 +127,8 @@ export function ProjectDialog({
     
     const sDate = lastSession ? lastSession.startDate : (startDate ? format(startDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
     const eDate = lastSession ? lastSession.endDate : (endDate ? format(endDate, 'yyyy-MM-dd') : sDate);
-    const sTime = lastSession ? lastSession.startTime : '10:00';
-    const eTime = lastSession ? lastSession.endTime : '12:00';
+    const sTime = lastSession ? lastSession.startTime : (startTime || '10:00');
+    const eTime = lastSession ? lastSession.endTime : (endTime || '12:00');
 
     const newSession: ProjectSession = {
       id: crypto.randomUUID(),
@@ -138,8 +143,21 @@ export function ProjectDialog({
   };
 
   const removeSession = (id: string) => setSessions(sessions.filter(s => s.id !== id));
-  const updateSession = (id: string, updates: Partial<ProjectSession>) => 
-    setSessions(sessions.map(s => s.id === id ? { ...s, ...updates } : s));
+  
+  const roundTo10Minutes = (value: string) => {
+    if (!value) return value;
+    const [hours, minutes] = value.split(':');
+    const roundedMinutes = Math.round(parseInt(minutes) / 10) * 10;
+    const finalMinutes = roundedMinutes === 60 ? '50' : roundedMinutes.toString().padStart(2, '0');
+    return `${hours}:${finalMinutes}`;
+  };
+
+  const updateSession = (id: string, updates: Partial<ProjectSession>) => {
+    const finalUpdates = { ...updates };
+    if (updates.startTime) finalUpdates.startTime = roundTo10Minutes(updates.startTime);
+    if (updates.endTime) finalUpdates.endTime = roundTo10Minutes(updates.endTime);
+    setSessions(sessions.map(s => s.id === id ? { ...s, ...finalUpdates } : s));
+  };
 
   const [isSaving, setIsSaving] = React.useState(false);
   
@@ -166,6 +184,7 @@ export function ProjectDialog({
 
     const projectData: Omit<Project, 'id' | 'createdAt'> = {
       name: name.trim(),
+      abbreviation: abbreviation.trim(),
       description: description.trim(),
       startDate: finalStartDate,
       endDate: finalEndDate,
@@ -200,14 +219,14 @@ export function ProjectDialog({
         isMaximized ? "max-w-[1700px] w-[98vw] h-[95vh]" : "max-w-[95vw] md:max-w-4xl lg:max-w-5xl"
       )}>
         <form onSubmit={handleSubmit}>
-          <DialogHeader className="bg-slate-900 p-8 text-white relative">
-            <DialogTitle className="text-2xl font-black">
+          <DialogHeader className="bg-slate-900 p-4 text-white relative">
+            <DialogTitle className="text-[14px] font-bold">
               {mode === 'add' ? '신규 사업 등록' : '사업 정보 수정'}
             </DialogTitle>
-            <DialogDescription className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">
+            <DialogDescription className="text-[8px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">
               Lv {level}. {level === 1 ? '사업' : level === 2 ? '세부 사업' : level === 3 ? '단위 과업' : '강좌/활동'} 정보 관리
             </DialogDescription>
-            <div className="absolute top-8 right-8 flex items-center gap-2">
+            <div className="absolute top-4 right-4 flex items-center gap-1.5">
               <Button
                 variant="ghost"
                 size="icon"
@@ -228,78 +247,86 @@ export function ProjectDialog({
           </DialogHeader>
           
           <div className={cn(
-            "p-10 space-y-10 overflow-y-auto custom-scrollbar bg-slate-50/50",
-            isMaximized ? "h-[calc(95vh-160px)]" : "max-h-[70vh]"
+            "p-6 space-y-6 overflow-y-auto custom-scrollbar bg-slate-50/50",
+            isMaximized ? "h-[calc(95vh-120px)]" : "max-h-[70vh]"
           )}>
-            <div className="grid gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="name" className="text-xs font-black text-slate-400 uppercase tracking-wider">사업명</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="사업 명칭을 입력하세요"
-                  className="font-bold h-12 rounded-xl"
-                  required
-                />
+            <div className="grid gap-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 grid gap-1.5">
+                  <Label htmlFor="name" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">사업명</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="사업 명칭을 입력하세요"
+                    className="font-bold h-9 rounded-lg text-[11px]"
+                    required
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="abbreviation" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">별칭 (약어)</Label>
+                  <Input
+                    id="abbreviation"
+                    value={abbreviation}
+                    onChange={(e) => setAbbreviation(e.target.value)}
+                    placeholder="약어 입력"
+                    className="font-bold h-9 rounded-lg text-[11px]"
+                  />
+                </div>
               </div>
               
-              <div className="grid gap-2">
-                <Label htmlFor="location" className="text-xs font-black text-slate-400 uppercase tracking-wider">교육 장소</Label>
+              <div className="grid gap-1.5">
+                <Label htmlFor="location" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">교육 장소</Label>
                 <Input
                   id="location"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="교육이 진행된 장소를 입력하세요"
-                  className="font-bold h-12 rounded-xl"
+                  className="font-bold h-9 rounded-lg text-[11px]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">협력업체</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">협력업체</Label>
                   <Select value={partnerId} onValueChange={(val) => setPartnerId(val || 'none')}>
-                    <SelectTrigger className="h-12 rounded-xl font-bold">
+                    <SelectTrigger className="h-9 rounded-lg font-bold text-[11px]">
                       <SelectValue placeholder="협력업체 선택" />
                     </SelectTrigger>
-                    <SelectContent className="min-w-[400px] rounded-2xl border-slate-100 shadow-2xl">
-                      <SelectItem value="none">미지정</SelectItem>
-                      {partners.length === 0 ? (
-                        <div className="p-2 text-xs font-bold text-slate-400 text-center">파트너 목록을 불러오는 중...</div>
-                      ) : (
-                        partners.map(p => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                        ))
-                      )}
+                    <SelectContent className="min-w-[300px] rounded-xl border-slate-100 shadow-2xl">
+                      <SelectItem value="none" className="text-[11px]">미지정</SelectItem>
+                      {partners.map(p => (
+                        <SelectItem key={p.id} value={p.id} className="text-[11px]">{p.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid gap-2">
-                  <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">정원 (수용인원)</Label>
+                <div className="grid gap-1.5">
+                  <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">정원 (수용인원)</Label>
                   <Input
                     type="number"
                     value={quota}
                     onChange={(e) => setQuota(Number(e.target.value))}
-                    className="font-bold h-12 rounded-xl"
+                    className="font-bold h-9 rounded-lg text-[11px]"
                   />
                 </div>
               </div>
             </div>
 
             {level < 3 && (
-              <div className="space-y-6 pt-4 border-t border-slate-100">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">시작일</Label>
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">시작일</Label>
                     <Popover>
                       <PopoverTrigger
                         render={
                           <Button
                             variant="outline"
                             type="button"
-                            className={cn("w-full justify-start text-left font-bold h-12 rounded-xl", !startDate && "text-muted-foreground")}
+                            className={cn("w-full justify-start text-left font-bold h-9 rounded-lg text-[11px]", !startDate && "text-muted-foreground")}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            <CalendarIcon className="mr-2 h-3 w-3" />
                             {startDate ? format(startDate, "yyyy-MM-dd") : <span>날짜 선택</span>}
                           </Button>
                         }
@@ -309,17 +336,17 @@ export function ProjectDialog({
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <div className="grid gap-2">
-                    <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">종료일</Label>
+                  <div className="grid gap-1.5">
+                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">종료일</Label>
                     <Popover>
                       <PopoverTrigger
                         render={
                           <Button
                             variant="outline"
                             type="button"
-                            className={cn("w-full justify-start text-left font-bold h-12 rounded-xl", !endDate && "text-muted-foreground")}
+                            className={cn("w-full justify-start text-left font-bold h-9 rounded-lg text-[11px]", !endDate && "text-muted-foreground")}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            <CalendarIcon className="mr-2 h-3 w-3" />
                             {endDate ? format(endDate, "yyyy-MM-dd") : <span>날짜 선택</span>}
                           </Button>
                         }
@@ -330,14 +357,26 @@ export function ProjectDialog({
                     </Popover>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">시작 시간</Label>
-                    <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="font-bold h-12 rounded-xl" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">시작 시간</Label>
+                    <Input 
+                      type="time" 
+                      value={startTime} 
+                      onChange={(e) => setStartTime(roundTo10Minutes(e.target.value))} 
+                      className="font-bold h-9 rounded-lg text-[11px]" 
+                      step="600"
+                    />
                   </div>
-                  <div className="grid gap-2">
-                    <Label className="text-xs font-black text-slate-400 uppercase tracking-wider">종료 시간</Label>
-                    <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="font-bold h-12 rounded-xl" />
+                  <div className="grid gap-1.5">
+                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">종료 시간</Label>
+                    <Input 
+                      type="time" 
+                      value={endTime} 
+                      onChange={(e) => setEndTime(roundTo10Minutes(e.target.value))} 
+                      className="font-bold h-9 rounded-lg text-[11px]" 
+                      step="600"
+                    />
                   </div>
                 </div>
               </div>
@@ -373,14 +412,14 @@ export function ProjectDialog({
                               <Label className="text-[10px] font-black text-slate-400">시작 일시</Label>
                               <div className="flex gap-2">
                                 <Input type="date" value={session.startDate} onChange={(e) => updateSession(session.id, { startDate: e.target.value })} className="h-10 text-xs font-bold rounded-xl" />
-                                <Input type="time" value={session.startTime} onChange={(e) => updateSession(session.id, { startTime: e.target.value })} className="h-10 w-24 text-xs font-bold rounded-xl" />
+                                <Input type="time" value={session.startTime} onChange={(e) => updateSession(session.id, { startTime: e.target.value })} className="h-10 w-24 text-xs font-bold rounded-xl" step="600" />
                               </div>
                             </div>
                             <div className="space-y-2">
                               <Label className="text-[10px] font-black text-slate-400">종료 일시</Label>
                               <div className="flex gap-2">
                                 <Input type="date" value={session.endDate} onChange={(e) => updateSession(session.id, { endDate: e.target.value })} className="h-10 text-xs font-bold rounded-xl" />
-                                <Input type="time" value={session.endTime} onChange={(e) => updateSession(session.id, { endTime: e.target.value })} className="h-10 w-24 text-xs font-bold rounded-xl" />
+                                <Input type="time" value={session.endTime} onChange={(e) => updateSession(session.id, { endTime: e.target.value })} className="h-10 w-24 text-xs font-bold rounded-xl" step="600" />
                               </div>
                             </div>
                           </div>
@@ -413,12 +452,12 @@ export function ProjectDialog({
               <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="상세 내용" className="min-h-[80px] font-medium rounded-xl" />
             </div>
           </div>
-          <DialogFooter className="p-8 bg-white border-t border-slate-50 flex gap-3">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="flex-1 h-14 rounded-2xl font-black text-slate-400 hover:text-slate-600">취소</Button>
+          <DialogFooter className="p-4 bg-white border-t border-slate-50 flex gap-2">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="flex-1 h-10 rounded-lg font-bold text-[11px] text-slate-400 hover:text-slate-600">취소</Button>
             <Button 
               type="submit" 
               disabled={isSaving}
-              className="flex-[2] h-14 rounded-2xl bg-slate-900 text-white font-black shadow-xl hover:bg-slate-800 transition-all"
+              className="flex-[2] h-10 rounded-lg bg-slate-900 text-white font-bold text-[11px] shadow-md hover:bg-slate-800 transition-all"
             >
               {isSaving ? '저장 중...' : '사업 정보 저장하기'}
             </Button>

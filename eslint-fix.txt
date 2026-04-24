@@ -1,0 +1,130 @@
+﻿
+C:\seoul2026\src\app\budget\page.tsx
+   33:3   warning  'SelectValue' is defined but never used                                                                                                  @typescript-eslint/no-unused-vars
+   63:70  error    Unexpected any. Specify a different type                                                                                                 @typescript-eslint/no-explicit-any
+   88:6   warning  React Hook React.useEffect has missing dependencies: 'categories' and 'managements'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  110:39  error    Unexpected any. Specify a different type                                                                                                 @typescript-eslint/no-explicit-any
+  115:47  error    Unexpected any. Specify a different type                                                                                                 @typescript-eslint/no-explicit-any
+  129:22  error    Unexpected any. Specify a different type                                                                                                 @typescript-eslint/no-explicit-any
+
+C:\seoul2026\src\app\calendar\_components\calendar-view.tsx
+   59:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   61:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   87:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   87:62  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  305:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\seoul2026\src\app\calendar\page.tsx
+   21:3   warning  'SelectValue' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   24:27  warning  'HOLIDAYS' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  151:32  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `selectedProjectId`, but the source dependencies were [projects, filteredProjectIds, effectiveSelectedIds, selectedLv2Ids, effectiveLv2Ids, meetings, expenditures, partners, managements, categories, getLv2Name, showProjects, showMeetings, showBudget, getDescendantIds]. Inferred different dependency than source.
+
+C:\seoul2026\src\app\calendar\page.tsx:151:32
+  149 |   }, [projects]);
+  150 |
+> 151 |   const events = React.useMemo(() => {
+      |                                ^^^^^^^
+> 152 |     try {
+      | ^^^^^^^^^
+> 153 |       const allEvents: CalendarEvent[] = [];
+      ??      | ^^^^^^^^^
+> 388 |     }
+      | ^^^^^^^^^
+> 389 |   }, [projects, filteredProjectIds, effectiveSelectedIds, selectedLv2Ids, effectiveLv2Ids, meetings, expenditures, partners, managements, categories, getLv2Name, showProjects, showMeetings, showBudget, getDescendantIds]);
+      | ^^^^ Could not preserve existing manual memoization
+  390 |
+  391 |   const isLoading = isProjectsLoading || isMeetingsLoading || isBudgetLoading;
+  392 |  react-hooks/preserve-manual-memoization
+  389:6   warning  React Hook React.useMemo has a missing dependency: 'selectedProjectId'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          react-hooks/exhaustive-deps
+
+C:\seoul2026\src\app\meetings\page.tsx
+    9:3   warning  'Search' is defined but never used                                                                                                            @typescript-eslint/no-unused-vars
+   13:3   warning  'ChevronLeft' is defined but never used                                                                                                       @typescript-eslint/no-unused-vars
+   23:16  warning  'CardContent' is defined but never used                                                                                                       @typescript-eslint/no-unused-vars
+   29:3   warning  'DialogFooter' is defined but never used                                                                                                      @typescript-eslint/no-unused-vars
+   31:10  warning  'Input' is defined but never used                                                                                                             @typescript-eslint/no-unused-vars
+   41:3   warning  'SelectValue' is defined but never used                                                                                                       @typescript-eslint/no-unused-vars
+   73:6   warning  React Hook React.useEffect has missing dependencies: 'fetchMeetings' and 'fetchProjects'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  124:6   warning  React Hook React.useMemo has a missing dependency: 'getSortedMeetings'. Either include it or remove the dependency array                      react-hooks/exhaustive-deps
+  155:21  error    Unexpected any. Specify a different type                                                                                                      @typescript-eslint/no-explicit-any
+  169:21  error    Unexpected any. Specify a different type                                                                                                      @typescript-eslint/no-explicit-any
+  190:21  error    Unexpected any. Specify a different type                                                                                                      @typescript-eslint/no-explicit-any
+  473:28  error    Unexpected any. Specify a different type                                                                                                      @typescript-eslint/no-explicit-any
+
+C:\seoul2026\src\app\page.tsx
+   16:3   warning  'CheckCircle2' is defined but never used                @typescript-eslint/no-unused-vars
+   31:3   warning  'SelectValue' is defined but never used                 @typescript-eslint/no-unused-vars
+   44:10  warning  'Edit2' is defined but never used                       @typescript-eslint/no-unused-vars
+   44:17  warning  'Trash2' is defined but never used                      @typescript-eslint/no-unused-vars
+   44:25  warning  'PlusCircle' is defined but never used                  @typescript-eslint/no-unused-vars
+   44:37  warning  'CheckSquare' is defined but never used                 @typescript-eslint/no-unused-vars
+   44:50  warning  'Square' is defined but never used                      @typescript-eslint/no-unused-vars
+   66:23  warning  'expenditures' is assigned a value but never used       @typescript-eslint/no-unused-vars
+   66:51  warning  'managements' is assigned a value but never used        @typescript-eslint/no-unused-vars
+   67:11  warning  'responses' is assigned a value but never used          @typescript-eslint/no-unused-vars
+  158:9   warning  'toggleLv1' is assigned a value but never used          @typescript-eslint/no-unused-vars
+  166:9   warning  'handleAddLv1' is assigned a value but never used       @typescript-eslint/no-unused-vars
+  172:9   warning  'handleEditLv1' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  179:9   warning  'handleDeleteClick' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\seoul2026\src\app\partners\page.tsx
+   5:3   warning  'Users' is defined but never used          @typescript-eslint/no-unused-vars
+  17:3   warning  'TrendingUp' is defined but never used     @typescript-eslint/no-unused-vars
+  24:10  warning  'Separator' is defined but never used      @typescript-eslint/no-unused-vars
+  29:10  warning  'exportToExcel' is defined but never used  @typescript-eslint/no-unused-vars
+  36:3   warning  'SelectValue' is defined but never used    @typescript-eslint/no-unused-vars
+
+C:\seoul2026\src\app\projects\page.tsx
+   15:3   warning  'GanttChartSquare' is defined but never used          @typescript-eslint/no-unused-vars
+   67:11  warning  'partners' is assigned a value but never used         @typescript-eslint/no-unused-vars
+  182:11  warning  'satisfaction100' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  190:11  warning  'avgPerSession' is assigned a value but never used    @typescript-eslint/no-unused-vars
+
+C:\seoul2026\src\app\surveys\page.tsx
+    8:3   warning  'Wand2' is defined but never used                  @typescript-eslint/no-unused-vars
+   13:3   warning  'Download' is defined but never used               @typescript-eslint/no-unused-vars
+   67:3   warning  'SelectValue' is defined but never used            @typescript-eslint/no-unused-vars
+  142:5   warning  'addResponse' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  252:19  error    Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  275:9   warning  'metricGuides' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  429:25  error    Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+
+C:\seoul2026\src\components\app-sidebar.tsx
+  76:11  warning  'systemName' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  77:10  warning  'mounted' is assigned a value but never used     @typescript-eslint/no-unused-vars
+
+C:\seoul2026\src\components\budget\category-management-dialog.tsx
+   50:14  warning  'error' is defined but never used         @typescript-eslint/no-unused-vars
+   61:14  warning  'error' is defined but never used         @typescript-eslint/no-unused-vars
+   74:14  warning  'error' is defined but never used         @typescript-eslint/no-unused-vars
+   84:14  warning  'error' is defined but never used         @typescript-eslint/no-unused-vars
+  295:24  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\seoul2026\src\components\expenditure-dialog.tsx
+    8:3   warning  'Building2' is defined but never used        @typescript-eslint/no-unused-vars
+    9:3   warning  'Coins' is defined but never used            @typescript-eslint/no-unused-vars
+   28:26  warning  'BudgetExecution' is defined but never used  @typescript-eslint/no-unused-vars
+   29:10  warning  'useProjectStore' is defined but never used  @typescript-eslint/no-unused-vars
+  213:19  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+C:\seoul2026\src\components\meetings\meeting-minutes-doc.tsx
+   40:54  error    Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  105:9   warning  'currentYear' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\seoul2026\src\components\partner-dialog.tsx
+  202:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\seoul2026\src\lib\pdf-settlement.ts
+   11:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  105:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  123:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\seoul2026\src\store\use-meeting-store.ts
+  110:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+??78 problems (26 errors, 52 warnings)
+

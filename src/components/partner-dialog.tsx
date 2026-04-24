@@ -48,6 +48,7 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
   const { partners, addPartner, updatePartner } = usePartnerStore();
 
   const [name, setName] = React.useState('');
+  const [abbreviation, setAbbreviation] = React.useState('');
   const [manager, setManager] = React.useState('');
   const [phone1, setPhone1] = React.useState('');
   const [phone2, setPhone2] = React.useState('');
@@ -65,6 +66,7 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
   // 초기화 함수
   const resetForm = React.useCallback(() => {
     setName('');
+    setAbbreviation('');
     setManager('');
     setPhone1('');
     setPhone2('');
@@ -81,6 +83,7 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
         const p = partners.find(item => item.id === partnerId);
         if (p) {
           setName(p.name);
+          setAbbreviation(p.abbreviation || '');
           setManager(p.manager);
           setPhone1(p.phone1);
           setPhone2(p.phone2);
@@ -180,6 +183,7 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
 
       const partnerData = {
         name,
+        abbreviation,
         manager,
         phone1,
         phone2,
@@ -195,10 +199,10 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
       }
 
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Submit error:', err);
       // 구체적인 에러 메시지 제공
-      const errorMsg = err?.message || '알 수 없는 오류';
+      const errorMsg = err instanceof Error ? err.message : String(err);
       if (errorMsg.includes('storage') || errorMsg.includes('upload')) {
         alert(`파일 업로드 중 오류가 발생했습니다. 저장소(Bucket) 권한이나 네트워크를 확인해주세요.\n(에러: ${errorMsg})`);
       } else {
@@ -245,15 +249,26 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
           isMaximized ? "h-[calc(95vh-160px)]" : "max-h-[75vh]"
         )}>
           <section className="space-y-6">
-            <div className="grid gap-2.5">
-              <Label className="text-xs font-black text-blue-600 ml-1 uppercase">업체명 <span className="text-red-500">*</span></Label>
-              <Input 
-                placeholder="상호명(업체명)을 입력하세요" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-14 px-6 rounded-2xl bg-white border-slate-200 focus:ring-4 focus:ring-blue-100 font-bold" 
-                required
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="md:col-span-2 grid gap-2.5">
+                <Label className="text-xs font-black text-blue-600 ml-1 uppercase">업체명 <span className="text-red-500">*</span></Label>
+                <Input 
+                  placeholder="상호명(업체명)을 입력하세요" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-14 px-6 rounded-2xl bg-white border-slate-200 focus:ring-4 focus:ring-blue-100 font-bold" 
+                  required
+                />
+              </div>
+              <div className="grid gap-2.5">
+                <Label className="text-xs font-black text-slate-500 ml-1 uppercase tracking-wider">업체 별칭 (약어)</Label>
+                <Input 
+                  placeholder="약어 입력" 
+                  value={abbreviation}
+                  onChange={(e) => setAbbreviation(e.target.value)}
+                  className="h-14 px-6 rounded-2xl bg-white border-slate-200 font-bold" 
+                />
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

@@ -17,7 +17,7 @@ interface SettingsState {
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
-  systemName: 'SLI 2026 통합 시스템',
+  systemName: 'SLI 2026 Lv up!',
   appVersion: 'v1.4.0 (Supabase)',
   lastBackupDate: null,
   isLoading: false,

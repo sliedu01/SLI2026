@@ -2,12 +2,10 @@
 
 import * as React from 'react';
 import { 
-  X, 
-  DollarSign, 
-  Calendar as CalendarIcon, 
-  Building2,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Calendar as CalendarIcon,
+  X
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { FileUploadZone } from './file-upload-zone';
@@ -25,8 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePartnerStore } from '@/store/use-partner-store';
-import { useBudgetStore, BudgetExecution } from '@/store/use-budget-store';
-import { useProjectStore } from '@/store/use-project-store';
+import { useBudgetStore } from '@/store/use-budget-store';
 import { formatWithCommas, formatInputNumber, parseCommaNumber } from '@/lib/number-format';
 import { Expenditure } from '@/store/use-budget-store';
 
@@ -196,7 +193,7 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
 
       if (initialData) {
         // 수정 시 파일명 동기화 체크 (기존 파일이 있는 경우)
-        let newPath = storagePath;
+        const newPath = storagePath;
         
         await updateExpenditure(initialData.id, commonData, {
           prevPath: initialData.attachmentName,
@@ -210,10 +207,10 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
 
       onOpenChange(false);
       resetForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Submit execution failed:', err);
       // 구체적인 에러 메시지 표시
-      const errorMessage = err?.message || err?.details || '알 수 없는 오류가 발생했습니다.';
+      const errorMessage = err instanceof Error ? err.message : String(err);
       alert(`저장 중 오류가 발생했습니다.\n상세내용: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
@@ -237,12 +234,12 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
         "p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl transition-all duration-300",
         isMaximized ? "max-w-[1700px] w-[98vw] h-[95vh]" : "max-w-lg"
       )}>
-        <DialogHeader className="bg-emerald-600 p-8 text-white relative">
-          <DialogTitle className="text-2xl font-black">
+        <DialogHeader className="bg-emerald-600 p-4 text-white relative">
+          <DialogTitle className="text-[14px] font-bold">
             {initialData ? '정산 데이터 수정' : '정산 데이터 입력'}
           </DialogTitle>
-          <div className="flex flex-col gap-1 mt-1">
-             <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.2em]">
+          <div className="flex flex-col gap-1 mt-0.5">
+             <p className="text-[8px] font-bold text-emerald-100 uppercase tracking-widest">
                {initialData ? 'Edit Settlement Data' : 'Settlement Data Entry'}
              </p>
           </div>
@@ -259,40 +256,40 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
             <button 
               type="button"
               onClick={() => onOpenChange(false)}
-              className="text-emerald-200 hover:text-white transition-colors"
+              className="text-emerald-200 hover:text-white transition-colors size-8 flex items-center justify-center"
             >
-              <X className="size-6" />
+              <X className="size-5" />
             </button>
           </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className={cn(
-          "p-10 space-y-8 bg-white overflow-y-auto custom-scrollbar",
-          isMaximized ? "h-[calc(95vh-160px)]" : "max-h-[80vh]"
+          "p-6 space-y-6 bg-white overflow-y-auto custom-scrollbar",
+          isMaximized ? "h-[calc(95vh-120px)]" : "max-h-[80vh]"
         )}>
           {/* 계층 선택 (LV1, LV2) */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2.5">
-              <Label className="text-xs font-black text-slate-500 uppercase ml-1">비목 (LV1)</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-slate-500 uppercase ml-1">비목 (LV1)</Label>
               <select 
                 value={selectedCategoryId}
                 onChange={(e) => {
                   setSelectedCategoryId(e.target.value);
                   setSelectedManagementId('');
                 }}
-                className="w-full h-14 px-6 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-100"
+                className="w-full h-9 px-4 bg-slate-50 border border-slate-100 rounded-lg text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-emerald-100"
               >
                 <option value="">비목 선택...</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
-            <div className="space-y-2.5">
-              <Label className="text-xs font-black text-slate-500 uppercase ml-1">관리세목 (LV2)</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-slate-500 uppercase ml-1">관리세목 (LV2)</Label>
               <select 
                 value={selectedManagementId}
                 onChange={(e) => setSelectedManagementId(e.target.value)}
                 disabled={!selectedCategoryId}
-                className="w-full h-14 px-6 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-50"
+                className="w-full h-9 px-4 bg-slate-50 border border-slate-100 rounded-lg text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-emerald-100 disabled:opacity-50"
               >
                 <option value="">관리세목 선택...</option>
                 {filteredManagements.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -300,33 +297,33 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2.5">
-              <Label className="text-xs font-black text-slate-500 uppercase ml-1">세세목 (LV3 - 직접입력)</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-slate-500 uppercase ml-1">세세목 (LV3 - 직접입력)</Label>
               <Input 
                 placeholder="예: 강사료, 소모품비 등" 
                 value={subDetail}
                 onChange={(e) => setSubDetail(e.target.value)}
-                className="h-14 px-6 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-100"
+                className="h-9 px-4 rounded-lg bg-slate-50 border-slate-100 font-bold text-[11px] focus:ring-1 focus:ring-emerald-100"
               />
             </div>
-            <div className="space-y-2.5">
-              <Label className="text-xs font-black text-slate-500 uppercase ml-1">지출 일자 (예정시 비워둠)</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-slate-500 uppercase ml-1">지출 일자</Label>
               <div className="relative">
-                <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-3 text-slate-400" />
                 <Input 
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="h-14 pl-12 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-100"
+                  className="h-9 pl-9 rounded-lg bg-slate-50 border-slate-100 font-bold text-[11px] focus:ring-1 focus:ring-emerald-100"
                 />
               </div>
             </div>
           </div>
-            <div className="space-y-2.5">
-              <Label className="text-xs font-black text-slate-500 uppercase ml-1">공급가액</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-slate-500 uppercase ml-1">공급가액</Label>
               <div className="relative">
-                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">₩</div>
                 <Input 
                   type="text"
                   placeholder="0"
@@ -334,54 +331,53 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
                   onChange={(e) => {
                     const val = formatInputNumber(e.target.value);
                     setSupplyAmount(val);
-                    // 자동 부가세 계산 (10%)
                     const num = parseCommaNumber(val);
                     setVatAmount(formatWithCommas(Math.floor(num * 0.1)));
                   }}
-                  className="h-14 pl-12 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-emerald-100 text-right pr-6"
+                  className="h-9 pl-9 rounded-lg bg-slate-50 border-slate-100 font-bold text-[11px] focus:ring-1 focus:ring-emerald-100 text-right pr-4"
                 />
               </div>
             </div>
-            <div className="space-y-2.5">
-              <Label className="text-xs font-black text-slate-500 uppercase ml-1">부가세</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-slate-500 uppercase ml-1">부가세</Label>
               <Input 
                 type="text"
                 placeholder="0"
                 value={vatAmount}
                 onChange={(e) => setVatAmount(formatInputNumber(e.target.value))}
-                className="h-14 px-6 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-emerald-100 text-right"
+                className="h-9 px-4 rounded-lg bg-slate-50 border-slate-100 font-bold text-[11px] focus:ring-1 focus:ring-emerald-100 text-right"
               />
             </div>
 
-          <div className="flex items-center justify-between p-6 bg-slate-900 rounded-[2rem] text-white">
-            <span className="text-xs font-black uppercase opacity-60">총 합계 금액 (Total)</span>
-            <span className="text-2xl font-black">
+          <div className="flex items-center justify-between p-4 bg-slate-900 rounded-xl text-white">
+            <span className="text-[10px] font-bold uppercase opacity-60">총 합계 금액 (Total)</span>
+            <span className="text-[18px] font-bold">
               ₩ {formatWithCommas(parseCommaNumber(supplyAmount) + parseCommaNumber(vatAmount))}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2.5">
-              <Label className="text-xs font-black text-slate-500 uppercase ml-1">지출처 (협력업체)</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-slate-500 uppercase ml-1">지출처 (협력업체)</Label>
               <select 
                 value={selectedPartnerId}
                 onChange={(e) => {
                   setSelectedPartnerId(e.target.value);
                   if (e.target.value !== 'custom') setCustomVendor('');
                 }}
-                className="w-full h-14 px-6 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-100"
+                className="w-full h-9 px-4 bg-slate-50 border border-slate-100 rounded-lg text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-emerald-100"
               >
                 <option value="">지출처 선택...</option>
                 {partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 <option value="custom">+ 직접 입력</option>
               </select>
             </div>
-            <div className="space-y-2.5">
-              <Label className="text-xs font-black text-slate-500 uppercase ml-1">증빙 유형</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-slate-500 uppercase ml-1">증빙 유형</Label>
               <select 
                 value={proofType}
                 onChange={(e) => setProofType(e.target.value)}
-                className="w-full h-14 px-6 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-100"
+                className="w-full h-9 px-4 bg-slate-50 border border-slate-100 rounded-lg text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-emerald-100"
               >
                 <option value="TAX_INVOICE">세금계산서</option>
                 <option value="RECEIPT">영수증</option>
@@ -394,24 +390,24 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
           </div>
 
           {selectedPartnerId === 'custom' && (
-            <div className="space-y-2.5 animate-in slide-in-from-top-2">
-              <Label className="text-xs font-black text-slate-500 uppercase ml-1">지출처 직접 입력</Label>
+            <div className="space-y-1.5 animate-in slide-in-from-top-2">
+              <Label className="text-[10px] font-bold text-slate-500 uppercase ml-1">지출처 직접 입력</Label>
               <Input 
                 placeholder="지출처 명칭 입력" 
                 value={customVendor}
                 onChange={(e) => setCustomVendor(e.target.value)}
-                className="h-14 px-6 rounded-2xl bg-white border-slate-200 font-bold focus:ring-2 focus:ring-emerald-100"
+                className="h-9 px-4 rounded-lg bg-white border-slate-200 font-bold text-[11px] focus:ring-1 focus:ring-emerald-100"
               />
             </div>
           )}
 
-          <div className="space-y-2.5">
-            <Label className="text-xs font-black text-slate-500 uppercase ml-1">지출 적요 (100자 이내)</Label>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-bold text-slate-500 uppercase ml-1">지출 적요</Label>
             <Input 
               placeholder="상세 내용을 입력하세요" 
               value={description}
               onChange={(e) => setDescription(e.target.value.slice(0, 100))}
-              className="h-14 px-6 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-100"
+              className="h-9 px-4 rounded-lg bg-slate-50 border-slate-100 font-bold text-[11px] focus:ring-1 focus:ring-emerald-100"
             />
           </div>
 
@@ -437,20 +433,20 @@ export function ExpenditureDialog({ open, onOpenChange, initialManagementId, ini
           </div>
         </form>
 
-        <DialogFooter className="p-8 bg-slate-50 flex gap-3">
+        <DialogFooter className="p-4 bg-slate-50 flex gap-2">
           <Button 
             variant="ghost" 
             onClick={() => onOpenChange(false)}
-            className="flex-1 h-14 rounded-2xl font-black text-slate-400 hover:text-slate-600"
+            className="flex-1 h-10 rounded-lg font-bold text-[11px] text-slate-400 hover:text-slate-600"
           >
             취소
           </Button>
           <Button 
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex-[2] h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-xl shadow-emerald-100 active:scale-95 transition-all outline-none border-none"
+            className="flex-[2] h-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-md transition-all border-none"
           >
-            {isSubmitting ? '저장 중...' : (initialData ? '수정 완료' : '집행 내역 등록 완료')}
+            {isSubmitting ? '저장 중...' : (initialData ? '수정 완료' : '등록 완료')}
           </Button>
         </DialogFooter>
       </DialogContent>

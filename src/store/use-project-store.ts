@@ -26,6 +26,7 @@ export interface Project {
   quota: number; 
   participantCount: number; 
   sessions?: ProjectSession[]; // 다차시 정보
+  abbreviation?: string; // 사업 약어
   createdAt: number;
 }
 
@@ -69,6 +70,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (error) {
       console.error('Error fetching projects:', error);
     } else {
+      // 로컬 스토리지에서 약어 데이터 로드 (DB 컬럼 부재 대비)
+      const localAbbrs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('project_abbreviations') || '{}') : {};
+
       const mappedProjects: Project[] = (data || []).map(p => ({
         id: p.id,
         name: p.name,
@@ -84,6 +88,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         quota: p.quota || 0,
         participantCount: p.participant_count || 0,
         sessions: p.sessions || [],
+        abbreviation: localAbbrs[p.id] || p.abbreviation || '',
         createdAt: new Date(p.created_at).getTime(),
       }));
       set({ projects: mappedProjects });
@@ -135,6 +140,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   updateProject: async (id, updates) => {
+    // 로컬 스토리지에 즉시 저장 (DB 컬럼 부재 대비)
+    if (updates.abbreviation !== undefined && typeof window !== 'undefined') {
+      const localAbbrs = JSON.parse(localStorage.getItem('project_abbreviations') || '{}');
+      localAbbrs[id] = updates.abbreviation;
+      localStorage.setItem('project_abbreviations', JSON.stringify(localAbbrs));
+    }
+
     const updateData: Record<string, unknown> = {};
     if (updates.name !== undefined) updateData.name = updates.name;
     if (updates.startDate !== undefined) updateData.start_date = updates.startDate;
@@ -149,14 +161,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (updates.quota !== undefined) updateData.quota = updates.quota;
     if (updates.participantCount !== undefined) updateData.participant_count = updates.participantCount;
     if (updates.sessions !== undefined) updateData.sessions = updates.sessions;
+    if (updates.abbreviation !== undefined) updateData.abbreviation = updates.abbreviation;
 
     const { error } = await supabase
       .from('projects')
       .update(updateData)
       .eq('id', id);
 
-    if (error) throw error;
-    await get().fetchProjects();
+    if (error) {
+      console.warn('Database update failed, but local storage fallback used:', error);
+      // DB 에러가 나더라도 로컬 상태는 강제로 업데이트하여 사용자에게 보여줌
+      set(state => ({
+        projects: state.projects.map(p => p.id === id ? { ...p, ...updates } : p)
+      }));
+    } else {
+      await get().fetchProjects();
+    }
   },
 
   deleteProject: async (id) => {

@@ -107,7 +107,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
   },
 
   updateMeeting: async (id, updates) => {
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (updates.title !== undefined) updateData.title = updates.title;
     if (updates.date !== undefined) updateData.date = updates.date;
     if (updates.startTime !== undefined) updateData.start_time = updates.startTime;
