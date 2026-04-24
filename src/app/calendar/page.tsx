@@ -116,7 +116,7 @@ export default function CalendarPage() {
               attendance: p.participantCount,
               editId: p.id,
               isPeriod: true,
-              color: { bg: '#ecfdf5', text: '#064e3b', border: '#10b981' }
+              color: { bg: '#ecfdf5', text: '#000000', border: '#10b981' }
             }
           });
         }
@@ -137,7 +137,7 @@ export default function CalendarPage() {
             meetingTitle: m.title,
             summary: m.summary,
             editId: m.id,
-            color: { bg: '#fffbeb', text: '#78350f', border: '#f59e0b' }
+            color: { bg: '#fffbeb', text: '#000000', border: '#f59e0b' }
           }
         });
       });
@@ -162,7 +162,7 @@ export default function CalendarPage() {
             vendor: e.vendor,
             amount: e.amount,
             editId: e.id,
-            color: { bg: '#eef2ff', text: '#1e1b4b', border: '#6366f1' }
+            color: { bg: '#eef2ff', text: '#000000', border: '#6366f1' }
           }
         });
       });
