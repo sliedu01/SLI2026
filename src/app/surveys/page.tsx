@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   BarChart2,
   PieChart as PieChartIcon,
+  Edit,
   ChevronRight,
   ChevronDown,
   Layers,
@@ -21,9 +22,12 @@ import {
   CheckCircle,
   Target as TargetIcon,
   Sigma,
+  Lightbulb,
+  Rocket,
   FileText,
   BarChart3,
   Settings2,
+  RefreshCcw,
   LayoutGrid
 } from 'lucide-react';
 
@@ -124,7 +128,7 @@ import {
 
 export default function SurveysPage() {
   const [mounted, setMounted] = React.useState(false);
-  const { projects, fetchProjects, getSortedProjects, selectedLv1Ids } = useProjectStore();
+  const { projects, fetchProjects, getSortedProjects, selectedLv1Ids, setSelectedLv1Ids } = useProjectStore();
   const { 
     templates, 
     responses, 
@@ -141,7 +145,7 @@ export default function SurveysPage() {
   const { partners, fetchPartners } = usePartnerStore();
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>("all");
 
-  const { setSelectedLv1Ids } = useProjectStore();
+
 
   // 대시보드 선택된 사업과 동기화
   React.useEffect(() => {
@@ -150,7 +154,7 @@ export default function SurveysPage() {
     } else {
       setSelectedProjectId("all");
     }
-  }, [selectedLv1Ids, projects]);
+  }, [selectedLv1Ids]);
 
   const [activeTab, setActiveTab] = React.useState('data');
   const [selectedProjectIds, setSelectedProjectIds] = React.useState<string[]>([]);
@@ -268,7 +272,7 @@ export default function SurveysPage() {
   const overallStats = aggregatedStats['_overall'];
 
 
-  const renderNodes = React.useCallback((parentId: string | null, depth: number = 0): React.ReactNode => {
+  const renderNodes: (parentId: string | null, depth?: number) => React.ReactNode = React.useCallback((parentId: string | null, depth: number = 0): React.ReactNode => {
     const filteredRows = getSortedProjects(parentId)
       .filter(p => visibleProjectIds.has(p.id));
     if (filteredRows.length === 0) return null;
@@ -1234,7 +1238,7 @@ export default function SurveysPage() {
                                     <tr>
                                       <th>사후 역량 평균 (POST)</th>
                                       <th>역량 향상도 (Hake&apos;s Gain)</th>
-                                      <th>효과 크기 (Cohen's d)</th>
+                                      <th>효과 크기 (Cohen&apos;s d)</th>
                                       <th>유의확률 (p-value)</th>
                                     </tr>
                                   </thead>
@@ -1289,7 +1293,7 @@ export default function SurveysPage() {
                                       <th>운영 만족도 (SAT)</th>
                                       <th>사후 역량 평균 (POST)</th>
                                       <th>역량 향상도 (Hake&apos;s Gain)</th>
-                                      <th>효과 크기 (Cohen's d)</th>
+                                      <th>효과 크기 (Cohen&apos;s d)</th>
                                       <th>유의확률 (p-value)</th>
                                     </tr>
                                   </thead>

@@ -45,6 +45,7 @@ export interface CalendarEvent {
     subDetail?: string;
     vendor?: string;
     amount?: number;
+    summary?: string;
     editId?: string;
   };
 }
@@ -160,11 +161,14 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
 
             return (
               <div className={cn(
-                "flex flex-col items-center justify-center min-h-[24px] w-full",
-                isSunday || isHoliday ? "text-red-500" : isSaturday ? "text-blue-500" : "text-slate-600"
+                "flex flex-col items-center justify-center min-h-[22px] w-full",
+                isSunday || isHoliday ? "text-rose-500" : isSaturday ? "text-indigo-400" : "text-slate-500"
               )}>
-                {isHoliday && <span className="text-[7px] font-black leading-none mb-0.5">{holidayName}</span>}
-                <span className="text-[11px] font-bold">{arg.dayNumberText.replace('일', '')}</span>
+                {isHoliday && <span className="text-[7px] font-black leading-none mb-0.5 tracking-tighter opacity-80">{holidayName}</span>}
+                <span className={cn(
+                  "text-[9px] font-bold tracking-tight",
+                  arg.isToday ? "text-indigo-600" : ""
+                )}>{arg.dayNumberText.replace('일', '')}</span>
               </div>
             );
           }}
@@ -189,17 +193,14 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
           eventDidMount={(info) => {
             const props = info.event.extendedProps;
             if (props.color) {
+              // 전달받은 파스텔톤 컬러 적용
+              info.el.style.setProperty('background-color', props.color.bg, 'important');
+              info.el.style.setProperty('border-left', `4px solid ${props.color.border}`, 'important');
+              info.el.style.setProperty('color', props.color.text, 'important');
+              
               if (props.isPeriod) {
-                // 운영 일정 전용 스타일 (녹색 테마 강제: 연한 바탕 + 녹색 테두리)
-                info.el.style.setProperty('background-color', '#f0fdf4', 'important'); 
-                info.el.style.setProperty('border', '2px solid #22c55e', 'important');
-                info.el.style.setProperty('color', '#166534', 'important');
-                info.el.style.setProperty('border-radius', '4px', 'important');
-              } else {
-                // 일반 일정: 회색/슬레이트 테마 (getProjectColor에서 전달된 값 사용)
-                info.el.style.setProperty('background-color', props.color.bg, 'important');
-                info.el.style.setProperty('border', `1px solid ${props.color.border}`, 'important');
-                info.el.style.setProperty('color', props.color.text, 'important');
+                // 운영 일정(기간)의 경우 시각적 깊이 추가
+                info.el.style.setProperty('box-shadow', '0 1px 2px rgba(0,0,0,0.05)', 'important');
               }
             }
           }}
@@ -223,22 +224,25 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
           background: #f8fafc;
         }
         .fc .fc-col-header-cell-cushion {
-          font-size: 10px;
+          font-size: 8px;
           font-weight: 800;
-          color: #64748b;
+          color: #94a3b8;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.1em;
           text-decoration: none !important;
         }
         .fc .fc-daygrid-day-number {
-          font-size: 10px;
+          font-size: 8px;
           font-weight: 700;
-          color: #94a3b8;
-          padding: 6px 10px;
+          color: #cbd5e1;
+          padding: 4px 8px;
           text-decoration: none !important;
         }
+        .fc .fc-day-today {
+          background-color: #f5f3ff !important;
+        }
         .fc .fc-day-today .fc-daygrid-day-number {
-          color: #0f172a;
+          color: #4f46e5;
           font-weight: 900;
         }
         .fc-theme-standard td, .fc-theme-standard th {
@@ -248,34 +252,38 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
           border: none;
         }
         
-        /* premium-event start */
         .premium-event {
           padding: 0 !important;
-          margin: 2px 0 !important;
+          margin: 1px 0 !important;
+          border-radius: 4px !important;
+          pointer-events: auto !important;
+          display: block !important;
+          width: 100% !important;
           border: none !important;
-          background: transparent !important;
+          overflow: hidden !important;
         }
         
         .event-inner {
-          padding: 4px 8px;
-          font-size: 10px;
-          font-weight: 800;
+          padding: 2px 4px;
+          font-size: 8px;
+          font-weight: 900;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           display: flex;
           align-items: center;
-          gap: 6px;
-          line-height: 1.4;
+          gap: 2px;
+          line-height: 1;
           width: 100%;
           min-width: 0;
-          border-radius: 4px;
         }
 
         /* 기간 바(Bar) 특화 스타일: 연한 배경 + 녹색 테두리 */
         .event-period {
           z-index: 10 !important;
-          min-height: 28px !important;
+          min-height: 20px !important;
+          margin: 1px 2px !important;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
         .event-period .event-inner {
@@ -332,37 +340,90 @@ function EventWithTooltip({
   const displayTime = `${dateStr} ${timeStr}`;
 
   const tooltipContent = (
-    <div className="space-y-1 p-1">
-      <p className="text-[11px] font-black text-slate-900 border-b border-slate-100 pb-1 mb-1">
-        {type === 'project' ? '사업 상세 정보' : type === 'meeting' ? '회의 상세 정보' : '지출 상세 정보'}
-      </p>
-      {type === 'project' && (
-        <>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">일시:</span> {displayTime}</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">협력업체명:</span> {props.partnerFull}</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">프로그램명:</span> {props.programName}</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">정원:</span> {props.capacity || 0}명</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">참가인원:</span> {props.attendance || 0}명</p>
-        </>
-      )}
-      {type === 'meeting' && (
-        <>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">일시:</span> {displayTime}</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">회차:</span> {props.sessionNum}회차</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">장소:</span> {props.location || '미지정'}</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">회의주제:</span> {props.meetingTitle || '없음'}</p>
-        </>
-      )}
-      {type === 'budget' && (
-        <>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">일시:</span> {displayTime}</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">비목:</span> {props.category}</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">관리세목:</span> {props.managementName}</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">세세목:</span> {props.subDetail}</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">지출처:</span> {props.vendor}</p>
-          <p className="text-[10px] font-bold"><span className="text-slate-400">금액:</span> {(props.amount || 0).toLocaleString()}원</p>
-        </>
-      )}
+    <div className="space-y-2 p-1 max-w-[280px]">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+        <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">
+          {type === 'project' ? '사업 상세' : type === 'meeting' ? '회의 상세' : '지출 상세'}
+        </p>
+        <div className={cn(
+          "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase",
+          type === 'project' ? "bg-emerald-50 text-emerald-600" : 
+          type === 'meeting' ? "bg-amber-50 text-amber-600" : "bg-indigo-50 text-indigo-600"
+        )}>
+          {type}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        {type === 'project' && (
+          <>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">일시</span>
+              <p className="text-[10px] font-bold text-slate-800">{displayTime}</p>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">협력업체</span>
+              <p className="text-[10px] font-bold text-slate-800">{props.partnerFull}</p>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">프로그램 / 일정명</span>
+              <p className="text-[10px] font-bold text-slate-900 leading-tight">{props.programName}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">정원</span>
+                <p className="text-[10px] font-bold text-slate-800">{props.capacity || 0}명</p>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">참여</span>
+                <p className="text-[10px] font-bold text-slate-800">{props.attendance || 0}명</p>
+              </div>
+            </div>
+          </>
+        )}
+        
+        {type === 'meeting' && (
+          <>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">일시 / 장소</span>
+              <p className="text-[10px] font-bold text-slate-800">{displayTime} | {props.location || '미지정'}</p>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">회차 및 주제</span>
+              <p className="text-[10px] font-bold text-slate-900 leading-tight">{props.sessionNum}회차 : {props.meetingTitle || '없음'}</p>
+            </div>
+            {props.summary && (
+              <div className="flex flex-col gap-0.5 pt-1 border-t border-slate-50 mt-1">
+                <span className="text-[9px] font-black text-amber-600 uppercase tracking-wider">회의 요약</span>
+                <p className="text-[10px] font-medium text-slate-800 leading-normal line-clamp-4 bg-slate-50/50 p-2 rounded-lg border border-slate-100/50">
+                  &quot;{props.summary}&quot;
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {type === 'budget' && (
+          <>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">집행 일시</span>
+              <p className="text-[10px] font-bold text-slate-800">{dateStr}</p>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">비목 / 관리세목</span>
+              <p className="text-[10px] font-bold text-slate-800">{props.category} &gt; {props.managementName}</p>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">세세목 및 지출처</span>
+              <p className="text-[10px] font-bold text-slate-900 leading-tight">{props.subDetail} | {props.vendor}</p>
+            </div>
+            <div className="mt-1 pt-1 border-t border-indigo-50">
+              <span className="text-[9px] font-black text-indigo-600 uppercase tracking-wider">집행 금액</span>
+              <p className="text-sm font-black text-slate-900">{(props.amount || 0).toLocaleString()}원</p>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 
@@ -371,10 +432,10 @@ function EventWithTooltip({
       <Tooltip>
         <TooltipTrigger className="w-full">
           <div className="event-inner w-full cursor-pointer">
-            {type === 'project' && <CalendarIcon className="size-3 shrink-0" />}
-            {type === 'meeting' && <Clock className="size-3 shrink-0" />}
-            {type === 'budget' && <span className="text-[10px] font-bold shrink-0">₩</span>}
-            <span className="truncate">{title}</span>
+            {type === 'project' && <CalendarIcon className="size-2.5 shrink-0" />}
+            {type === 'meeting' && <Clock className="size-2.5 shrink-0" />}
+            {type === 'budget' && <span className="text-[8px] font-bold shrink-0">₩</span>}
+            <span className="truncate tracking-tighter">{title}</span>
           </div>
         </TooltipTrigger>
         <TooltipContent side="top" className="bg-white/95 backdrop-blur shadow-2xl border-slate-200 rounded-xl p-3 min-w-[200px] z-[9999]">

@@ -54,7 +54,7 @@ function BudgetPageContent() {
     activeProjectId,
     setActiveProjectId
   } = useBudgetStore();
-  const { projects, fetchProjects, selectedLv1Ids } = useProjectStore();
+  const { projects, fetchProjects, selectedLv1Ids, setSelectedLv1Ids } = useProjectStore();
 
   // 다이얼로그 상태
   const [expenditureDialogOpen, setExpenditureDialogOpen] = React.useState(false);
@@ -89,17 +89,29 @@ function BudgetPageContent() {
   // LV1 사업들 필터링
   const lv1Projects = projects.filter(p => p.level === 1);
 
+  // 글로벌 선택과 동기화
   React.useEffect(() => {
     if (!mounted) return;
-    if (lv1Projects.length > 0) {
-      const isCurrentProjectValid = lv1Projects.some(p => p.id === activeProjectId);
-      if (!isCurrentProjectValid) {
-        const nextId = lv1Projects[0].id;
-        setActiveProjectId(nextId);
-        fetchBudgets(nextId || undefined);
+    if (selectedLv1Ids.length > 0) {
+      const globalId = selectedLv1Ids[0];
+      if (globalId !== activeProjectId) {
+        setActiveProjectId(globalId);
+        fetchBudgets(globalId);
       }
     }
-  }, [mounted, selectedLv1Ids, lv1Projects, activeProjectId, setActiveProjectId, fetchBudgets]);
+  }, [mounted, selectedLv1Ids, activeProjectId, setActiveProjectId, fetchBudgets]);
+
+  // 로컬 선택 변경 시 글로벌 상태도 업데이트
+  const handleProjectChange = (id: string | null) => {
+    if (!id) return;
+    setActiveProjectId(id);
+    if (id === 'all') {
+      setSelectedLv1Ids([]);
+    } else {
+      setSelectedLv1Ids([id]);
+    }
+    fetchBudgets(id === 'all' ? undefined : id);
+  };
 
   if (!mounted) return null;
 
@@ -168,19 +180,7 @@ function BudgetPageContent() {
             <Select 
               key={`budget-select-${activeProjectId}-${projects.length}`}
               value={activeProjectId || 'all'} 
-              onValueChange={(val) => {
-                const value = val as string;
-                const targetId = value === 'all' ? undefined : value;
-                setActiveProjectId(targetId || null);
-                fetchBudgets(targetId);
-                
-                // 글로벌 사업 선택 상태 동기화
-                if (value === 'all') {
-                  useProjectStore.getState().setSelectedLv1Ids([]);
-                } else {
-                  useProjectStore.getState().setSelectedLv1Ids([value]);
-                }
-              }}
+              onValueChange={handleProjectChange}
             >
               <SelectTrigger className="h-9 rounded-lg font-bold text-[11px] bg-white border-slate-200 focus:ring-indigo-500/20">
                 <div className="flex items-center gap-2 truncate flex-1">

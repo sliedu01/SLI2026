@@ -26,6 +26,7 @@ export interface Meeting {
   others: string;
   nextSchedule: string;
   projectId?: string;
+  summary?: string;
   createdAt: number;
 }
 
@@ -73,6 +74,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
         others: m.others || '',
         nextSchedule: m.next_schedule || '',
         projectId: m.project_id || undefined,
+        summary: m.summary || m.purpose || '',
         createdAt: new Date(m.created_at).getTime(),
       }));
       set({ meetings: mapped });

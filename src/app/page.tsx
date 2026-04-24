@@ -56,7 +56,7 @@ export default function Home() {
     } else {
       setSelectedProjectId("all");
     }
-  }, [selectedLv1Ids, projects]);
+  }, [selectedLv1Ids]);
 
   React.useEffect(() => {
     setMounted(true);

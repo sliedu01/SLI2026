@@ -95,7 +95,7 @@ function MeetingsPageContent() {
     } else {
       setSelectedProjectId("all");
     }
-  }, [selectedLv1Ids, projects]);
+  }, [selectedLv1Ids]);
 
   // 사업 선택 시 해당 회의록만 필터링
   const filteredMeetings = React.useMemo(() => {
