@@ -39,26 +39,18 @@ export function getPublicUrlFromPath(bucket: string, path: string): string {
 }
 
 export function generateStoragePath(folder: string, filename: string): string {
-  // 1. 확장자 분리
+  // 1. 확장자 분리 및 정제
   const lastDotIndex = filename.lastIndexOf('.');
-  let name = filename;
-  let ext = '';
+  const ext = lastDotIndex !== -1 ? filename.substring(lastDotIndex + 1).replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
   
-  if (lastDotIndex !== -1) {
-    name = filename.substring(0, lastDotIndex);
-    ext = filename.substring(lastDotIndex + 1);
-  }
+  // 2. 고유 ID 생성 (타임스탬프 + 난수)
+  // 한글 파일명은 Supabase Storage에서 'Invalid key' 에러를 유발할 수 있으므로
+  // 실제 저장소 경로는 영문/숫자 조합의 고유 ID를 사용합니다.
+  const timestamp = Date.now();
+  const randomStr = Math.random().toString(36).substring(2, 7);
+  const uniqueId = `${timestamp}_${randomStr}`;
   
-  // 2. 본문 정제: 한글, 영문, 숫자, 대시(-)를 제외한 모든 문자(공백, 마침표 포함)를 언더바(_)로 치환
-  // 연속된 언더바는 하나로 합치고 앞뒤 공백 제거
-  const cleanName = name
-    .replace(/[^a-zA-Z0-9\uAC00-\uD7A3\-]/g, '_')
-    .replace(/_{2,}/g, '_')
-    .replace(/^_+|_+$/g, '');
-    
-  const cleanExt = ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-  
-  return `${folder}/${cleanName}${cleanExt ? '.' + cleanExt : ''}`;
+  return `${folder}/${uniqueId}${ext ? '.' + ext : ''}`;
 }
 
 /**
