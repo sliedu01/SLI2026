@@ -328,31 +328,35 @@ export default function CalendarPage() {
 
               {/* 기타 유형 필터 */}
               <div className="flex items-center min-h-[44px] divide-x divide-slate-100 bg-white">
-                <div className="w-[120px] px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => setShowMeetings(!showMeetings)}
-                    className={cn(
-                      "h-6 w-full px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
-                      showMeetings ? "text-amber-600" : "text-slate-400"
-                    )}
-                  >
-                    <div className={cn("size-2 rounded-full", showMeetings ? "bg-amber-500" : "bg-slate-300")} />
-                    회의 일정
-                  </Button>
+                <div className="flex items-center h-full">
+                  <div className="px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setShowMeetings(!showMeetings)}
+                      className={cn(
+                        "h-6 px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
+                        showMeetings ? "text-amber-600" : "text-slate-400"
+                      )}
+                    >
+                      <div className={cn("size-2 rounded-full", showMeetings ? "bg-amber-500" : "bg-slate-300")} />
+                      회의 일정
+                    </Button>
+                  </div>
                 </div>
-                <div className="w-[120px] px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => setShowBudget(!showBudget)}
-                    className={cn(
-                      "h-6 w-full px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
-                      showBudget ? "text-indigo-600" : "text-slate-400"
-                    )}
-                  >
-                    <div className={cn("size-2 rounded-full", showBudget ? "bg-indigo-500" : "bg-slate-300")} />
-                    지출 내역
-                  </Button>
+                <div className="flex items-center h-full">
+                  <div className="px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setShowBudget(!showBudget)}
+                      className={cn(
+                        "h-6 px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
+                        showBudget ? "text-indigo-600" : "text-slate-400"
+                      )}
+                    >
+                      <div className={cn("size-2 rounded-full", showBudget ? "bg-indigo-500" : "bg-slate-300")} />
+                      지출 내역
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -378,8 +382,8 @@ export default function CalendarPage() {
         {/* 사이드바 - 예정된 일정 */}
         <div className="space-y-6">
           <Card className="rounded-2xl border border-slate-200/60 shadow-sm bg-white p-5">
-            <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 mb-5">
-               <Bell className="size-3.5 text-amber-500" /> 예정일정(2주)
+            <h3 className="text-[10px] font-black text-slate-900 tracking-widest flex items-center gap-2 mb-5">
+               <Bell className="size-3.5 text-amber-500" /> 예정일정 (2주)
             </h3>
             <div className="space-y-5">
               {(() => {
@@ -395,7 +399,7 @@ export default function CalendarPage() {
                   return (
                     <div className="flex flex-col items-center justify-center py-10 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
                       <Activity className="size-8 text-slate-200 mb-2" />
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">No upcoming events</p>
+                      <p className="text-[10px] text-slate-400 font-bold tracking-tight">2주 내 예정된 일정이 없습니다</p>
                     </div>
                   );
                 }
@@ -419,7 +423,7 @@ export default function CalendarPage() {
                       <h4 className={cn("text-[9px] font-black uppercase tracking-wider", typeConfig[type]?.color)}>
                         {typeConfig[type]?.label || type}
                       </h4>
-                      <span className="text-[8px] font-bold text-slate-300">{items.length} EVENTS</span>
+                      <span className="text-[8px] font-bold text-slate-300">{items.length}건</span>
                     </div>
                     <div className="space-y-3">
                       {items.map(e => (
