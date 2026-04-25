@@ -77,6 +77,10 @@ export default function PartnersPage() {
     // 글로벌 LV1 필터링 적용
     if (selectedLv1Ids.length > 0) {
       const partnerProjectIds = projects.filter(proj => proj.partnerId === p.id).map(proj => proj.id);
+      
+      // [수정] 사업에 배정되지 않은 신규 업체는 항상 노출 (필터링 예외)
+      if (partnerProjectIds.length === 0) return matchesSearch;
+
       const isRelatedToSelectedLv1 = partnerProjectIds.some(pid => {
         let current = projects.find(proj => proj.id === pid);
         while (current && current.parentId && current.level > 1) {
