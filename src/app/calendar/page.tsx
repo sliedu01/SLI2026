@@ -136,34 +136,60 @@ export default function CalendarPage() {
           return;
         }
 
-        // 협력사 정보 — 리프 자신 또는 상위 LV3에서 가져옴
+        // 협력사 정보 — 리프 자신 또는 상위에서 가져옴
         const partnerId = p.partnerId || projects.find(pp => pp.id === p.parentId)?.partnerId;
         const partner = partners.find(ptr => ptr.id === partnerId);
+        const partnerLabel = partner?.name || '협력사';
         
         // LV4인 경우 상위 LV3 프로그램명도 함께 표시
         const parentLv3 = p.level === 4 ? projects.find(pp => pp.id === p.parentId) : null;
-        const displayTitle = parentLv3
-          ? `[${partner?.name || '협력사'}] ${parentLv3.name} - ${p.name}`
-          : `[${partner?.name || '협력사'}] ${p.name}`;
+        const baseName = parentLv3 ? `${parentLv3.name} - ${p.name}` : p.name;
 
-        allEvents.push({
-          id: `project-${p.id}`,
-          title: displayTitle,
-          start: p.startDate,
-          end: p.endDate,
-          allDay: true,
-          extendedProps: {
-            type: 'project',
-            partner: partner?.name,
-            partnerFull: partner?.name ? `[${partner.name}]` : '',
-            programName: p.name,
-            capacity: p.quota,
-            attendance: p.participantCount,
-            editId: p.id,
-            isPeriod: true,
-            color: { bg: '#ecfdf5', text: '#000000', border: '#059669' }
-          }
-        });
+        // 차시(sessions)가 있으면 → 각 차시의 실제 교육일만 개별 표시
+        if (p.sessions && p.sessions.length > 0) {
+          p.sessions.forEach((session, idx) => {
+            if (!session.startDate) return; // 날짜가 없는 차시는 건너뜀
+            const sessionLabel = session.content || `${idx + 1}차시`;
+            allEvents.push({
+              id: `project-${p.id}-s${idx}`,
+              title: `[${partnerLabel}] ${baseName} (${sessionLabel})`,
+              start: session.startDate,
+              end: session.endDate || session.startDate,
+              allDay: true,
+              extendedProps: {
+                type: 'project',
+                partner: partner?.name,
+                partnerFull: `[${partnerLabel}]`,
+                programName: `${baseName} (${sessionLabel})`,
+                capacity: p.quota,
+                attendance: session.participantCount || p.participantCount,
+                editId: p.id,
+                isPeriod: false,
+                color: { bg: '#ecfdf5', text: '#000000', border: '#059669' }
+              }
+            });
+          });
+        } else {
+          // 차시가 없으면 → 프로젝트 기간 전체를 표시
+          allEvents.push({
+            id: `project-${p.id}`,
+            title: `[${partnerLabel}] ${baseName}`,
+            start: p.startDate,
+            end: p.endDate,
+            allDay: true,
+            extendedProps: {
+              type: 'project',
+              partner: partner?.name,
+              partnerFull: partner?.name ? `[${partner.name}]` : '',
+              programName: p.name,
+              capacity: p.quota,
+              attendance: p.participantCount,
+              editId: p.id,
+              isPeriod: true,
+              color: { bg: '#ecfdf5', text: '#000000', border: '#059669' }
+            }
+          });
+        }
       });
     }
 
