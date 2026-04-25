@@ -128,19 +128,24 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
 
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden flex flex-col h-full relative">
+      <div className="absolute top-4 right-20 z-10">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={extractCalendarText}
+          className="bg-white/80 backdrop-blur-sm border-slate-200 hover:bg-slate-50 text-slate-600 font-bold gap-2 shadow-sm"
+        >
+          <FileDown className="size-4" />
+          일정 텍스트 추출
+        </Button>
+      </div>
       <div className="flex-1 p-1">
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
-          customButtons={{
-            extractText: {
-              text: '일정 텍스트 추출',
-              click: extractCalendarText
-            }
-          }}
           headerToolbar={{
-            left: 'prev,next today extractText',
+            left: 'prev,next today',
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
           }}
@@ -312,37 +317,6 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
           font-weight: 900;
           color: #ef4444;
           margin-bottom: 1px;
-        }
-
-        /* 추출 버튼 스타일 */
-        .fc .fc-extractText-button {
-          background-color: #ffffff !important;
-          border: 1px solid #e2e8f0 !important;
-          color: #475569 !important;
-          font-size: 10px !important;
-          font-weight: 900 !important;
-          padding: 4px 10px !important;
-          border-radius: 8px !important;
-          margin-left: 8px !important;
-          text-transform: uppercase !important;
-          letter-spacing: -0.02em !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          gap: 4px !important;
-          transition: all 0.2s ease !important;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
-        }
-        .fc .fc-extractText-button:hover {
-          background-color: #f8fafc !important;
-          border-color: #cbd5e1 !important;
-          color: #1e293b !important;
-        }
-        /* 아이콘 시각적 추가 */
-        .fc .fc-extractText-button::before {
-          content: '⬇';
-          font-size: 12px;
-          margin-right: 2px;
-          display: inline-block;
         }
       `}</style>
     </div>

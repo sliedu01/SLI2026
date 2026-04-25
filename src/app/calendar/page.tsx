@@ -232,9 +232,6 @@ export default function CalendarPage() {
               <CalendarDays className="size-6 text-indigo-600" />
               캘린더 일정 관리
             </h1>
-            <p className="text-[11px] text-slate-400 font-bold mt-1.5 uppercase tracking-wider flex items-center gap-2">
-              <Activity className="size-3" /> Project Schedule & Integrated Monitoring
-            </p>
           </div>
           <div className="flex items-center gap-2 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50">
             <Button variant="ghost" size="sm" className="h-8 text-[10px] font-black text-slate-500 gap-2">
@@ -331,41 +328,31 @@ export default function CalendarPage() {
 
               {/* 기타 유형 필터 */}
               <div className="flex items-center min-h-[44px] divide-x divide-slate-100 bg-white">
-                <div className="flex items-center h-full flex-1">
-                  <div className="w-[120px] px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => setShowMeetings(!showMeetings)}
-                      className={cn(
-                        "h-6 w-full px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
-                        showMeetings ? "text-amber-600" : "text-slate-400"
-                      )}
-                    >
-                      <div className={cn("size-2 rounded-full", showMeetings ? "bg-amber-500" : "bg-slate-300")} />
-                      회의 일정
-                    </Button>
-                  </div>
-                  <div className="px-4 py-2 flex items-center">
-                    <span className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Meetings & Consultations</span>
-                  </div>
+                <div className="w-[120px] px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setShowMeetings(!showMeetings)}
+                    className={cn(
+                      "h-6 w-full px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
+                      showMeetings ? "text-amber-600" : "text-slate-400"
+                    )}
+                  >
+                    <div className={cn("size-2 rounded-full", showMeetings ? "bg-amber-500" : "bg-slate-300")} />
+                    회의 일정
+                  </Button>
                 </div>
-                <div className="flex items-center h-full flex-1">
-                  <div className="w-[120px] px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => setShowBudget(!showBudget)}
-                      className={cn(
-                        "h-6 w-full px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
-                        showBudget ? "text-indigo-600" : "text-slate-400"
-                      )}
-                    >
-                      <div className={cn("size-2 rounded-full", showBudget ? "bg-indigo-500" : "bg-slate-300")} />
-                      지출 내역
-                    </Button>
-                  </div>
-                  <div className="px-4 py-2 flex items-center">
-                    <span className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Budget Expenditures</span>
-                  </div>
+                <div className="w-[120px] px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setShowBudget(!showBudget)}
+                    className={cn(
+                      "h-6 w-full px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
+                      showBudget ? "text-indigo-600" : "text-slate-400"
+                    )}
+                  >
+                    <div className={cn("size-2 rounded-full", showBudget ? "bg-indigo-500" : "bg-slate-300")} />
+                    지출 내역
+                  </Button>
                 </div>
               </div>
             </div>
@@ -392,7 +379,7 @@ export default function CalendarPage() {
         <div className="space-y-6">
           <Card className="rounded-2xl border border-slate-200/60 shadow-sm bg-white p-5">
             <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 mb-5">
-               <Bell className="size-3.5 text-amber-500" /> Upcoming Schedule
+               <Bell className="size-3.5 text-amber-500" /> 예정일정(2주)
             </h3>
             <div className="space-y-5">
               {(() => {
