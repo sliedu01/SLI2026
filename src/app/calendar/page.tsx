@@ -98,29 +98,57 @@ export default function CalendarPage() {
     }
   }, [lv2Projects]);
 
+  // 부모 체인을 올라가서 특정 레벨의 조상을 찾는 헬퍼
+  const findAncestor = React.useCallback((projectId: string, targetLevel: number): typeof projects[0] | undefined => {
+    let current = projects.find(p => p.id === projectId);
+    while (current && current.level > targetLevel && current.parentId) {
+      current = projects.find(p => p.id === current!.parentId);
+    }
+    return current?.level === targetLevel ? current : undefined;
+  }, [projects]);
+
   const events = React.useMemo(() => {
     const allEvents: CalendarEvent[] = [];
 
-    // 1. 사업 일정 (LV3, LV4)
+    // 1. 사업 일정 — 리프 노드(하위 자식이 없는 실제 운영 일정)만 표시
     if (showProjects) {
-      projects.filter(p => p.level >= 3).forEach(p => {
-        const parentLv2 = projects.find(parent => parent.id === p.parentId);
-        if (!parentLv2) return;
+      // LV3 이상 프로젝트 중 리프 노드만 추출
+      const leafProjects = projects.filter(p => {
+        if (p.level < 3) return false;
+        // 이 프로젝트를 부모로 가진 하위 프로젝트가 없으면 리프 노드
+        const hasChildren = projects.some(child => child.parentId === p.id);
+        return !hasChildren;
+      });
+
+      leafProjects.forEach(p => {
+        // LV2 조상 찾기
+        const ancestorLv2 = findAncestor(p.id, 2);
+        if (!ancestorLv2) return;
 
         // LV1 사업 선택 필터링
-        if (selectedProjectId !== 'all' && parentLv2.parentId !== selectedProjectId) {
+        const ancestorLv1 = findAncestor(p.id, 1);
+        if (selectedProjectId !== 'all' && ancestorLv1?.id !== selectedProjectId) {
           return;
         }
 
         // LV2 세부 사업 필터링
-        if (selectedLv2Ids.length > 0 && !selectedLv2Ids.includes(parentLv2.id)) {
+        if (selectedLv2Ids.length > 0 && !selectedLv2Ids.includes(ancestorLv2.id)) {
           return;
         }
 
-        const partner = partners.find(ptr => ptr.id === p.partnerId);
+        // 협력사 정보 — 리프 자신 또는 상위 LV3에서 가져옴
+        const partnerId = p.partnerId || projects.find(pp => pp.id === p.parentId)?.partnerId;
+        const partner = partners.find(ptr => ptr.id === partnerId);
+        
+        // LV4인 경우 상위 LV3 프로그램명도 함께 표시
+        const parentLv3 = p.level === 4 ? projects.find(pp => pp.id === p.parentId) : null;
+        const displayTitle = parentLv3
+          ? `[${partner?.name || '협력사'}] ${parentLv3.name} - ${p.name}`
+          : `[${partner?.name || '협력사'}] ${p.name}`;
+
         allEvents.push({
           id: `project-${p.id}`,
-          title: `[${partner?.name || '협력사'}] ${p.name}`,
+          title: displayTitle,
           start: p.startDate,
           end: p.endDate,
           allDay: true,
@@ -196,7 +224,7 @@ export default function CalendarPage() {
     }
 
     return allEvents;
-  }, [projects, meetings, expenditures, partners, managements, categories, showProjects, showMeetings, showBudget, selectedLv2Ids, selectedProjectId]);
+  }, [projects, meetings, expenditures, partners, managements, categories, showProjects, showMeetings, showBudget, selectedLv2Ids, selectedProjectId, findAncestor]);
 
   const toggleAllLv2 = () => {
     if (selectedLv2Ids.length === lv2Projects.length) {
