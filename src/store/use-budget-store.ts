@@ -143,7 +143,13 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       id: c.id, name: c.name, projectId: c.project_id, totalBudget: 0, totalExpenditure: 0, totalExpectedExpenditure: 0
     }));
 
-    const mappedMans: BudgetManagement[] = (mans.data || []).map(m => ({
+    // 선택된 카테고리 ID들 추출
+    const catIds = mappedCats.map(c => c.id);
+
+    const filteredMans = (mans.data || []).filter(m => !targetProjectId || catIds.includes(m.category_id));
+    const manIds = filteredMans.map(m => m.id);
+
+    const mappedMans: BudgetManagement[] = filteredMans.map(m => ({
       id: m.id, 
       categoryId: m.category_id, 
       name: m.name, 
@@ -154,7 +160,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       balance: 0
     }));
 
-    const mappedExecs: BudgetExecution[] = (execs.data || []).map(e => ({
+    const mappedExecs: BudgetExecution[] = (execs.data || []).filter(e => !targetProjectId || manIds.includes(e.management_id)).map(e => ({
       id: e.id, 
       managementId: e.management_id, 
       name: e.name, 
@@ -164,7 +170,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       expectedExpenditureAmount: 0
     }));
 
-    const mappedExps: Expenditure[] = (exps.data || []).map(e => {
+    const mappedExps: Expenditure[] = (exps.data || []).filter(e => !targetProjectId || manIds.includes(e.management_id)).map(e => {
       const attachment = e.attachment as { fileName?: string; originalName?: string; fileUrl?: string } | null;
       return {
         id: e.id,

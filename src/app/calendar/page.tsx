@@ -105,32 +105,48 @@ export default function CalendarPage() {
     if (showProjects) {
       projects.filter(p => p.level >= 3).forEach(p => {
         const parentLv2 = projects.find(parent => parent.id === p.parentId);
-        if (parentLv2 && (selectedLv2Ids.length === 0 || selectedLv2Ids.includes(parentLv2.id))) {
-          const partner = partners.find(ptr => ptr.id === p.partnerId);
-          allEvents.push({
-            id: `project-${p.id}`,
-            title: `[${partner?.name || '협력사'}] ${p.name}`,
-            start: p.startDate,
-            end: p.endDate,
-            allDay: true,
-            extendedProps: {
-              type: 'project',
-              partner: partner?.name,
-              partnerFull: partner?.name ? `[${partner.name}]` : '',
-              programName: p.name,
-              capacity: p.quota,
-              attendance: p.participantCount,
-              editId: p.id,
-              isPeriod: true,
-              color: { bg: '#ecfdf5', text: '#000000', border: '#059669' }
-            }
-          });
+        if (!parentLv2) return;
+
+        // LV1 사업 선택 필터링
+        if (selectedProjectId !== 'all' && parentLv2.parentId !== selectedProjectId) {
+          return;
         }
+
+        // LV2 세부 사업 필터링
+        if (selectedLv2Ids.length > 0 && !selectedLv2Ids.includes(parentLv2.id)) {
+          return;
+        }
+
+        const partner = partners.find(ptr => ptr.id === p.partnerId);
+        allEvents.push({
+          id: `project-${p.id}`,
+          title: `[${partner?.name || '협력사'}] ${p.name}`,
+          start: p.startDate,
+          end: p.endDate,
+          allDay: true,
+          extendedProps: {
+            type: 'project',
+            partner: partner?.name,
+            partnerFull: partner?.name ? `[${partner.name}]` : '',
+            programName: p.name,
+            capacity: p.quota,
+            attendance: p.participantCount,
+            editId: p.id,
+            isPeriod: true,
+            color: { bg: '#ecfdf5', text: '#000000', border: '#059669' }
+          }
+        });
       });
     }
 
+    // 2. 회의 일정
     if (showMeetings) {
       getSortedMeetings().forEach(m => {
+        // 사업 선택 필터링
+        if (selectedProjectId !== 'all' && m.projectId !== selectedProjectId) {
+          return;
+        }
+
         allEvents.push({
           id: `meeting-${m.id}`,
           title: `[회의] ${m.sessionNumber}회차: ${m.title}`,
@@ -155,6 +171,11 @@ export default function CalendarPage() {
         const mgmt = managements.find(m => m.id === e.managementId);
         const cat = categories.find(c => c.id === mgmt?.categoryId);
         
+        // 사업 선택 필터링
+        if (selectedProjectId !== 'all' && cat?.projectId !== selectedProjectId) {
+          return;
+        }
+
         allEvents.push({
           id: `budget-${e.id}`,
           title: `[지출] ${e.vendor}: ${e.amount.toLocaleString()}원`,
@@ -175,7 +196,7 @@ export default function CalendarPage() {
     }
 
     return allEvents;
-  }, [projects, meetings, expenditures, partners, showProjects, showMeetings, showBudget, selectedLv2Ids]);
+  }, [projects, meetings, expenditures, partners, managements, categories, showProjects, showMeetings, showBudget, selectedLv2Ids, selectedProjectId]);
 
   const toggleAllLv2 = () => {
     if (selectedLv2Ids.length === lv2Projects.length) {

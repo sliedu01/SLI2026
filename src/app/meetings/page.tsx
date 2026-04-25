@@ -101,19 +101,9 @@ function MeetingsPageContent() {
   const filteredMeetings = React.useMemo(() => {
     const sorted = getSortedMeetings();
     
-    // 1. 글로벌 LV1 필터링 적용 (사업 선택 드롭다운과 연동)
     let filtered = sorted;
     if (selectedProjectId && selectedProjectId !== 'all') {
-      filtered = filtered.filter(m => {
-        if (!m.projectId) return false;
-        let current = projects.find(p => p.id === m.projectId);
-        while (current && current.parentId && current.level > 1) {
-          const parent = projects.find(p => p.id === current!.parentId);
-          if (!parent) break;
-          current = parent;
-        }
-        return current && current.id === selectedProjectId;
-      });
+      filtered = filtered.filter(m => m.projectId === selectedProjectId);
     }
 
     return sortOrder === 'asc' ? filtered : [...filtered].reverse();
