@@ -38,14 +38,14 @@ export default function RootLayout({
             <SidebarProvider>
               <ClientSideSidebar />
               <SidebarInset>
-                <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+                <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3 bg-background/50 backdrop-blur-sm sticky top-0 z-10">
                   <SidebarTrigger className="-ml-1" />
                   <div className="flex items-center gap-2 divide-x divide-slate-200">
                     <span className="text-[12px] font-bold text-slate-900 ml-2 tracking-tight">위탁교육 통합 대시보드</span>
                   </div>
                 </header>
-                <main className="flex-1 overflow-auto bg-slate-50/30 p-4">
-                  <div className="max-w-[1024px] mx-auto w-full">
+                <main className="flex-1 overflow-auto bg-slate-50/30 p-3">
+                  <div className="w-full">
                     {children}
                   </div>
                 </main>

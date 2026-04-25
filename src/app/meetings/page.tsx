@@ -206,7 +206,7 @@ function MeetingsPageContent() {
             <h1 className="text-[14px] font-bold text-slate-900 tracking-tight whitespace-nowrap">회의 관리</h1>
           </div>
 
-          <div className="flex items-center gap-2 max-w-4xl w-full">
+          <div className="flex items-center gap-2 w-full">
             <Select 
               key={`meetings-select-${selectedProjectId}-${projects.length}`}
               value={selectedProjectId || 'all'} 

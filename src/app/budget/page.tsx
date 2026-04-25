@@ -182,7 +182,7 @@ function BudgetPageContent() {
             <h1 className="text-[14px] font-bold text-slate-900 tracking-tight whitespace-nowrap">예산 및 정산</h1>
           </div>
 
-          <div className="flex items-center gap-2 max-w-4xl w-full">
+          <div className="flex items-center gap-2 w-full">
             <Select 
               key={`budget-select-${activeProjectId}-${projects.length}`}
               value={activeProjectId || 'all'} 

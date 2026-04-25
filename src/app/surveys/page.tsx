@@ -523,7 +523,7 @@ export default function SurveysPage() {
             <h1 className="text-[14px] font-bold text-slate-900 tracking-tight whitespace-nowrap">설문 및 성과관리</h1>
           </div>
 
-          <div className="flex items-center gap-2 max-w-4xl w-full">
+          <div className="flex items-center gap-2 w-full">
             <Select 
               key={`surveys-select-${selectedProjectId}-${projects.length}`}
               value={selectedProjectId || 'all'} 

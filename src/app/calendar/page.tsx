@@ -62,12 +62,18 @@ export default function CalendarPage() {
 
   // 글로벌 사업 선택 상태 동기화
   React.useEffect(() => {
+    if (!hasMounted) return;
     if (selectedLv1Ids.length > 0) {
-      setSelectedProjectId(selectedLv1Ids[0]);
+      const globalId = selectedLv1Ids[0];
+      if (globalId !== selectedProjectId) {
+        setSelectedProjectId(globalId);
+      }
     } else {
-      setSelectedProjectId('all');
+      if (selectedProjectId !== 'all') {
+        setSelectedProjectId('all');
+      }
     }
-  }, [selectedLv1Ids]);
+  }, [hasMounted, selectedLv1Ids, selectedProjectId]);
 
   // 로컬 선택 변경 시 글로벌 상태도 업데이트
   const handleProjectChange = (id: string | null) => {
@@ -347,8 +353,8 @@ export default function CalendarPage() {
       </div>
 
       {/* 캘린더 메인 컨텐츠 그리드 */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-3">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-4">
           {isLoading ? (
             <div className="h-[600px] flex items-center justify-center bg-white rounded-2xl border border-slate-100 shadow-sm">
               <div className="flex flex-col items-center gap-4">
