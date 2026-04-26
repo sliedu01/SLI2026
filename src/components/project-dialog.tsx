@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { format, isValid } from 'date-fns';
+import { format, isValid, addDays, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Plus, Trash2, CalendarIcon, Users, Maximize2, Minimize2, X } from 'lucide-react';
 
@@ -125,10 +125,21 @@ export function ProjectDialog({
   const addSession = () => {
     const lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
     
-    const sDate = lastSession ? lastSession.startDate : (startDate ? format(startDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
-    const eDate = lastSession ? lastSession.endDate : (endDate ? format(endDate, 'yyyy-MM-dd') : sDate);
-    const sTime = lastSession ? lastSession.startTime : (startTime || '10:00');
-    const eTime = lastSession ? lastSession.endTime : (endTime || '12:00');
+    let sDate, eDate, sTime, eTime;
+
+    if (!lastSession) {
+      // 첫 번째 세션: 프로젝트 시작일 기준, 10:00~12:00
+      sDate = startDate ? format(startDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+      eDate = sDate; 
+      sTime = '10:00';
+      eTime = '12:00';
+    } else {
+      // 추가 세션: 이전 세션 날짜 + 7일, 시간 계승
+      sDate = format(addDays(parseISO(lastSession.startDate), 7), 'yyyy-MM-dd');
+      eDate = format(addDays(parseISO(lastSession.endDate), 7), 'yyyy-MM-dd');
+      sTime = lastSession.startTime;
+      eTime = lastSession.endTime;
+    }
 
     const newSession: ProjectSession = {
       id: crypto.randomUUID(),
@@ -291,7 +302,9 @@ export function ProjectDialog({
                   <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">협력업체</Label>
                   <Select value={partnerId} onValueChange={(val) => setPartnerId(val || 'none')}>
                     <SelectTrigger className="h-9 rounded-lg font-bold text-[11px]">
-                      <SelectValue placeholder="협력업체 선택" />
+                      <SelectValue placeholder="협력업체 선택">
+                        {partnerId !== 'none' ? (partners.find(p => p.id === partnerId)?.name || partnerId) : '미지정'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="min-w-[300px] rounded-xl border-slate-100 shadow-2xl">
                       <SelectItem value="none" className="text-[11px]">미지정</SelectItem>
@@ -410,16 +423,16 @@ export function ProjectDialog({
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label className="text-[10px] font-black text-slate-400">시작 일시</Label>
-                              <div className="flex gap-2">
+                              <div className="grid grid-cols-2 gap-2">
                                 <Input type="date" value={session.startDate} onChange={(e) => updateSession(session.id, { startDate: e.target.value })} className="h-10 text-xs font-bold rounded-xl" />
-                                <Input type="time" value={session.startTime} onChange={(e) => updateSession(session.id, { startTime: e.target.value })} className="h-10 w-24 text-xs font-bold rounded-xl" step="600" />
+                                <Input type="time" value={session.startTime} onChange={(e) => updateSession(session.id, { startTime: e.target.value })} className="h-10 text-xs font-bold rounded-xl" step="600" />
                               </div>
                             </div>
                             <div className="space-y-2">
                               <Label className="text-[10px] font-black text-slate-400">종료 일시</Label>
-                              <div className="flex gap-2">
+                              <div className="grid grid-cols-2 gap-2">
                                 <Input type="date" value={session.endDate} onChange={(e) => updateSession(session.id, { endDate: e.target.value })} className="h-10 text-xs font-bold rounded-xl" />
-                                <Input type="time" value={session.endTime} onChange={(e) => updateSession(session.id, { endTime: e.target.value })} className="h-10 w-24 text-xs font-bold rounded-xl" step="600" />
+                                <Input type="time" value={session.endTime} onChange={(e) => updateSession(session.id, { endTime: e.target.value })} className="h-10 text-xs font-bold rounded-xl" step="600" />
                               </div>
                             </div>
                           </div>

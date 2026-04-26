@@ -54,24 +54,215 @@ export function MeetingMinutesDoc({
 
   const docRef = React.useRef<HTMLDivElement>(null);
 
+  const [isDownloading, setIsDownloading] = React.useState(false);
+
   const handleDownloadPDF = async () => {
     if (!docRef.current) return;
+    setIsDownloading(true);
     
-    const element = docRef.current;
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-    });
-    
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`회의록_${meeting.title || '미지정'}_${meeting.date || ''}.pdf`);
+    try {
+      const element = docRef.current;
+      
+      // 임시로 다운로드 버튼들을 숨김 (html2canvas 캡처 시 제외되도록)
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        ignoreElements: (el) => el.classList.contains('print:hidden') || el.classList.contains('download-ignore'),
+        onclone: (clonedDoc) => {
+          // oklch, lab, oklab 컬러 함수가 포함된 스타일 태그를 찾아 HEX로 치환
+          const styleTags = clonedDoc.getElementsByTagName('style');
+          for (let i = 0; i < styleTags.length; i++) {
+            const tag = styleTags[i];
+            if (tag.innerHTML.includes('oklch') || tag.innerHTML.includes('lab') || tag.innerHTML.includes('oklab')) {
+              tag.innerHTML = tag.innerHTML.replace(/(?:oklch|lab|oklab)\([^)]+\)/g, '#4f46e5');
+            }
+          }
+          
+          // 인라인 스타일에서도 제거
+          const allElements = clonedDoc.getElementsByTagName('*');
+          for (let i = 0; i < allElements.length; i++) {
+            const el = allElements[i] as HTMLElement;
+            if (el.style) {
+              const style = el.style;
+              if (style.color && (style.color.includes('oklch') || style.color.includes('lab') || style.color.includes('oklab'))) {
+                style.color = '#1f2937';
+              }
+              if (style.backgroundColor && (style.backgroundColor.includes('oklch') || style.backgroundColor.includes('lab') || style.backgroundColor.includes('oklab'))) {
+                style.backgroundColor = 'transparent';
+              }
+              if (style.borderColor && (style.borderColor.includes('oklch') || style.borderColor.includes('lab') || style.borderColor.includes('oklab'))) {
+                style.borderColor = '#e2e8f0';
+              }
+            }
+          }
+        }
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`회의록_${meeting.title || '미지정'}_${meeting.date || ''}.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+      alert("PDF 생성 중 오류가 발생했습니다. 다시 시도해 주세요.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadHWP = () => {
+    // 공문서 서식 HTML 생성
+    const title = meeting.title || '회의록';
+    const date = meeting.date || '';
+    const location = meeting.location || '';
+    const attendees = (meeting.attendees || []).map(a => `${a.org} ${a.name}`).join(', ');
+    const purpose = meeting.purpose || '';
+    const agenda = (meeting.agenda || '').replace(/\n/g, '<br/>');
+
+
+    const hwpHtml = `
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            @page { size: a4; margin: 25mm 20mm; }
+            body { 
+              font-family: "Batang", "바탕", serif; 
+              line-height: 1.8; 
+              font-size: 11pt;
+              color: #1a1a1a;
+            }
+            .title { 
+              text-align: center; 
+              font-size: 28pt; 
+              font-weight: 800; 
+              margin-top: 40px;
+              margin-bottom: 60px; 
+              color: #000;
+              border-bottom: 3px double #000;
+              padding-bottom: 10px;
+              display: inline-block;
+              width: 100%;
+            }
+            
+            .info-table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-bottom: 40px; 
+              border-top: 2px solid #000;
+              border-bottom: 2px solid #000;
+            }
+            .info-table th, .info-table td { 
+              padding: 12px 15px; 
+              text-align: left; 
+              border-bottom: 1px solid #eee;
+            }
+            .info-table th { 
+              background-color: #f9fafb; 
+              width: 100px; 
+              font-weight: bold;
+              color: #4b5563;
+              border-right: 1px solid #eee;
+            }
+
+            .section-title { 
+              font-size: 14pt; 
+              font-weight: bold; 
+              margin-top: 30px; 
+              margin-bottom: 15px; 
+              color: #000;
+              border-left: 4px solid #4f46e5;
+              padding-left: 12px;
+            }
+            
+            .content-box {
+              padding: 5px 15px 20px 15px;
+              min-height: 80px;
+            }
+            .item-title { font-weight: bold; margin-bottom: 8px; color: #111; display: block; }
+            .item-detail { margin-left: 15px; color: #374151; }
+
+            .footer { 
+              margin-top: 100px; 
+              text-align: center; 
+              font-size: 18pt; 
+              font-weight: bold; 
+              color: #000;
+            }
+            .official-seal {
+              text-align: center;
+              margin-top: 10px;
+              color: #9ca3af;
+              font-size: 9pt;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="title">회 의 록</div>
+          
+          <table class="info-table">
+            <tr>
+              <th>안 건 명</th>
+              <td colspan="3" style="font-weight: bold; font-size: 12pt; color: #000;">${title}</td>
+            </tr>
+            <tr>
+              <th>일    시</th>
+              <td>${date} (${meeting.startTime || ''} ~ ${meeting.endTime || ''})</td>
+              <th>장    소</th>
+              <td>${location}</td>
+            </tr>
+            <tr>
+              <th>참 석 자</th>
+              <td colspan="3">${attendees}</td>
+            </tr>
+          </table>
+
+          <div class="section-title">회의 개요 및 목적</div>
+          <div class="content-box">${purpose || '내용 없음'}</div>
+
+          <div class="section-title">주요 검토 안건</div>
+          <div class="content-box">${agenda || '내용 없음'}</div>
+
+          <div class="section-title">회의 결과 및 결정 사항</div>
+          <div class="content-box">
+            ${(meeting.content || []).map((item, idx) => `
+              <div style="margin-bottom: 20px;">
+                <span class="item-title">${idx + 1}. ${item.title}</span>
+                <div class="item-detail">
+                  ${item.detail.replace(/\n/g, '<br/>')}
+                </div>
+              </div>
+            `).join('') || '기록된 내용이 없습니다.'}
+          </div>
+
+          <div class="section-title">기타 및 향후 추진 일정</div>
+          <div class="content-box">
+            <p style="margin-bottom: 10px;">• 기타사항: ${meeting.others || '-'}</p>
+            <p>• 차기일정: ${meeting.nextSchedule || '-'}</p>
+          </div>
+
+          <div class="footer">SLI 교육그룹</div>
+          <div class="official-seal">[직인생략]</div>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([hwpHtml], { type: 'application/haansofthwp' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `회의록_${title}_${date}.hwp`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleAttendeeChange = (idx: number, field: keyof MeetingAttendee, value: string) => {
@@ -116,11 +307,19 @@ export function MeetingMinutesDoc({
       {/* 관리 도구 (브라우저에서만 보임) */}
       {!isEditing && onPrint && (
         <div className="absolute top-8 right-8 print:hidden flex gap-2">
-          <Button onClick={onPrint} variant="outline" className="rounded-xl gap-2 font-black border-slate-200 hover:bg-slate-50">
+          <Button onClick={onPrint} variant="outline" className="rounded-xl gap-2 font-black border-slate-200 hover:bg-slate-50 h-10 px-4 text-[11px]">
             <Printer className="size-4" /> 회의록 출력
           </Button>
-          <Button onClick={handleDownloadPDF} variant="default" className="rounded-xl gap-2 font-black bg-slate-900 hover:bg-slate-800 text-white shadow-lg">
-            <FileDown className="size-4" /> PDF 다운로드
+          <Button onClick={handleDownloadHWP} variant="outline" className="rounded-xl gap-2 font-black border-indigo-200 text-indigo-600 hover:bg-indigo-50 h-10 px-4 text-[11px]">
+            <FileDown className="size-4" /> HWP 다운로드
+          </Button>
+          <Button 
+            onClick={handleDownloadPDF} 
+            disabled={isDownloading}
+            variant="default" 
+            className="rounded-xl gap-2 font-black bg-slate-900 hover:bg-slate-800 text-white shadow-lg h-10 px-4 text-[11px]"
+          >
+            <FileDown className="size-4" /> {isDownloading ? "생성 중..." : "PDF 다운로드"}
           </Button>
         </div>
       )}

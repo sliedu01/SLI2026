@@ -11,7 +11,9 @@ import {
   Edit2,
   Trash2,
   FileSpreadsheet,
-  Settings2
+  Settings2,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -31,6 +33,15 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+
+const PROOF_TYPE_LABELS: Record<string, string> = {
+  TAX_INVOICE: '세금계산서',
+  RECEIPT: '영수증',
+  DEPOSIT: '입금증',
+  CASH_RECEIPT: '현금영수증',
+  CARD: '카드전표',
+  OTHER: '기타'
+};
 
 export default function BudgetPage() {
   return (
@@ -60,6 +71,16 @@ function BudgetPageContent() {
   const [expenditureDialogOpen, setExpenditureDialogOpen] = React.useState(false);
   const [categoryManagementOpen, setCategoryManagementOpen] = React.useState(false);
   const [editingExpenditure, setEditingExpenditure] = React.useState<Expenditure | undefined>(undefined);
+  const [expandedManIds, setExpandedManIds] = React.useState<Set<string>>(new Set());
+
+  const toggleManExpand = (id: string) => {
+    setExpandedManIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   React.useEffect(() => {
     setMounted(true);
@@ -86,8 +107,6 @@ function BudgetPageContent() {
     }
   }, [mounted, editId, expenditures, activeProjectId, setActiveProjectId, fetchBudgets, categories, managements]);
 
-  // LV1 사업들 필터링
-  const lv1Projects = projects.filter(p => p.level === 1);
 
   // 글로벌 선택과 동기화
   React.useEffect(() => {
@@ -312,27 +331,78 @@ function BudgetPageContent() {
                       </tr>
                       {catMans.map(man => {
                         const usageRate = (man.totalExpenditure / (man.budgetAmount || 1)) * 100;
+                        const manExps = expenditures.filter(exp => exp.managementId === man.id);
+                        const isExpanded = expandedManIds.has(man.id);
+                        
                         return (
-                          <tr key={man.id} className="hover:bg-slate-50/30 group border-b border-slate-50">
-                            <td className="px-4 py-2 pl-8 text-[11px] font-bold text-slate-700">
-                              <span className="flex items-center gap-2">
-                                <span className="size-1 rounded-full bg-slate-300 group-hover:bg-indigo-400 transition-colors" />
-                                {man.name}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 text-[11px] font-medium text-slate-600 text-right">{formatWithCommas(man.budgetAmount)}</td>
-                            <td className="px-4 py-2 text-[11px] font-bold text-emerald-600 text-right">{formatWithCommas(man.totalExpenditure)}</td>
-                            <td className="px-4 py-2 text-[11px] font-medium text-slate-600 text-right">{formatWithCommas(man.balance)}</td>
-                            <td className="px-4 py-2 text-center">
-                              <span className={cn(
-                                "px-1.5 py-0.5 rounded text-[10px] font-bold",
-                                usageRate > 100 ? "bg-red-100 text-red-600" : "bg-indigo-50 text-indigo-600"
-                              )}>
-                                {usageRate.toFixed(1)}%
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 text-center">-</td>
-                          </tr>
+                          <React.Fragment key={man.id}>
+                            <tr 
+                              className={cn(
+                                "hover:bg-slate-50 transition-colors group border-b border-slate-50 cursor-pointer",
+                                isExpanded && "bg-slate-50/50"
+                              )}
+                              onClick={() => toggleManExpand(man.id)}
+                            >
+                              <td className="px-4 py-2 pl-8 text-[11px] font-bold text-slate-700">
+                                <span className="flex items-center gap-2">
+                                  {manExps.length > 0 ? (
+                                    isExpanded ? <ChevronDown className="size-3 text-indigo-500" /> : <ChevronRight className="size-3 text-slate-400" />
+                                  ) : (
+                                    <span className="size-1 rounded-full bg-slate-300 group-hover:bg-indigo-400 transition-colors ml-1" />
+                                  )}
+                                  {man.name}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-[11px] font-medium text-slate-600 text-right">{formatWithCommas(man.budgetAmount)}</td>
+                              <td className="px-4 py-2 text-[11px] font-bold text-emerald-600 text-right">{formatWithCommas(man.totalExpenditure)}</td>
+                              <td className="px-4 py-2 text-[11px] font-medium text-slate-600 text-right">{formatWithCommas(man.balance)}</td>
+                              <td className="px-4 py-2 text-center">
+                                <span className={cn(
+                                  "px-1.5 py-0.5 rounded text-[10px] font-bold",
+                                  usageRate > 100 ? "bg-red-100 text-red-600" : "bg-indigo-50 text-indigo-600"
+                                )}>
+                                  {usageRate.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-center">-</td>
+                            </tr>
+                            {isExpanded && manExps.length > 0 && [...manExps]
+                              .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+                              .map(exp => {
+                                const proofLabel = PROOF_TYPE_LABELS[exp.proofType] || exp.proofType;
+                                const detailText = `${exp.date || '지출예정'}_${exp.subDetail}_${exp.vendor}(${proofLabel})_${exp.attachmentOriginalName || '첨부없음'}`;
+
+                                return (
+                                  <tr key={exp.id} className="bg-slate-50/20 border-b border-slate-100/50 hover:bg-slate-100/30 transition-colors group">
+                                    <td className="px-4 py-1.5 pl-14 text-[10px] font-medium text-slate-500">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-slate-300">└</span>
+                                        {detailText}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-1.5 text-right">-</td>
+                                    <td className="px-4 py-1.5 text-[10px] font-bold text-emerald-600 text-right">
+                                      {formatWithCommas(exp.amount)}
+                                    </td>
+                                    <td className="px-4 py-1.5 text-right">-</td>
+                                    <td className="px-4 py-1.5 text-center text-[9px] text-slate-400">{proofLabel}</td>
+                                    <td className="px-4 py-1.5 text-center">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="size-6 text-slate-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEditExpenditure(exp);
+                                        }}
+                                      >
+                                        <Edit2 className="size-3" />
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </React.Fragment>
                         );
                       })}
                     </React.Fragment>
@@ -380,7 +450,7 @@ function BudgetPageContent() {
                         <td className="px-4 py-2.5 text-[11px] font-medium text-slate-600">{exp.vendor}</td>
                         <td className="px-4 py-2.5 text-center">
                           <span className="px-1.5 py-0.5 rounded-[4px] bg-slate-100 text-slate-500 text-[9px] font-bold">
-                            {exp.proofType}
+                            {PROOF_TYPE_LABELS[exp.proofType] || exp.proofType}
                           </span>
                         </td>
                         <td className="px-4 py-2.5">

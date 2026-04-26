@@ -34,6 +34,9 @@ export interface Project {
 interface ProjectState {
   projects: Project[];
   selectedLv1Ids: string[];
+  selectedProjectIds: string[];
+  expandedIds: string[];
+  visibleProjectIds: string[];
   sortKey: 'name' | 'date';
   sortDirection: 'asc' | 'desc';
   isLoading: boolean;
@@ -41,6 +44,9 @@ interface ProjectState {
   // Actions
   fetchProjects: () => Promise<void>;
   setSelectedLv1Ids: (ids: string[]) => void;
+  setSelectedProjectIds: (ids: string[]) => void;
+  toggleExpand: (id: string) => void;
+  setVisibleProjectIds: (ids: string[]) => void;
   addProject: (project: Omit<Project, 'id' | 'createdAt'>) => Promise<void>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
@@ -57,11 +63,21 @@ export const useProjectStore = create<ProjectState>()(
     (set, get) => ({
       projects: [],
       selectedLv1Ids: [],
+      selectedProjectIds: [],
+      expandedIds: [],
+      visibleProjectIds: [],
       sortKey: 'name',
       sortDirection: 'asc',
       isLoading: false,
 
       setSelectedLv1Ids: (ids) => set({ selectedLv1Ids: ids }),
+      setSelectedProjectIds: (ids) => set({ selectedProjectIds: ids }),
+      toggleExpand: (id) => set(state => ({
+        expandedIds: state.expandedIds.includes(id)
+          ? state.expandedIds.filter(i => i !== id)
+          : [...state.expandedIds, id]
+      })),
+      setVisibleProjectIds: (ids) => set({ visibleProjectIds: ids }),
 
       fetchProjects: async () => {
         set({ isLoading: true });
@@ -261,7 +277,10 @@ export const useProjectStore = create<ProjectState>()(
     {
       name: 'project-storage',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ selectedLv1Ids: state.selectedLv1Ids }), // selectedLv1Ids만 유지
+      partialize: (state) => ({ 
+        selectedLv1Ids: state.selectedLv1Ids,
+        selectedProjectIds: state.selectedProjectIds 
+      }),
     }
   )
 );

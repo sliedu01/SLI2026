@@ -8,7 +8,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import type { EventClickArg } from '@fullcalendar/core';
 
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Clock, FileDown } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -46,6 +46,10 @@ export interface CalendarEvent {
     vendor?: string;
     amount?: number;
     summary?: string;
+    purpose?: string;
+    agenda?: string;
+    content?: { title: string; detail: string }[];
+    nextSchedule?: string;
     editId?: string;
   };
 }
@@ -68,7 +72,9 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
     }
   };
 
-  const extractCalendarText = () => {
+  const [isCopied, setIsCopied] = React.useState(false);
+
+  const extractCalendarText = async () => {
     const calendarApi = calendarRef.current?.getApi();
     if (!calendarApi) return;
 
@@ -76,7 +82,6 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
     const start = view.activeStart;
     const end = view.activeEnd;
 
-    // 현재 뷰의 이벤트들 가져오기
     const currentEvents = calendarApi.getEvents();
     const visibleEvents = currentEvents.filter((event) => {
       const eventStart = event.start;
@@ -85,8 +90,6 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
     });
 
     let text = `[캘린더 일정 추출 - ${view.title}]\n\n`;
-
-    // 날짜별로 정렬
     const sortedEvents = [...visibleEvents].sort((a, b) => 
       (a.start?.getTime() || 0) - (b.start?.getTime() || 0)
     );
@@ -106,7 +109,18 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
       const timeStr = event.allDay ? "종일" : format(start, 'HH:mm');
 
       if (props.type === 'meeting') {
-        text += `- [회의] ${timeStr} | ${props.sessionNum}회차 | ${props.location || '장소미정'} | 주제: ${props.meetingTitle || '없음'}\n`;
+        text += `- [회의] ${timeStr} | ${props.sessionNum}회차 | ${props.location || '장소미정'}\n`;
+        if (props.purpose) text += `    * 목적: ${props.purpose}\n`;
+        if (props.agenda) text += `    * 안건: ${props.agenda}\n`;
+        if (props.content && props.content.length > 0) {
+          text += `    * 회의내용:\n`;
+          props.content.forEach((item: { title?: string; detail?: string }) => {
+            if (item.title || item.detail) {
+              text += `      - ${item.title}: ${item.detail}\n`;
+            }
+          });
+        }
+        if (props.nextSchedule) text += `    * 차기일정: ${props.nextSchedule}\n`;
       } else if (props.type === 'project') {
         text += `- [사업] ${timeStr} | ${props.partner || '협력사미상'} | ${props.programName} | 정원: ${props.capacity || 0}명 | 참여: ${props.attendance || 0}명\n`;
       } else if (props.type === 'budget') {
@@ -114,29 +128,39 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
       }
     });
 
-    // 텍스트 파일로 저장
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `calendar_export_${format(new Date(), 'yyyyMMdd_HHmm')}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    try {
+      await navigator.clipboard.writeText(text);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      // Fallback
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `calendar_export_${format(new Date(), 'yyyyMMdd_HHmm')}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
   };
 
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden flex flex-col h-full relative">
-      <div className="absolute top-4 right-20 z-10">
+      <div className="absolute top-4 right-4 z-10">
         <Button 
           variant="outline" 
           size="sm" 
           onClick={extractCalendarText}
-          className="bg-white/80 backdrop-blur-sm border-slate-200 hover:bg-slate-50 text-slate-600 font-bold gap-2 shadow-sm"
+          className={cn(
+            "bg-white/80 backdrop-blur-sm border-slate-200 hover:bg-slate-50 font-bold gap-2 shadow-sm transition-all",
+            isCopied ? "text-emerald-600 border-emerald-200" : "text-slate-600"
+          )}
         >
-          <FileDown className="size-4" />
-          일정 텍스트 추출
+          {isCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
+          {isCopied ? "복사 완료" : "일정 텍스트 추출"}
         </Button>
       </div>
       <div className="flex-1 p-1">
@@ -145,9 +169,15 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           headerToolbar={{
-            left: 'prev,next today',
+            left: 'prev,next today dayGridMonth,timeGridWeek,timeGridDay',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            right: ''
+          }}
+          buttonText={{
+            today: '오늘',
+            month: '월',
+            week: '주',
+            day: '일'
           }}
           events={events}
           locale="ko"
@@ -317,6 +347,60 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
           font-weight: 900;
           color: #ef4444;
           margin-bottom: 1px;
+        }
+        /* 버튼 커스텀 스타일 */
+        .fc .fc-button {
+          font-size: 10px !important;
+          font-weight: 800 !important;
+          padding: 4px 8px !important;
+          height: auto !important;
+          background: #ffffff !important;
+          color: #64748b !important;
+          border: 1px solid #e2e8f0 !important;
+          border-radius: 8px !important;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+          transition: all 0.2s !important;
+        }
+        .fc .fc-button:hover {
+          background: #f8fafc !important;
+          color: #4f46e5 !important;
+          border-color: #4f46e5 !important;
+        }
+        .fc .fc-button-primary:not(:disabled).fc-button-active,
+        .fc .fc-button-primary:not(:disabled):active {
+          background: #4f46e5 !important;
+          color: #ffffff !important;
+          border-color: #4f46e5 !important;
+        }
+        
+        /* 이전/다음 버튼 간격 */
+        .fc .fc-button-group {
+          gap: 2px !important;
+          margin-right: 8px !important;
+        }
+        .fc .fc-button-group .fc-button {
+          border-radius: 8px !important;
+        }
+
+        /* 뷰 전환 버튼 (월, 주, 일) 소형화 */
+        .fc .fc-dayGridMonth-button,
+        .fc .fc-timeGridWeek-button,
+        .fc .fc-timeGridDay-button {
+          font-size: 9px !important;
+          padding: 3px 6px !important;
+          min-width: 28px !important;
+        }
+        
+        /* 툴바 레이아웃 미세 조정 */
+        .fc .fc-toolbar-chunk:first-child {
+          display: flex !important;
+          align-items: center !important;
+        }
+        .fc .fc-toolbar-title {
+          font-size: 16px !important;
+          font-weight: 900 !important;
+          color: #0f172a !important;
+          letter-spacing: -0.02em !important;
         }
       `}</style>
     </div>

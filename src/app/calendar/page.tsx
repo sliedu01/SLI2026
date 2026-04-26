@@ -4,15 +4,13 @@ import * as React from 'react';
 import { 
   CalendarDays, 
   Loader2, 
-  ChevronRight, 
-  ChevronDown, 
   LayoutGrid, 
-  Plus, 
   Clock,
   Bell,
   Activity,
   Settings2,
-  RefreshCcw
+  RefreshCcw,
+  LucideIcon
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -39,7 +37,7 @@ export default function CalendarPage() {
     setSelectedLv1Ids,
     isLoading: isProjectLoading 
   } = useProjectStore();
-  const { meetings, fetchMeetings, getSortedMeetings, isLoading: isMeetingLoading } = useMeetingStore();
+  const { fetchMeetings, getSortedMeetings, isLoading: isMeetingLoading } = useMeetingStore();
   const { expenditures, managements, categories, fetchBudgets, isLoading: isBudgetLoading } = useBudgetStore();
   const { partners, fetchPartners } = usePartnerStore();
 
@@ -212,6 +210,10 @@ export default function CalendarPage() {
             sessionNum: m.sessionNumber,
             meetingTitle: m.title,
             summary: m.summary,
+            purpose: m.purpose,
+            agenda: m.agenda,
+            content: m.content,
+            nextSchedule: m.nextSchedule,
             editId: m.id,
             color: { bg: '#fffbeb', text: '#000000', border: '#d97706' }
           }
@@ -250,7 +252,7 @@ export default function CalendarPage() {
     }
 
     return allEvents;
-  }, [projects, meetings, expenditures, partners, managements, categories, showProjects, showMeetings, showBudget, selectedLv2Ids, selectedProjectId, findAncestor]);
+  }, [projects, expenditures, partners, managements, categories, showProjects, showMeetings, showBudget, selectedLv2Ids, selectedProjectId, findAncestor, getSortedMeetings]);
 
   const toggleAllLv2 = () => {
     if (selectedLv2Ids.length === lv2Projects.length) {
@@ -465,7 +467,7 @@ export default function CalendarPage() {
                   return acc;
                 }, {} as Record<string, typeof upcoming>);
 
-                const typeConfig: Record<string, { label: string, color: string, bg: string, icon: any }> = {
+                const typeConfig: Record<string, { label: string, color: string, bg: string, icon: LucideIcon }> = {
                   project: { label: '사업 일정', color: 'text-emerald-600', bg: 'bg-emerald-50/50 border-emerald-100', icon: CalendarDays },
                   meeting: { label: '회의 일정', color: 'text-amber-600', bg: 'bg-amber-50/50 border-amber-100', icon: Clock },
                   budget: { label: '지출 내역', color: 'text-indigo-600', bg: 'bg-indigo-50/50 border-indigo-100', icon: LayoutGrid }
