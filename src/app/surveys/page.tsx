@@ -110,8 +110,6 @@ export default function SurveyPage() {
     }
   };
 
-  if (!mounted) return null;
-
   const handleDownloadPDF = async () => {
     if (!currentProject) return;
     await generateSurveyReport('expert-report-content', currentProject.name);
@@ -195,6 +193,8 @@ export default function SurveyPage() {
         사후: d.postAvg
       }));
   }, [stats]);
+
+  if (!mounted) return null;
 
   return (
     <div className="flex gap-4 h-[calc(100vh-4rem)]">
