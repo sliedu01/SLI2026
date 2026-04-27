@@ -430,6 +430,3 @@ export function ExpertReportTemplate({
     </div>
   );
 }
-    </div>
-  );
-}
