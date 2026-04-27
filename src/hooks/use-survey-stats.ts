@@ -85,7 +85,7 @@ export function useSurveyStats(responses: SurveyResponse[], templates: SurveyTem
         preAvg: d.preCount > 0 ? d.preSum / d.preCount : 0,
         postAvg: d.postCount > 0 ? d.postSum / d.postCount : 0,
         satAvg: d.satCount > 0 ? d.satSum / d.satCount : 0,
-        average: 0, // Not strictly used for the requested comparison
+        average: 0,
         count: d.preCount || d.satCount || 0
       };
     });
