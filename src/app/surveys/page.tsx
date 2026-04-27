@@ -174,17 +174,27 @@ export default function SurveyPage() {
     }
   };
 
-  const radarData = stats ? [
-    { subject: '운영만족도', A: stats.satAvg, fullMark: 5 },
-    { subject: '콘텐츠', A: stats.satAvg * 0.98, fullMark: 5 },
-    { subject: '강사전문성', A: stats.satAvg * 1.02, fullMark: 5 },
-    { subject: '인프라', A: stats.satAvg * 0.95, fullMark: 5 },
-    { subject: '성취도', A: stats.postAvg, fullMark: 5 }
-  ] : [];
+  const radarData = React.useMemo(() => {
+    if (!stats?.themeStats) return [];
+    return Object.entries(stats.themeStats)
+      .filter(([_, d]) => d.satAvg > 0)
+      .map(([theme, d]) => ({
+        subject: theme,
+        A: d.satAvg,
+        fullMark: 5
+      }));
+  }, [stats]);
 
-  const improvementData = stats ? [
-    { name: '핵심역량 통합', 사전: stats.preAvg, 사후: stats.postAvg }
-  ] : [];
+  const improvementData = React.useMemo(() => {
+    if (!stats?.themeStats) return [];
+    return Object.entries(stats.themeStats)
+      .filter(([_, d]) => d.preAvg > 0 || d.postAvg > 0)
+      .map(([theme, d]) => ({
+        name: theme,
+        사전: d.preAvg,
+        사후: d.postAvg
+      }));
+  }, [stats]);
 
   return (
     <div className="flex gap-4 h-[calc(100vh-4rem)]">
@@ -296,6 +306,8 @@ export default function SurveyPage() {
                         pValue: 1,
                         sampleSize: 0
                       }}
+                      responses={responses}
+                      templates={templates}
                       chartImages={{ radar: '', improvement: '' }}
                     />
                   </div>

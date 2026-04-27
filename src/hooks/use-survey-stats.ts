@@ -47,6 +47,49 @@ export function useSurveyStats(responses: SurveyResponse[], templates: SurveyTem
       r.answers.filter((a: Answer) => a.text).map((a: Answer) => a.text!)
     );
 
+    // Theme-based stats calculation
+    const themeData: Record<string, { preSum: number, preCount: number, postSum: number, postCount: number, satSum: number, satCount: number }> = {};
+    
+    selectedResponses.forEach(res => {
+      const tmpl = templates.find(t => t.id === res.templateId);
+      if (!tmpl) return;
+      
+      res.answers.forEach(ans => {
+        const q = tmpl.questions.find(fq => fq.id === ans.questionId);
+        if (!q || !q.theme) return;
+        
+        if (!themeData[q.theme]) {
+          themeData[q.theme] = { preSum: 0, preCount: 0, postSum: 0, postCount: 0, satSum: 0, satCount: 0 };
+        }
+        
+        const t = themeData[q.theme];
+        if (tmpl.type === 'SATISFACTION' && ans.score !== undefined) {
+          t.satSum += Number(ans.score);
+          t.satCount++;
+        } else if (tmpl.type === 'COMPETENCY') {
+          if (ans.preScore !== undefined) {
+            t.preSum += Number(ans.preScore);
+            t.preCount++;
+          }
+          if (ans.score !== undefined) {
+            t.postSum += Number(ans.score);
+            t.postCount++;
+          }
+        }
+      });
+    });
+
+    const themeStats: ReportStats['themeStats'] = {};
+    Object.entries(themeData).forEach(([theme, d]) => {
+      themeStats[theme] = {
+        preAvg: d.preCount > 0 ? d.preSum / d.preCount : 0,
+        postAvg: d.postCount > 0 ? d.postSum / d.postCount : 0,
+        satAvg: d.satCount > 0 ? d.satSum / d.satCount : 0,
+        average: 0, // Not strictly used for the requested comparison
+        count: d.preCount || d.satCount || 0
+      };
+    });
+
     return {
       satAvg,
       preAvg,
@@ -56,6 +99,7 @@ export function useSurveyStats(responses: SurveyResponse[], templates: SurveyTem
       pValue: 0.05,
       sampleSize,
       feedbacks,
+      themeStats,
       rawScores: {
         pre: preScores,
         post: postScores,

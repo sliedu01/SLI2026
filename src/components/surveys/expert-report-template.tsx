@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { ReportStats, ExpertReportGenerator } from '@/lib/stat-utils';
 import { Project } from '@/store/use-project-store';
+import { SurveyResponse, SurveyTemplate } from '@/store/use-survey-store';
 
 interface ExpertReportTemplateProps {
   stats: ReportStats;
@@ -13,6 +14,8 @@ interface ExpertReportTemplateProps {
     improvement?: string;
   };
   organizationName?: string;
+  responses?: SurveyResponse[];
+  templates?: SurveyTemplate[];
 }
 
 export function ExpertReportTemplate({
@@ -20,13 +23,43 @@ export function ExpertReportTemplate({
   projects,
   projectName,
   chartImages,
-  organizationName = "SLI 교육연구소"
+  organizationName = "SLI 교육연구소",
+  responses = [],
+  templates = []
 }: ExpertReportTemplateProps) {
   const mainProjectName = projectName || projects.find(p => p.level === 1)?.name || projects[0]?.name || '전체 사업';
   const subProjects = projects.filter(p => p.level > 1);
   const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const analysis = React.useMemo(() => ExpertReportGenerator.generateFullAnalysis(projects, stats), [projects, stats]);
+
+  // 설문지 매핑
+  const satTemplate = templates.find(t => t.type === 'SATISFACTION');
+  const compTemplate = templates.find(t => t.type === 'COMPETENCY');
+
+  // 응답자별 데이터 가공 (Appendix용)
+  const respondentData = React.useMemo(() => {
+    const map = new Map<string, { id: string, sat: number[], pre: number[], post: number[], comments: string[] }>();
+    
+    responses.forEach(res => {
+      if (!map.has(res.respondentId)) {
+        map.set(res.respondentId, { id: res.respondentId, sat: [], pre: [], post: [], comments: [] });
+      }
+      const r = map.get(res.respondentId)!;
+      const tmpl = templates.find(t => t.id === res.templateId);
+      
+      res.answers.forEach(ans => {
+        if (tmpl?.type === 'SATISFACTION') {
+          if (ans.score !== undefined) r.sat.push(ans.score);
+          if (ans.text) r.comments.push(ans.text);
+        } else if (tmpl?.type === 'COMPETENCY') {
+          if (ans.preScore !== undefined) r.pre.push(ans.preScore);
+          if (ans.score !== undefined) r.post.push(ans.score);
+        }
+      });
+    });
+    return Array.from(map.values());
+  }, [responses, templates]);
 
   return (
     <div id="expert-report-content" className="bg-white text-slate-900 font-serif leading-relaxed mx-auto overflow-visible print:shadow-none">
@@ -40,6 +73,21 @@ export function ExpertReportTemplate({
           page-break-after: always;
           position: relative;
           box-sizing: border-box;
+        }
+        .appendix-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 9px;
+          margin-bottom: 20px;
+        }
+        .appendix-table th, .appendix-table td {
+          border: 1px solid #cbd5e1;
+          padding: 6px 4px;
+          text-align: center;
+        }
+        .appendix-table th {
+          background-color: #f1f5f9;
+          font-weight: bold;
         }
         @media screen {
           .report-page {
@@ -101,7 +149,7 @@ export function ExpertReportTemplate({
                 분석 목적 및 배경
               </h3>
               <p className="pl-8 text-lg text-justify leading-loose">
-                본 보고서는 {mainProjectName}의 교육 효과성을 다각도로 검증하기 위해 작성됨. 단순 만족도 조사를 넘어, 사전-사후 역량 변화를 통계적으로 분석(Hake&apos;s Gain, Cohen&apos;s d)하여 실질적인 학습 전이(Learning Transfer) 수준을 도출하고 향후 교육 설계의 전략적 방향성을 제시하고자 함.
+                본 보고서는 {mainProjectName}의 교육 효과성을 다각도로 검증하기 위해 작성됨. 단순 만족도 조사를 넘어, 사전-사후 역량 변화를 통계적으로 분석하여 실질적인 학습 전이(Learning Transfer) 수준을 도출하고 향후 교육 설계의 전략적 방향성을 제시하고자 함.
               </p>
             </div>
             
@@ -237,6 +285,151 @@ export function ExpertReportTemplate({
           </div>
         </section>
       </div>
+
+      {/* Page 5: Appendix 1 - Satisfaction RAW */}
+      <div className="report-page">
+        <h2 className="text-xl font-bold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 1. 만족도 설문결과 (RAW Data)</h2>
+        
+        <table className="appendix-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              {satTemplate?.questions.filter(q => q.type === 'SCALE').map((q, i) => (
+                <th key={i}>문항 {i+1}</th>
+              ))}
+              <th>평균</th>
+            </tr>
+          </thead>
+          <tbody>
+            {respondentData.filter(r => r.sat.length > 0).map((r, i) => (
+              <tr key={i}>
+                <td>{r.id.slice(0, 8)}</td>
+                {r.sat.map((s, si) => <td key={si}>{s}</td>)}
+                <td className="font-bold bg-slate-50">{(r.sat.reduce((a,b)=>a+b,0)/r.sat.length).toFixed(2)}</td>
+              </tr>
+            ))}
+            <tr className="bg-slate-100 font-bold">
+              <td>문항평균</td>
+              {satTemplate?.questions.filter(q => q.type === 'SCALE').map((_, qi) => {
+                const qScores = respondentData.map(r => r.sat[qi]).filter(s => s !== undefined);
+                return <td key={qi}>{(qScores.reduce((a,b)=>a+b,0)/qScores.length).toFixed(2)}</td>
+              })}
+              <td className="bg-emerald-100">{stats.satAvg.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="mt-8">
+          <h3 className="text-sm font-bold mb-3">■ 만족도 설문 문항 정보</h3>
+          <table className="appendix-table text-[8px]">
+            <thead>
+              <tr>
+                <th className="w-16">번호</th>
+                <th className="w-24">주제</th>
+                <th>설문 문항 내용</th>
+              </tr>
+            </thead>
+            <tbody>
+              {satTemplate?.questions.map((q, i) => (
+                <tr key={i}>
+                  <td>{i+1}</td>
+                  <td>{q.theme}</td>
+                  <td className="text-left px-2">{q.content}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Page 6: Appendix 2 - Competency RAW */}
+      <div className="report-page">
+        <h2 className="text-xl font-bold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 2. 사전사후 역량평가 데이터 (RAW Data)</h2>
+        
+        <div className="overflow-x-auto">
+          <table className="appendix-table">
+            <thead>
+              <tr>
+                <th rowSpan={2}>ID</th>
+                {compTemplate?.questions.map((q, i) => (
+                  <th key={i} colSpan={2}>문항 {i+1}</th>
+                ))}
+                <th colSpan={2} className="bg-blue-50">평균 역량</th>
+              </tr>
+              <tr>
+                {compTemplate?.questions.map((_, i) => (
+                  <React.Fragment key={i}>
+                    <th>사전</th>
+                    <th>사후</th>
+                  </React.Fragment>
+                ))}
+                <th className="bg-blue-100">사전</th>
+                <th className="bg-blue-100">사후</th>
+              </tr>
+            </thead>
+            <tbody>
+              {respondentData.filter(r => r.pre.length > 0).map((r, i) => (
+                <tr key={i}>
+                  <td>{r.id.slice(0, 8)}</td>
+                  {r.pre.map((p, pi) => (
+                    <React.Fragment key={pi}>
+                      <td>{p}</td>
+                      <td>{r.post[pi]}</td>
+                    </React.Fragment>
+                  ))}
+                  <td className="font-bold bg-slate-50">{(r.pre.reduce((a,b)=>a+b,0)/r.pre.length).toFixed(2)}</td>
+                  <td className="font-bold bg-slate-50">{(r.post.reduce((a,b)=>a+b,0)/r.post.length).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-8 grid grid-cols-2 gap-8">
+          <div>
+            <h3 className="text-sm font-bold mb-3">■ 역량 진단 지표 및 문항 정보</h3>
+            <table className="appendix-table text-[8px]">
+              <thead>
+                <tr>
+                  <th className="w-12">번호</th>
+                  <th className="w-20">주제</th>
+                  <th>문항 내용</th>
+                </tr>
+              </thead>
+              <tbody>
+                {compTemplate?.questions.map((q, i) => (
+                  <tr key={i}>
+                    <td>{i+1}</td>
+                    <td>{q.theme}</td>
+                    <td className="text-left px-2">{q.content}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+            <h3 className="text-sm font-bold mb-4">■ 주요 통계 지표 설명 및 산식</h3>
+            <div className="space-y-4 text-[10px]">
+              <div>
+                <p className="font-bold text-blue-700">1. Hake&apos;s Gain (역량 향상도)</p>
+                <p className="text-slate-600">가능한 최대 성장 폭 대비 실제 달성한 성장의 비율</p>
+                <code className="block bg-white p-2 mt-1 border border-slate-200">G = (Post - Pre) / (5 - Pre)</code>
+              </div>
+              <div>
+                <p className="font-bold text-indigo-700">2. Cohen&apos;s d (효과 크기)</p>
+                <p className="text-slate-600">두 집단 간 평균 차이를 표준편차로 나눈 표준화된 지수</p>
+                <code className="block bg-white p-2 mt-1 border border-slate-200">d = (M2 - M1) / SD_pooled</code>
+              </div>
+              <p className="text-[9px] text-slate-400 leading-tight mt-4">
+                * 모든 데이터는 무기명으로 처리되었으며, 5점 리커트 척도(1:매우 그렇지 않다 ~ 5:매우 그렇다)를 기준으로 산출되었습니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
     </div>
   );
 }
