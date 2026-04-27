@@ -4,5 +4,6 @@
   "buildCommand": "next build",
   "installCommand": "npm install",
   "devCommand": "next dev",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "regions": ["icn1"]
 }

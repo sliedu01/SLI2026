@@ -27,9 +27,17 @@ export function ExpertReportTemplate({
   responses = [],
   templates = []
 }: ExpertReportTemplateProps) {
+  const [mounted, setMounted] = React.useState(false);
+  const [today, setToday] = React.useState('');
+
+  React.useEffect(() => {
+    setMounted(true);
+    setToday(new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }));
+  }, []);
+
   const mainProjectName = projectName || projects.find(p => p.level === 1)?.name || projects[0]?.name || '전체 사업';
   const subProjects = projects.filter(p => p.level > 1);
-  const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  // const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const analysis = React.useMemo(() => ExpertReportGenerator.generateFullAnalysis(projects, stats), [projects, stats]);
 
