@@ -145,7 +145,7 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
           combinedDocs.push({
             id: generateSafeId(),
             type,
-            originalName: info.fileName, // [수정] pretty name을 보존
+            originalName: info.originalName || info.fileName, // [수정] 진짜 원본 이름을 보존
             fileName: storagePath,
             fileUrl: finalUrl
           });
@@ -173,7 +173,7 @@ export function PartnerDialog({ open, onOpenChange, project, mode = 'add', partn
             combinedDocs.push({
               id: c.id || generateSafeId(),
               type: `${i+1}회차 계약서`,
-              originalName: c.originalName || c.name, // 이미 pretty name이거나 수동 입력된 이름
+              originalName: c.originalName || c.name, // [수정] 진짜 원본 이름을 보존
               fileName: storagePath,
               fileUrl: finalUrl
             });

@@ -150,35 +150,57 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
   },
 
   updatePartner: async (id, updates) => {
+    const updatePayload: any = {
+      name: updates.name,
+      manager: updates.manager,
+      phone1: updates.phone1,
+      phone2: updates.phone2,
+      email: updates.email,
+      address: updates.address,
+      documents: updates.documents as unknown as Json,
+    };
+    
+    // 빈 문자열인 경우 null로 처리하여 unique 제약조건 우회
+    if (updates.abbreviation) {
+      updatePayload.abbreviation = updates.abbreviation;
+    } else if (updates.abbreviation === '') {
+      updatePayload.abbreviation = null;
+    }
+
     const { error } = await supabase
       .from('partners')
-      .update({
-        name: updates.name,
-        manager: updates.manager,
-        phone1: updates.phone1,
-        phone2: updates.phone2,
-        email: updates.email,
-        address: updates.address,
-        documents: updates.documents as unknown as Json,
-        abbreviation: updates.abbreviation,
-      })
+      .update(updatePayload)
       .eq('id', id);
 
     if (error) {
-      console.warn('Database update failed for partner abbreviation, using local storage fallback:', error);
-      // 로컬 상태 강제 업데이트
-      set((state) => ({
-        partners: state.partners.map((p) => 
-          p.id === id ? { ...p, ...updates } : p
-        ),
-      }));
-    } else {
-      set((state) => ({
-        partners: state.partners.map((p) => 
-          p.id === id ? { ...p, ...updates } : p
-        ),
-      }));
+      console.warn('Database update failed:', error);
+      if (error.message?.includes('abbreviation')) {
+        // 약어 오류 시 약어 제외하고 재시도
+        const { error: retryError } = await supabase
+          .from('partners')
+          .update({
+            name: updates.name,
+            manager: updates.manager,
+            phone1: updates.phone1,
+            phone2: updates.phone2,
+            email: updates.email,
+            address: updates.address,
+            documents: updates.documents as unknown as Json,
+          })
+          .eq('id', id);
+          
+        if (retryError) throw retryError;
+      } else {
+        throw error; // 에러를 던져서 UI에서 알림을 띄우게 함
+      }
     }
+    
+    // DB 업데이트가 성공한 경우에만 로컬 상태 업데이트
+    set((state) => ({
+      partners: state.partners.map((p) => 
+        p.id === id ? { ...p, ...updates } : p
+      ),
+    }));
 
     // 로컬 스토리지에 즉시 저장
     if (typeof window !== 'undefined') {
