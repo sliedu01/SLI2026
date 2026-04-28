@@ -185,8 +185,8 @@ export function ProjectDialog({
     let finalEndTime = endTime;
 
     if (level >= 3 && sessions.length > 0) {
-      const sortedByStart = [...sessions].sort((a, b) => a.startDate.localeCompare(b.startDate) || a.startTime.localeCompare(b.startTime));
-      const sortedByEnd = [...sessions].sort((a, b) => b.endDate.localeCompare(a.endDate) || b.endTime.localeCompare(a.endTime));
+      const sortedByStart = [...sessions].sort((a, b) => a.startDate.localeCompare(b.startDate, undefined, { numeric: true, sensitivity: 'base' }) || a.startTime.localeCompare(b.startTime, undefined, { numeric: true, sensitivity: 'base' }));
+      const sortedByEnd = [...sessions].sort((a, b) => b.endDate.localeCompare(a.endDate, undefined, { numeric: true, sensitivity: 'base' }) || b.endTime.localeCompare(a.endTime, undefined, { numeric: true, sensitivity: 'base' }));
       finalStartDate = sortedByStart[0].startDate;
       finalEndDate = sortedByEnd[sortedByEnd.length - 1].endDate;
       finalStartTime = sortedByStart[0].startTime;

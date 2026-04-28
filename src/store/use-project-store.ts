@@ -265,12 +265,12 @@ export const useProjectStore = create<ProjectState>()(
 
         return [...filtered].sort((a, b) => {
           if (a.level <= 2) {
-            return a.name.localeCompare(b.name, undefined, { numeric: true });
+            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
           }
           if (a.startDate !== b.startDate) {
-            return (a.startDate || '').localeCompare(b.startDate || '');
+            return (a.startDate || '').localeCompare(b.startDate || '', undefined, { numeric: true, sensitivity: 'base' });
           }
-          return (a.endDate || '').localeCompare(b.endDate || '');
+          return (a.endDate || '').localeCompare(b.endDate || '', undefined, { numeric: true, sensitivity: 'base' });
         });
       },
     }),

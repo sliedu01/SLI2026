@@ -15,7 +15,7 @@ import {
   ChevronRight,
   ChevronDown
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { exportToExcel } from '@/lib/excel-export';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -183,10 +183,7 @@ function BudgetPageContent() {
         }
       });
     });
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "정산데이터현황");
-    XLSX.writeFile(workbook, `정산데이터현황_${new Date().toISOString().split('T')[0]}.xlsx`);
+    exportToExcel(excelData, `정산데이터현황_${new Date().toISOString().split('T')[0]}`, "정산데이터현황");
   };
 
   return (
@@ -367,7 +364,7 @@ function BudgetPageContent() {
                               <td className="px-4 py-2 text-center">-</td>
                             </tr>
                             {isExpanded && manExps.length > 0 && [...manExps]
-                              .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+                              .sort((a, b) => (a.date || '').localeCompare(b.date || '', undefined, { numeric: true, sensitivity: 'base' }))
                               .map(exp => {
                                 const proofLabel = PROOF_TYPE_LABELS[exp.proofType] || exp.proofType;
                                 const detailText = `${exp.date || '지출예정'}_${exp.subDetail}_${exp.vendor}(${proofLabel})_${exp.attachmentOriginalName || '첨부없음'}`;
@@ -436,7 +433,7 @@ function BudgetPageContent() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {expenditures
-                  .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)
+                  .sort((a, b) => b.date.localeCompare(a.date, undefined, { numeric: true, sensitivity: 'base' }) || b.createdAt - a.createdAt)
                   .map(exp => {
                     const management = managements.find(m => m.id === exp.managementId);
                     const category = management ? categories.find(c => c.id === management.categoryId) : null;

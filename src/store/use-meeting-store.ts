@@ -148,8 +148,8 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
     
     return [...meetings]
       .sort((a, b) => {
-        if (a.date !== b.date) return a.date.localeCompare(b.date);
-        return a.startTime.localeCompare(b.startTime);
+        if (a.date !== b.date) return a.date.localeCompare(b.date, undefined, { numeric: true, sensitivity: 'base' });
+        return a.startTime.localeCompare(b.startTime, undefined, { numeric: true, sensitivity: 'base' });
       })
       .map((m, idx) => ({
         ...m,

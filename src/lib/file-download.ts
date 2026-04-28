@@ -24,11 +24,12 @@ function dataURLtoBlob(dataurl: string) {
   return new Blob([u8arr], { type: mime });
 }
 
-export async function downloadFile(fileUrl: string | undefined, fileName: string) {
+export async function downloadFile(fileUrl: string | undefined, fileName?: string) {
   if (!fileUrl) return;
 
   try {
     let blob: Blob;
+    let fetchedFileName = '';
 
     // 1. Data URL인 경우 직접 변환하여 fetch 오버헤드 및 실패 방지
     if (fileUrl.startsWith('data:')) {
@@ -37,6 +38,27 @@ export async function downloadFile(fileUrl: string | undefined, fileName: string
       // 2. 일반 URL인 경우 fetch 사용
       const response = await fetch(fileUrl);
       blob = await response.blob();
+      
+      // 헤더에서 Content-Disposition을 추출하여 파일명 파싱
+      const contentDisposition = response.headers.get('content-disposition');
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          fetchedFileName = filenameMatch[1].replace(/['"]/g, '');
+          fetchedFileName = decodeURIComponent(fetchedFileName);
+        }
+      }
+    }
+    
+    // 파일명이 제공되지 않은 경우, 헤더에서 추출한 파일명을 사용, 그래도 없으면 URL에서 추출
+    let finalFileName = fileName || fetchedFileName;
+    if (!finalFileName) {
+      try {
+        const urlPart = fileUrl.split('/').pop()?.split('?')[0];
+        finalFileName = urlPart ? decodeURIComponent(urlPart) : 'download';
+      } catch (e) {
+        finalFileName = 'download';
+      }
     }
     
     // 3. 안정적인 Object URL 생성
@@ -45,7 +67,7 @@ export async function downloadFile(fileUrl: string | undefined, fileName: string
     // 4. 강제 다운로드 트리거
     const link = document.createElement('a');
     link.href = blobUrl;
-    link.download = fileName; // 사용자가 업로드했던 원본 이름 사용
+    link.download = finalFileName;
     document.body.appendChild(link);
     link.click();
     

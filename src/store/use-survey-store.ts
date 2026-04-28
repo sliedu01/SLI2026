@@ -679,7 +679,7 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
     });
 
     return {
-      mergedResponses: Array.from(mergedMap.values()).sort((a, b) => a.respondentId.localeCompare(b.respondentId)),
+      mergedResponses: Array.from(mergedMap.values()).sort((a, b) => a.respondentId.localeCompare(b.respondentId, undefined, { numeric: true, sensitivity: 'base' })),
       templates: {
         all: relevantTemplates,
         sat: satTemplates,

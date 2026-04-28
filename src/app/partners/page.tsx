@@ -470,7 +470,7 @@ export default function PartnersPage() {
                                    </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                   {history.sort((a,b) => b.startDate.localeCompare(a.startDate)).map((item, idx) => (
+                                   {history.sort((a,b) => b.startDate.localeCompare(a.startDate, undefined, { numeric: true, sensitivity: 'base' })).map((item, idx) => (
                                      <tr key={idx} className="hover:bg-slate-50/20 transition-colors">
                                         <td className="px-4 py-3">
                                            <div className="flex flex-col">
