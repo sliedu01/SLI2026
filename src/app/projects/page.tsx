@@ -46,6 +46,8 @@ export default function ProjectsPage() {
   );
 }
 
+import { ProjectSession } from '@/store/use-project-store';
+
 function ProjectsPageContent() {
   const [hasMounted, setHasMounted] = React.useState(false);
   React.useEffect(() => { setHasMounted(true); }, []);
@@ -192,7 +194,7 @@ function ProjectsPageContent() {
         )}
       >
         <div className="flex items-center gap-2">
-          {p.level < 4 && (
+          {(p.level < 4 || (p.sessions && p.sessions.length > 0)) ? (
             <button 
               type="button"
               onClick={(e) => {
@@ -207,8 +209,9 @@ function ProjectsPageContent() {
                 <ChevronRight className="size-3 text-slate-500" />
               )}
             </button>
+          ) : (
+            <div className="size-4 shrink-0" />
           )}
-          {p.level === 4 && <div className="size-4 shrink-0" />}
           
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
@@ -332,6 +335,48 @@ function ProjectsPageContent() {
     );
   };
 
+  const SessionRow = ({ session, index, depth }: { session: ProjectSession, index: number, depth: number }) => {
+    return (
+      <div 
+        className={cn(
+          "group flex items-center justify-between p-2 rounded-lg transition-all hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-100",
+          depth === 1 && "ml-2 bg-slate-50/50",
+          depth === 2 && "ml-4 bg-slate-100/30",
+          depth === 3 && "ml-6 bg-slate-200/20",
+          depth >= 4 && "ml-8 bg-slate-50/30"
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <div className="size-4 shrink-0" />
+          
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold tracking-tight text-[11px] text-slate-600">
+                {session.content || `교육일정 ${index + 1}회차`}
+              </span>
+              <div className="flex items-center gap-1">
+                <Badge variant="outline" className="text-[7px] font-bold uppercase text-slate-400 border-slate-200 h-3.5 px-1">
+                  {index + 1}차시
+                </Badge>
+                <div className="flex items-center gap-1 ml-1 py-0 px-1 bg-slate-100/50 rounded">
+                   <span className="text-[8px] font-bold text-slate-400 uppercase">참가</span>
+                   <span className="text-[10px] font-bold text-blue-600">{session.participantCount?.toLocaleString() || 0}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-1.5 text-[8px] text-slate-400 font-medium">
+                 <Calendar className="size-2.5" />
+                 {session.startDate} {session.startTime} ~ {session.endDate} {session.endTime}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderProjectRows = (parentId: string | null, depth: number = 0) => {
     const sorted = getSortedProjects(parentId);
     const displayProjects = depth === 0 
@@ -343,6 +388,13 @@ function ProjectsPageContent() {
         {displayProjects.map((p) => (
           <React.Fragment key={p.id}>
             <ProjectRow p={p} depth={depth} />
+            {expandedIds.has(p.id) && p.sessions && p.sessions.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {p.sessions.map((session, index) => (
+                  <SessionRow key={session.id} session={session} index={index} depth={depth + 1} />
+                ))}
+              </div>
+            )}
             {expandedIds.has(p.id) && renderProjectRows(p.id, depth + 1)}
           </React.Fragment>
         ))}
