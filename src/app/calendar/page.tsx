@@ -110,9 +110,9 @@ export default function CalendarPage() {
 
     // 1. 사업 일정 — 리프 노드(하위 자식이 없는 실제 운영 일정)만 표시
     if (showProjects) {
-      // LV3 이상 프로젝트 중 리프 노드만 추출
+      // LV2 이상 프로젝트 중 리프 노드만 추출
       const leafProjects = projects.filter(p => {
-        if (p.level < 3) return false;
+        if (p.level < 2) return false;
         // 이 프로젝트를 부모로 가진 하위 프로젝트가 없으면 리프 노드
         const hasChildren = projects.some(child => child.parentId === p.id);
         return !hasChildren;
