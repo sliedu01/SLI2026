@@ -194,6 +194,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
             }
          });
          
+         text += '\n';
          itemNumber++;
       });
       
@@ -214,9 +215,10 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
             });
           }
           if (props.nextSchedule) text += `    * 차기일정: ${props.nextSchedule}\n`;
+          text += '\n';
           itemNumber++;
         } else if (props.type === 'budget') {
-          text += `${itemNumber}. [지출] ${timeStr} | ${props.category} | ${props.managementName} | ${props.subDetail} | 지출처: ${props.vendor} | 금액: ${(props.amount || 0).toLocaleString()}원\n`;
+          text += `${itemNumber}. [지출] ${timeStr} | ${props.category} | ${props.managementName} | ${props.subDetail} | 지출처: ${props.vendor} | 금액: ${(props.amount || 0).toLocaleString()}원\n\n`;
           itemNumber++;
         }
       });
