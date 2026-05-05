@@ -512,7 +512,16 @@ function EventWithTooltip({
   const type = extendedProps.type;
   const props = extendedProps;
   
-  const timeStr = allDay ? "종일" : start ? format(start, 'HH:mm') : '';
+  let timeStr = allDay ? "종일" : start ? format(start, 'HH:mm') : '';
+  
+  if (type === 'project' && props.startTime) {
+    if (props.endTime && props.startTime !== props.endTime) {
+      timeStr = `${props.startTime}~${props.endTime}`;
+    } else {
+      timeStr = props.startTime;
+    }
+  }
+
   const dateStr = start ? format(start, 'yyyy-MM-dd') : '';
   const displayTime = `${dateStr} ${timeStr}`;
 
@@ -612,6 +621,7 @@ function EventWithTooltip({
             {type === 'project' && <CalendarIcon className="size-2.5 shrink-0" />}
             {type === 'meeting' && <Clock className="size-2.5 shrink-0" />}
             {type === 'budget' && <span className="text-[8px] font-bold shrink-0">₩</span>}
+            {timeStr && timeStr !== '종일' && <span className="text-[9px] font-bold opacity-80 shrink-0 mr-0.5">{timeStr}</span>}
             <span className="truncate tracking-tighter">{title}</span>
           </div>
         </TooltipTrigger>
