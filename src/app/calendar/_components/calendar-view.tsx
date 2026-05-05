@@ -53,6 +53,7 @@ export interface CalendarEvent {
     editId?: string;
     startTime?: string;
     endTime?: string;
+    abbreviation?: string;
   };
 }
 
@@ -133,11 +134,13 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
           }
           
           const partner = props.partner || '협력사미상';
+          const abbreviation = props.abbreviation || '사업';
           const groupKey = `${partner}|${upperName}`;
           if (!projectGroups.has(groupKey)) {
             projectGroups.set(groupKey, {
                partner,
                upperName,
+               abbreviation,
                items: []
             });
           }
@@ -180,7 +183,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
          }
          
          const topTimeStr = allSameTime && firstTimeKey ? ` ${firstTimeKey}` : '';
-         text += `${itemNumber}. [사업] 종일 | ${group.partner} | ${group.upperName} ${topTimeStr}`.trim() + `\n`;
+         text += `${itemNumber}. [${group.abbreviation}] | ${group.partner} | ${group.upperName} ${topTimeStr}`.trim() + `\n`;
          
          group.items.forEach((item: any) => {
             const subTimeStr = (!allSameTime && item.timeKey) ? ` ${item.timeKey}` : '';

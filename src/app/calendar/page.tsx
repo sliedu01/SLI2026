@@ -143,6 +143,8 @@ export default function CalendarPage() {
         const parentLv3 = p.level === 4 ? projects.find(pp => pp.id === p.parentId) : null;
         const baseName = parentLv3 ? `${parentLv3.name} - ${p.name}` : p.name;
 
+        const abbreviation = p.abbreviation || ancestorLv2?.abbreviation || ancestorLv1?.abbreviation || '사업';
+
         // 차시(sessions)가 있으면 → 각 차시의 실제 교육일만 개별 표시
         if (p.sessions && p.sessions.length > 0) {
           p.sessions.forEach((session, idx) => {
@@ -165,7 +167,8 @@ export default function CalendarPage() {
                 isPeriod: false,
                 color: { bg: '#ecfdf5', text: '#000000', border: '#059669' },
                 startTime: session.startTime || p.startTime,
-                endTime: session.endTime || p.endTime
+                endTime: session.endTime || p.endTime,
+                abbreviation
               }
             });
           });
@@ -188,7 +191,8 @@ export default function CalendarPage() {
               isPeriod: true,
               color: { bg: '#ecfdf5', text: '#000000', border: '#059669' },
               startTime: p.startTime,
-              endTime: p.endTime
+              endTime: p.endTime,
+              abbreviation
             }
           });
         }
