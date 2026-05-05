@@ -197,7 +197,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
       otherEvents.forEach(e => {
         const props = e.extendedProps;
         const start = e.start;
-        const timeStr = e.allDay ? "종일" : format(start, 'HH:mm');
+        const timeStr = e.allDay ? "종일" : start ? format(start, 'HH:mm') : '';
         if (props.type === 'meeting') {
           text += `${itemNumber}. [회의] ${timeStr} | ${props.sessionNum}회차 | ${props.location || '장소미정'}\n`;
           if (props.purpose) text += `    * 목적: ${props.purpose}\n`;
