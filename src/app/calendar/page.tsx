@@ -163,7 +163,9 @@ export default function CalendarPage() {
                 attendance: session.participantCount || p.participantCount,
                 editId: p.id,
                 isPeriod: false,
-                color: { bg: '#ecfdf5', text: '#000000', border: '#059669' }
+                color: { bg: '#ecfdf5', text: '#000000', border: '#059669' },
+                startTime: session.startTime || p.startTime,
+                endTime: session.endTime || p.endTime
               }
             });
           });
@@ -184,7 +186,9 @@ export default function CalendarPage() {
               attendance: p.participantCount,
               editId: p.id,
               isPeriod: true,
-              color: { bg: '#ecfdf5', text: '#000000', border: '#059669' }
+              color: { bg: '#ecfdf5', text: '#000000', border: '#059669' },
+              startTime: p.startTime,
+              endTime: p.endTime
             }
           });
         }

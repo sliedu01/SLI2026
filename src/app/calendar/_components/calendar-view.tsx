@@ -51,7 +51,15 @@ export interface CalendarEvent {
     content?: { title: string; detail: string }[];
     nextSchedule?: string;
     editId?: string;
+    startTime?: string;
+    endTime?: string;
   };
+}
+
+function parseTimeToMinutes(timeStr: string) {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
 }
 
 import { HOLIDAYS_2026 as HOLIDAYS } from './holidays';
@@ -94,38 +102,121 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
       (a.start?.getTime() || 0) - (b.start?.getTime() || 0)
     );
 
-    let currentDate = "";
-    sortedEvents.forEach((event) => {
+    const eventsByDate: Record<string, typeof sortedEvents> = {};
+    sortedEvents.forEach(event => {
       const start = event.start;
       if (!start) return;
       const eventDate = format(start, 'yyyy-MM-dd');
-      const props = event.extendedProps;
+      if (!eventsByDate[eventDate]) eventsByDate[eventDate] = [];
+      eventsByDate[eventDate].push(event);
+    });
 
-      if (currentDate !== eventDate) {
-        currentDate = eventDate;
-        text += `\n# ${currentDate}\n`;
-      }
-
-      const timeStr = event.allDay ? "종일" : format(start, 'HH:mm');
-
-      if (props.type === 'meeting') {
-        text += `- [회의] ${timeStr} | ${props.sessionNum}회차 | ${props.location || '장소미정'}\n`;
-        if (props.purpose) text += `    * 목적: ${props.purpose}\n`;
-        if (props.agenda) text += `    * 안건: ${props.agenda}\n`;
-        if (props.content && props.content.length > 0) {
-          text += `    * 회의내용:\n`;
-          props.content.forEach((item: { title?: string; detail?: string }) => {
-            if (item.title || item.detail) {
-              text += `      - ${item.title}: ${item.detail}\n`;
+    Object.keys(eventsByDate).forEach((date, dateIdx) => {
+      if (dateIdx > 0) text += '\n';
+      text += `# ${date}\n`;
+      const dateEvents = eventsByDate[date];
+      
+      const projectGroups = new Map();
+      const otherEvents: (typeof sortedEvents)[0][] = [];
+      
+      dateEvents.forEach(event => {
+        const props = event.extendedProps;
+        if (props.type === 'project') {
+          let upperName = props.programName || '';
+          let subName = '';
+          const dashIndex = upperName.indexOf(' - ');
+          if (dashIndex !== -1) {
+            subName = upperName.substring(dashIndex + 3);
+            upperName = upperName.substring(0, dashIndex);
+          } else {
+            subName = upperName;
+          }
+          
+          const partner = props.partner || '협력사미상';
+          const groupKey = `${partner}|${upperName}`;
+          if (!projectGroups.has(groupKey)) {
+            projectGroups.set(groupKey, {
+               partner,
+               upperName,
+               items: []
+            });
+          }
+          
+          let timeKey = '';
+          if (props.startTime && props.endTime) {
+            const startMins = parseTimeToMinutes(props.startTime);
+            const endMins = parseTimeToMinutes(props.endTime);
+            const durHours = (endMins - startMins) / 60;
+            if (durHours > 0) {
+              const durStr = durHours % 1 === 0 ? durHours : durHours.toFixed(1);
+              timeKey = `(${props.startTime}~${props.endTime}/${durStr}시간)`;
+            } else {
+              timeKey = `(${props.startTime})`;
             }
+          } else if (props.startTime) {
+            timeKey = `(${props.startTime})`;
+          }
+          
+          projectGroups.get(groupKey).items.push({
+            subName,
+            timeKey,
+            rawEvent: event
           });
+        } else {
+          otherEvents.push(event);
         }
-        if (props.nextSchedule) text += `    * 차기일정: ${props.nextSchedule}\n`;
-      } else if (props.type === 'project') {
-        text += `- [사업] ${timeStr} | ${props.partner || '협력사미상'} | ${props.programName} | 정원: ${props.capacity || 0}명 | 참여: ${props.attendance || 0}명\n`;
-      } else if (props.type === 'budget') {
-        text += `- [지출] ${timeStr} | ${props.category} | ${props.managementName} | ${props.subDetail} | 지출처: ${props.vendor} | 금액: ${(props.amount || 0).toLocaleString()}원\n`;
-      }
+      });
+      
+      let itemNumber = 1;
+      
+      projectGroups.forEach(group => {
+         let allSameTime = true;
+         let firstTimeKey = '';
+         if (group.items.length > 0) {
+           firstTimeKey = group.items[0].timeKey;
+           group.items.forEach((item: any) => {
+             if (item.timeKey !== firstTimeKey) allSameTime = false;
+           });
+         }
+         
+         const topTimeStr = allSameTime && firstTimeKey ? ` ${firstTimeKey}` : '';
+         text += `${itemNumber}. [사업] 종일 | ${group.partner} | ${group.upperName} ${topTimeStr}`.trim() + `\n`;
+         
+         group.items.forEach((item: any) => {
+            const subTimeStr = (!allSameTime && item.timeKey) ? ` ${item.timeKey}` : '';
+            if (item.subName !== group.upperName) {
+              text += `- ${item.subName}${subTimeStr}\n`;
+            } else if (!allSameTime && item.timeKey) {
+              text += `- ${group.upperName}${item.timeKey}\n`;
+            }
+         });
+         
+         itemNumber++;
+      });
+      
+      otherEvents.forEach(e => {
+        const props = e.extendedProps;
+        const start = e.start;
+        const timeStr = e.allDay ? "종일" : format(start, 'HH:mm');
+        if (props.type === 'meeting') {
+          text += `${itemNumber}. [회의] ${timeStr} | ${props.sessionNum}회차 | ${props.location || '장소미정'}\n`;
+          if (props.purpose) text += `    * 목적: ${props.purpose}\n`;
+          if (props.agenda) text += `    * 안건: ${props.agenda}\n`;
+          if (props.content && props.content.length > 0) {
+            text += `    * 회의내용:\n`;
+            props.content.forEach((item: { title?: string; detail?: string }) => {
+              if (item.title || item.detail) {
+                text += `      - ${item.title}: ${item.detail}\n`;
+              }
+            });
+          }
+          if (props.nextSchedule) text += `    * 차기일정: ${props.nextSchedule}\n`;
+          itemNumber++;
+        } else if (props.type === 'budget') {
+          text += `${itemNumber}. [지출] ${timeStr} | ${props.category} | ${props.managementName} | ${props.subDetail} | 지출처: ${props.vendor} | 금액: ${(props.amount || 0).toLocaleString()}원\n`;
+          itemNumber++;
+        }
+      });
     });
 
     try {
