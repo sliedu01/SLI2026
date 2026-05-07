@@ -133,13 +133,20 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
             subName = upperName;
           }
           
+          // 괄호 포함된 사업명(예: "서울시특성화사업 (AI 큐보 로봇)")을 공통 사업명으로 묶기
+          let baseUpperName = upperName;
+          const parenIndex = upperName.indexOf(' (');
+          if (parenIndex !== -1) {
+            baseUpperName = upperName.substring(0, parenIndex).trim();
+          }
+          
           const partner = props.partner || '협력사미상';
           const abbreviation = props.abbreviation || '사업';
-          const groupKey = `${partner}|${upperName}`;
+          const groupKey = `${partner}|${baseUpperName}`;
           if (!projectGroups.has(groupKey)) {
             projectGroups.set(groupKey, {
                partner,
-               upperName,
+               upperName: baseUpperName,
                abbreviation,
                items: []
             });

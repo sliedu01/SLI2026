@@ -10,7 +10,9 @@ import {
   Activity,
   Settings2,
   RefreshCcw,
-  LucideIcon
+  LucideIcon,
+  Copy,
+  Check
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -119,6 +121,9 @@ export default function CalendarPage() {
       });
 
       leafProjects.forEach(p => {
+        // LV2 레벨 사업은 캘린더에 표시하지 않음 (사용자 요청)
+        if (p.level === 2) return;
+
         // LV2 조상 찾기
         const ancestorLv2 = findAncestor(p.id, 2);
         if (!ancestorLv2) return;
@@ -150,9 +155,13 @@ export default function CalendarPage() {
           p.sessions.forEach((session, idx) => {
             if (!session.startDate) return; // 날짜가 없는 차시는 건너뜀
             const sessionLabel = session.content || `${idx + 1}차시`;
+            const title = p.level === 2 
+              ? `[${partnerLabel}] (${sessionLabel})`
+              : `[${partnerLabel}] ${baseName} (${sessionLabel})`;
+
             allEvents.push({
               id: `project-${p.id}-s${idx}`,
-              title: `[${partnerLabel}] ${baseName} (${sessionLabel})`,
+              title,
               start: session.startDate,
               end: session.endDate || session.startDate,
               allDay: true,
@@ -174,9 +183,13 @@ export default function CalendarPage() {
           });
         } else {
           // 차시가 없으면 → 프로젝트 기간 전체를 표시
+          const title = p.level === 2 
+            ? `[${partnerLabel}]` 
+            : `[${partnerLabel}] ${baseName}`;
+
           allEvents.push({
             id: `project-${p.id}`,
-            title: `[${partnerLabel}] ${baseName}`,
+            title,
             start: p.startDate,
             end: p.endDate,
             allDay: true,
@@ -276,6 +289,172 @@ export default function CalendarPage() {
         ? prev.filter(sid => sid !== id) 
         : [...prev, id]
     );
+  };
+
+  const [isUpcomingCopied, setIsUpcomingCopied] = React.useState(false);
+
+  const extractUpcomingText = async () => {
+    const now = new Date();
+    const twoWeeksLater = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const upcoming = events.filter(e => {
+      const eventDate = new Date(e.start);
+      return eventDate >= now && eventDate <= twoWeeksLater;
+    }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+    if (upcoming.length === 0) return;
+
+    let text = `[예정일정 (2주) 추출]\n\n`;
+
+    const eventsByDate: Record<string, typeof upcoming> = {};
+    upcoming.forEach(event => {
+      const start = event.start ? new Date(event.start) : null;
+      if (!start) return;
+      const eventDate = format(start, 'yyyy-MM-dd');
+      if (!eventsByDate[eventDate]) eventsByDate[eventDate] = [];
+      eventsByDate[eventDate].push(event);
+    });
+
+    Object.keys(eventsByDate).forEach((date, dateIdx) => {
+      if (dateIdx > 0) text += '\n';
+      text += `# ${date}\n`;
+      const dateEvents = eventsByDate[date];
+      
+      const projectGroups = new Map();
+      const otherEvents: (typeof upcoming)[0][] = [];
+      
+      dateEvents.forEach(event => {
+        const props = event.extendedProps;
+        if (props.type === 'project') {
+                      let upperName = props.programName || '';
+                      let subName = '';
+                      const dashIndex = upperName.indexOf(' - ');
+                      if (dashIndex !== -1) {
+                        subName = upperName.substring(dashIndex + 3);
+                        upperName = upperName.substring(0, dashIndex);
+                      } else {
+                        subName = upperName;
+                      }
+                      
+                      // 괄호 포함된 사업명(예: "서울시특성화사업 (AI 큐보 로봇)")을 공통 사업명으로 묶기
+                      let baseUpperName = upperName;
+                      const parenIndex = upperName.indexOf(' (');
+                      if (parenIndex !== -1) {
+                        baseUpperName = upperName.substring(0, parenIndex).trim();
+                      }
+                      
+                      const partner = props.partner || '협력사미상';
+                      const abbreviation = props.abbreviation || '사업';
+                      const groupKey = `${partner}|${baseUpperName}`;
+                      if (!projectGroups.has(groupKey)) {
+                        projectGroups.set(groupKey, {
+                           partner,
+                           upperName: baseUpperName,
+                           abbreviation,
+                           items: []
+                        });
+                      }
+          
+          let timeKey = '';
+          function parseTimeToMinutes(timeStr: string) {
+            if (!timeStr) return 0;
+            const [h, m] = timeStr.split(':').map(Number);
+            return (h || 0) * 60 + (m || 0);
+          }
+          if (props.startTime && props.endTime) {
+            const startMins = parseTimeToMinutes(props.startTime);
+            const endMins = parseTimeToMinutes(props.endTime);
+            const durHours = (endMins - startMins) / 60;
+            if (durHours > 0) {
+              const durStr = durHours % 1 === 0 ? durHours : durHours.toFixed(1);
+              timeKey = `(${props.startTime}~${props.endTime}/${durStr}시간)`;
+            } else {
+              timeKey = `(${props.startTime})`;
+            }
+          } else if (props.startTime) {
+            timeKey = `(${props.startTime})`;
+          }
+          
+          projectGroups.get(groupKey).items.push({
+            subName,
+            timeKey,
+            rawEvent: event
+          });
+        } else {
+          otherEvents.push(event);
+        }
+      });
+      
+      let itemNumber = 1;
+      
+      projectGroups.forEach(group => {
+         let allSameTime = true;
+         let firstTimeKey = '';
+         if (group.items.length > 0) {
+           firstTimeKey = group.items[0].timeKey;
+           group.items.forEach((item: any) => {
+             if (item.timeKey !== firstTimeKey) allSameTime = false;
+           });
+         }
+         
+         const topTimeStr = allSameTime && firstTimeKey ? ` ${firstTimeKey}` : '';
+         text += `${itemNumber}. [${group.abbreviation}] | ${group.partner} | ${group.upperName} ${topTimeStr}`.trim() + `\n`;
+         
+         group.items.forEach((item: any) => {
+            const subTimeStr = (!allSameTime && item.timeKey) ? ` ${item.timeKey}` : '';
+            if (item.subName !== group.upperName) {
+              text += `- ${item.subName}${subTimeStr}\n`;
+            } else if (!allSameTime && item.timeKey) {
+              text += `- ${group.upperName}${item.timeKey}\n`;
+            }
+         });
+         
+         text += '\n';
+         itemNumber++;
+      });
+      
+      otherEvents.forEach(e => {
+        const props = e.extendedProps;
+        const start = e.start ? new Date(e.start) : null;
+        const timeStr = e.allDay ? "종일" : start ? format(start, 'HH:mm') : '';
+        if (props.type === 'meeting') {
+          text += `${itemNumber}. [회의] ${timeStr} | ${props.sessionNum}회차 | ${props.location || '장소미정'}\n`;
+          if (props.purpose) text += `    * 목적: ${props.purpose}\n`;
+          if (props.agenda) text += `    * 안건: ${props.agenda}\n`;
+          if (props.content && props.content.length > 0) {
+            text += `    * 회의내용:\n`;
+            props.content.forEach((item: { title?: string; detail?: string }) => {
+              if (item.title || item.detail) {
+                text += `      - ${item.title}: ${item.detail}\n`;
+              }
+            });
+          }
+          if (props.nextSchedule) text += `    * 차기일정: ${props.nextSchedule}\n`;
+          text += '\n';
+          itemNumber++;
+        } else if (props.type === 'budget') {
+          text += `${itemNumber}. [지출] ${timeStr} | ${props.category} | ${props.managementName} | ${props.subDetail} | 지출처: ${props.vendor} | 금액: ${(props.amount || 0).toLocaleString()}원\n\n`;
+          itemNumber++;
+        }
+      });
+    });
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setIsUpcomingCopied(true);
+      setTimeout(() => setIsUpcomingCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      // Fallback
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `upcoming_export_${format(new Date(), 'yyyyMMdd_HHmm')}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
   };
 
   if (!hasMounted) {
@@ -446,9 +625,23 @@ export default function CalendarPage() {
         {/* 사이드바 - 예정된 일정 */}
         <div className="space-y-6">
           <Card className="rounded-2xl border border-slate-200/60 shadow-sm bg-white p-5">
-            <h3 className="text-[10px] font-black text-slate-900 tracking-widest flex items-center gap-2 mb-5">
-               <Bell className="size-3.5 text-amber-500" /> 예정일정 (2주)
-            </h3>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-[10px] font-black text-slate-900 tracking-widest flex items-center gap-2">
+                 <Bell className="size-3.5 text-amber-500" /> 예정일정 (2주)
+              </h3>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={extractUpcomingText}
+                className={cn(
+                  "h-7 text-[10px] font-bold gap-1 px-2 shadow-sm transition-all",
+                  isUpcomingCopied ? "text-emerald-600 border-emerald-200 bg-emerald-50" : "text-slate-600 bg-white"
+                )}
+              >
+                {isUpcomingCopied ? <Check className="size-3" /> : <Copy className="size-3" />}
+                {isUpcomingCopied ? "복사 완료" : "텍스트 추출"}
+              </Button>
+            </div>
             <div className="space-y-5">
               {(() => {
                 const now = new Date();
@@ -468,44 +661,153 @@ export default function CalendarPage() {
                   );
                 }
 
-                const grouped = upcoming.reduce((acc, event) => {
-                  const type = event.extendedProps?.type || 'other';
-                  if (!acc[type]) acc[type] = [];
-                  acc[type].push(event);
-                  return acc;
-                }, {} as Record<string, typeof upcoming>);
+                const eventsByDate: Record<string, typeof upcoming> = {};
+                upcoming.forEach(event => {
+                  const start = event.start ? new Date(event.start) : null;
+                  if (!start) return;
+                  const eventDate = format(start, 'yyyy-MM-dd(E)');
+                  if (!eventsByDate[eventDate]) eventsByDate[eventDate] = [];
+                  eventsByDate[eventDate].push(event);
+                });
 
-                const typeConfig: Record<string, { label: string, color: string, bg: string, icon: LucideIcon }> = {
-                  project: { label: '사업 일정', color: 'text-emerald-600', bg: 'bg-emerald-50/50 border-emerald-100', icon: CalendarDays },
-                  meeting: { label: '회의 일정', color: 'text-amber-600', bg: 'bg-amber-50/50 border-amber-100', icon: Clock },
-                  budget: { label: '지출 내역', color: 'text-indigo-600', bg: 'bg-indigo-50/50 border-indigo-100', icon: LayoutGrid }
-                };
+                return Object.entries(eventsByDate).map(([date, dateEvents]) => {
+                  const projectGroups = new Map();
+                  const otherEvents: (typeof upcoming)[0][] = [];
+                  
+                  dateEvents.forEach(event => {
+                    const props = event.extendedProps;
+                    if (props.type === 'project') {
+                      let upperName = props.programName || '';
+                      let subName = '';
+                      const dashIndex = upperName.indexOf(' - ');
+                      if (dashIndex !== -1) {
+                        subName = upperName.substring(dashIndex + 3);
+                        upperName = upperName.substring(0, dashIndex);
+                      } else {
+                        subName = upperName;
+                      }
+                      
+                      // 괄호 포함된 사업명(예: "서울시특성화사업 (AI 큐보 로봇)")을 공통 사업명으로 묶기
+                      let baseUpperName = upperName;
+                      const parenIndex = upperName.indexOf(' (');
+                      if (parenIndex !== -1) {
+                        baseUpperName = upperName.substring(0, parenIndex).trim();
+                      }
+                      
+                      const partner = props.partner || '협력사미상';
+                      const abbreviation = props.abbreviation || '사업';
+                      const groupKey = `${partner}|${baseUpperName}`;
+                      if (!projectGroups.has(groupKey)) {
+                        projectGroups.set(groupKey, {
+                           partner,
+                           upperName: baseUpperName,
+                           abbreviation,
+                           items: []
+                        });
+                      }
+                      
+                      let timeKey = '';
+                      function parseTimeToMinutes(timeStr: string) {
+                        if (!timeStr) return 0;
+                        const [h, m] = timeStr.split(':').map(Number);
+                        return (h || 0) * 60 + (m || 0);
+                      }
+                      if (props.startTime && props.endTime) {
+                        const startMins = parseTimeToMinutes(props.startTime);
+                        const endMins = parseTimeToMinutes(props.endTime);
+                        const durHours = (endMins - startMins) / 60;
+                        if (durHours > 0) {
+                          const durStr = durHours % 1 === 0 ? durHours : durHours.toFixed(1);
+                          timeKey = `(${props.startTime}~${props.endTime}/${durStr}시간)`;
+                        } else {
+                          timeKey = `(${props.startTime})`;
+                        }
+                      } else if (props.startTime) {
+                        timeKey = `(${props.startTime})`;
+                      }
+                      
+                      projectGroups.get(groupKey).items.push({
+                        subName,
+                        timeKey,
+                        rawEvent: event
+                      });
+                    } else {
+                      otherEvents.push(event);
+                    }
+                  });
 
-                return Object.entries(grouped).map(([type, items]) => (
-                  <div key={type} className="space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-50 pb-1.5">
-                      <h4 className={cn("text-[9px] font-black uppercase tracking-wider", typeConfig[type]?.color)}>
-                        {typeConfig[type]?.label || type}
-                      </h4>
-                      <span className="text-[8px] font-bold text-slate-300">{items.length}건</span>
+                  return (
+                    <div key={date} className="space-y-3 bg-slate-50/50 p-4 rounded-xl border border-slate-200/60 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <h4 className="text-[12px] font-black text-slate-800 tracking-widest">{date}</h4>
+                        <span className="text-[10px] font-bold text-slate-400">{dateEvents.length}건</span>
+                      </div>
+                      <div className="space-y-4">
+                        {Array.from(projectGroups.values()).map((group, gIdx) => {
+                          let allSameTime = true;
+                          let firstTimeKey = '';
+                          if (group.items.length > 0) {
+                            firstTimeKey = group.items[0].timeKey;
+                            group.items.forEach((item: any) => {
+                              if (item.timeKey !== firstTimeKey) allSameTime = false;
+                            });
+                          }
+                          const topTimeStr = allSameTime && firstTimeKey ? ` ${firstTimeKey}` : '';
+                          
+                          return (
+                            <div key={gIdx} className="space-y-2">
+                              <p className="text-[11px] font-bold text-slate-800 break-words leading-snug">
+                                {gIdx + 1}. [{group.abbreviation}] | {group.partner} | {group.upperName} <span className="text-slate-500 font-normal">{topTimeStr}</span>
+                              </p>
+                              <div className="pl-3 space-y-1 border-l-2 border-emerald-200 ml-1.5">
+                                {group.items.map((item: any, iIdx: number) => {
+                                  const subTimeStr = (!allSameTime && item.timeKey) ? ` ${item.timeKey}` : '';
+                                  const label = item.subName !== group.upperName ? item.subName : group.upperName;
+                                  return (
+                                    <p key={iIdx} className="text-[11px] text-slate-600 break-words leading-tight flex gap-1.5">
+                                      <span className="text-slate-300">-</span>
+                                      <span>{label} <span className="text-slate-400">{subTimeStr}</span></span>
+                                    </p>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {otherEvents.map((e, eIdx) => {
+                          const props = e.extendedProps;
+                          const start = e.start ? new Date(e.start) : null;
+                          const timeStr = e.allDay ? "종일" : start ? format(start, 'HH:mm') : '';
+                          const offset = Array.from(projectGroups.keys()).length + 1 + eIdx;
+                          
+                          if (props.type === 'meeting') {
+                            return (
+                              <div key={`other-${eIdx}`} className="space-y-2">
+                                <p className="text-[11px] font-bold text-amber-700 break-words leading-snug">
+                                  {offset}. [회의] {timeStr} | {props.sessionNum}회차 | {props.location || '장소미정'}
+                                </p>
+                                <div className="pl-3 space-y-1 border-l-2 border-amber-200 ml-1.5">
+                                  {props.purpose && <p className="text-[11px] text-slate-600 break-words leading-tight flex gap-1.5"><span className="text-amber-300">*</span><span>목적: {props.purpose}</span></p>}
+                                  {props.agenda && <p className="text-[11px] text-slate-600 break-words leading-tight flex gap-1.5"><span className="text-amber-300">*</span><span>안건: {props.agenda}</span></p>}
+                                  {props.nextSchedule && <p className="text-[11px] text-slate-600 break-words leading-tight flex gap-1.5"><span className="text-amber-300">*</span><span>차기일정: {props.nextSchedule}</span></p>}
+                                </div>
+                              </div>
+                            );
+                          } else if (props.type === 'budget') {
+                            return (
+                              <div key={`other-${eIdx}`} className="space-y-2">
+                                <p className="text-[11px] font-bold text-indigo-700 break-words leading-snug">
+                                  {offset}. [지출] {timeStr} | {props.category} | {props.managementName} | {props.subDetail} | 지출처: {props.vendor} | 금액: {(props.amount || 0).toLocaleString()}원
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
                     </div>
-                    <div className="space-y-3">
-                      {items.map(e => (
-                        <div key={e.id} className={cn("group p-3 rounded-xl border transition-all hover:shadow-md hover:scale-[1.02]", typeConfig[type]?.bg || "bg-slate-50/50 border-slate-100")}>
-                          <div className="flex items-center justify-between mb-2">
-                            <p className={cn("text-[8px] font-black uppercase tracking-widest", typeConfig[type]?.color)}>
-                              {format(new Date(e.start), 'MM.dd (E)')}
-                            </p>
-                            {React.createElement(typeConfig[type]?.icon || Activity, { className: cn("size-3", typeConfig[type]?.color) })}
-                          </div>
-                          <p className="text-[11px] font-black text-slate-800 whitespace-pre-wrap break-words leading-snug">
-                            {e.title}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ));
+                  );
+                });
               })()}
             </div>
           </Card>
