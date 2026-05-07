@@ -6,6 +6,7 @@ import { ClientSideSidebar } from "@/components/providers/client-side-sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { RealtimeProvider } from "@/components/realtime-provider"
 import { AutoMigration } from "@/components/auto-migration"
+import { AuthGuard } from "@/components/auth/auth-guard"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,7 @@ export default function RootLayout({
         >
           <TooltipProvider>
             <RealtimeProvider>
+              <AuthGuard>
               <AutoMigration />
               <SidebarProvider>
                 <ClientSideSidebar />
@@ -63,6 +65,7 @@ export default function RootLayout({
                   </main>
                 </SidebarInset>
               </SidebarProvider>
+              </AuthGuard>
             </RealtimeProvider>
           </TooltipProvider>
         </ThemeProvider>
