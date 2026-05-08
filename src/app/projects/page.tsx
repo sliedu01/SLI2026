@@ -211,9 +211,13 @@ function ProjectsPageContent() {
     const satisfactionStats = getAggregatedStats(projects, [p.id], undefined, 'SATISFACTION');
     const competencyStats = getAggregatedStats(projects, [p.id], undefined, 'COMPETENCY');
 
-    const avgSatisfaction = satisfactionStats[p.id]?.avg || 0;
-    const avgScore = competencyStats[p.id]?.avg || 0;
-    const avgGain = avgScore > 0 ? avgScore : 0;
+    const stat = satisfactionStats[p.id];
+    const compStat = competencyStats[p.id];
+    
+    const avgSatisfaction = stat?.satAvg || 0;
+    const growthRate = compStat?.hakeGain ? compStat.hakeGain * 100 : 0; // Hake's Gain을 백분율로 표시
+    const participantCount = stat?.satCount || 0;
+    const compCount = compStat?.compCount || 0;
 
     const partner = partners.find(ptr => ptr.id === p.partnerId);
 
@@ -273,23 +277,23 @@ function ProjectsPageContent() {
                  <Calendar className="size-2.5" />
                  {p.startDate} ~ {p.endDate}
               </div>
-              {p.level <= 2 && (
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                {uniquePartnerCount > 0 && (
                   <div className="flex items-center gap-1 px-1 py-0 bg-blue-50/80 rounded border border-blue-100">
                     <span className="text-[7px] font-bold text-blue-500 uppercase tracking-tight">협력사 {uniquePartnerCount}</span>
                   </div>
-                  {avgSatisfaction > 0 && (
-                    <div className="flex items-center gap-1 px-1 py-0 bg-amber-50/80 rounded border border-amber-100">
-                      <span className="text-[7px] font-bold text-amber-500 uppercase tracking-tight">만족도 {avgSatisfaction.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {avgGain !== 0 && (
-                    <div className="flex items-center gap-1 px-1 py-0 bg-emerald-50/80 rounded border border-emerald-100">
-                      <span className="text-[7px] font-bold text-emerald-500 uppercase tracking-tight">성과 +{avgGain.toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+                {avgSatisfaction > 0 && (
+                  <div className="flex items-center gap-1 px-1 py-0 bg-amber-50/80 rounded border border-amber-100" title={`응답 인원: ${participantCount}명`}>
+                    <span className="text-[7px] font-bold text-amber-500 uppercase tracking-tight text-nowrap">만족도 {avgSatisfaction.toFixed(2)}</span>
+                  </div>
+                )}
+                {growthRate !== 0 && (
+                  <div className="flex items-center gap-1 px-1 py-0 bg-emerald-50/80 rounded border border-emerald-100" title={`응답 인원: ${compCount}명`}>
+                    <span className="text-[7px] font-bold text-emerald-500 uppercase tracking-tight text-nowrap">성장률 {growthRate > 0 ? '+' : ''}{growthRate.toFixed(1)}%</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
