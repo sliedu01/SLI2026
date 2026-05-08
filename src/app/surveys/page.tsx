@@ -74,7 +74,9 @@ export default function SurveyPage() {
         const allProjs = useProjectStore.getState().projects;
         const children = allProjs.filter(p => {
           let curr: any = p;
-          while (curr && curr.level > 1 && curr.parentId) {
+          const visited = new Set<string>();
+          while (curr && curr.level > 1 && curr.parentId && !visited.has(curr.id)) {
+            visited.add(curr.id);
             curr = allProjs.find(proj => proj.id === curr.parentId);
           }
           return curr?.id === currentId;
@@ -101,7 +103,9 @@ export default function SurveyPage() {
       // 선택된 LV1의 하위 프로젝트들만 가시성 확보
       const children = projects.filter(p => {
         let curr: any = p;
-        while (curr && curr.level > 1 && curr.parentId) {
+        const visited = new Set<string>();
+        while (curr && curr.level > 1 && curr.parentId && !visited.has(curr.id)) {
+          visited.add(curr.id);
           curr = projects.find(proj => proj.id === curr.parentId);
         }
         return curr?.id === id;

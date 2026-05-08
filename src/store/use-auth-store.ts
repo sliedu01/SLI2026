@@ -72,7 +72,8 @@ interface AuthState {
 // DB row → 프론트엔드 모델 매핑 헬퍼
 // ============================================================
 
-function mapProfile(row: Record<string, unknown>): UserProfile {
+function mapProfile(row: Record<string, unknown> | null): UserProfile | null {
+  if (!row) return null;
   return {
     id: row.id as string,
     loginId: row.login_id as string,
@@ -88,7 +89,25 @@ function mapProfile(row: Record<string, unknown>): UserProfile {
   };
 }
 
-function mapPermission(row: Record<string, unknown>): UserPermission {
+function mapPermission(row: Record<string, unknown> | null): UserPermission {
+  if (!row) {
+    return {
+      id: '',
+      userId: '',
+      allowedProjectIds: [],
+      canAccessProjects: true,
+      canAccessPartners: true,
+      canAccessSurveys: true,
+      canAccessMeetings: true,
+      canAccessCalendar: true,
+      canAccessBudget: false,
+      canCreate: false,
+      canUpdate: false,
+      canDelete: false,
+      canApprove: false,
+      budgetAccessLevel: 'business_only',
+    };
+  }
   return {
     id: row.id as string,
     userId: row.user_id as string,

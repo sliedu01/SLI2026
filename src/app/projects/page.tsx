@@ -122,7 +122,6 @@ function ProjectsPageContent() {
   }, [mounted, editId, projects]);
 
   // 권한에 따른 가시적 프로젝트 필터링
-  // 권한에 따른 가시적 프로젝트 필터링
   const visibleProjects = React.useMemo(() => {
     if (!user) return [];
     if (user.role === 'admin') return projects;
@@ -132,14 +131,17 @@ function ProjectsPageContent() {
 
     return projects.filter(p => {
       let current: any = p;
-      while (current) {
+      const visited = new Set<string>();
+      while (current && !visited.has(current.id)) {
+        visited.add(current.id);
         if (allowedIds.includes(current.id)) return true;
         current = projects.find(parent => parent.id === current.parentId);
       }
 
       const hasAllowedChild = (parentId: string): boolean => {
         const children = projects.filter(c => c.parentId === parentId);
-        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id));
+        // 하위 자식 체크는 depth가 깊지 않으므로 일단 유지하나, p.id와 parentId 관계를 통해 순환 방지
+        return children.some(c => allowedIds.includes(c.id) || (c.id !== parentId && hasAllowedChild(c.id)));
       };
 
       return hasAllowedChild(p.id);

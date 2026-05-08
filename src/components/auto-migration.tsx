@@ -148,8 +148,8 @@ export function AutoMigration() {
 
       if (results.partners > 0 || results.projects > 0 || results.surveys > 0 || results.budgets > 0) {
         console.log('✅ Auto-migration success:', results);
-        alert('로컬 데이터를 클라우드 데이터베이스(Supabase)로 이전에 성공했습니다! 이제 모든 기기에서 동일한 데이터를 보실 수 있습니다.');
-        window.location.reload(); // 데이터 동기화를 위해 새로고침
+        // alert('로컬 데이터를 클라우드 데이터베이스(Supabase)로 이전에 성공했습니다! 이제 모든 기기에서 동일한 데이터를 보실 수 있습니다.');
+        // window.location.reload(); // 데이터 동기화를 위해 새로고침 (무한 루프 방지)
       } else {
         console.log('ℹ️ No local data found for migration.');
       }
