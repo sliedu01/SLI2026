@@ -303,8 +303,10 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
     const aggregated: Record<string, AggregatedStat> = {};
 
     // 3. 재귀적 통계 합산 (Memoization 패턴)
-    const calculateRecursive = (id: string): AggregatedStat | null => {
+    const calculateRecursive = (id: string, visited = new Set<string>()): AggregatedStat | null => {
       if (aggregated[id]) return aggregated[id];
+      if (visited.has(id)) return null;
+      visited.add(id);
 
       const children = childrenMap.get(id) || [];
       const currentRaw = projectData[id] || { preScores: [], postScores: [], satScores: [], responses: [] };
@@ -318,7 +320,7 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
       };
 
       children.forEach(c => {
-        const cStats = calculateRecursive(c.id);
+        const cStats = calculateRecursive(c.id, visited);
         if (!cStats || !cStats._raw) return;
         
         cStats._raw.preScores.forEach((scores: number[], idx: number) => {

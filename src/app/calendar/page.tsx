@@ -71,13 +71,17 @@ export default function CalendarPage() {
 
     return projects.filter(p => {
       let current: any = p;
-      while (current) {
+      const visited = new Set<string>();
+      while (current && !visited.has(current.id)) {
+        visited.add(current.id);
         if (allowedIds.includes(current.id)) return true;
         current = projects.find(parent => parent.id === current.parentId);
       }
-      const hasAllowedChild = (parentId: string): boolean => {
+      const hasAllowedChild = (parentId: string, visitedChild = new Set<string>()): boolean => {
+        if (visitedChild.has(parentId)) return false;
+        visitedChild.add(parentId);
         const children = projects.filter(c => c.parentId === parentId);
-        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id));
+        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id, visitedChild));
       };
       return hasAllowedChild(p.id);
     });
@@ -126,7 +130,9 @@ export default function CalendarPage() {
   // 부모 체인을 올라가서 특정 레벨의 조상을 찾는 헬퍼
   const findAncestor = React.useCallback((projectId: string, targetLevel: number): typeof projects[0] | undefined => {
     let current = projects.find(p => p.id === projectId);
-    while (current && current.level > targetLevel && current.parentId) {
+    const visited = new Set<string>();
+    while (current && current.level > targetLevel && current.parentId && !visited.has(current.id)) {
+      visited.add(current.id);
       current = projects.find(p => p.id === current!.parentId);
     }
     return current?.level === targetLevel ? current : undefined;

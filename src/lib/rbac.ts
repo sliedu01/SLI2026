@@ -180,7 +180,9 @@ export function hasProjectAccess(
 
   // 2. 상위 프로젝트 중 하나라도 권한이 있는지 확인 (상향식 재귀)
   let current = allProjects.find(p => p.id === projectId);
-  while (current && current.parentId) {
+  const visited = new Set<string>();
+  while (current && current.parentId && !visited.has(current.id)) {
+    visited.add(current.id);
     if (permissions.allowedProjectIds.includes(current.parentId)) return true;
     current = allProjects.find(p => p.id === current!.parentId);
   }

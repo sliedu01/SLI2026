@@ -80,13 +80,17 @@ export default function Home() {
 
     return projects.filter(p => {
       let current: any = p;
-      while (current) {
+      const visited = new Set<string>();
+      while (current && !visited.has(current.id)) {
+        visited.add(current.id);
         if (allowedIds.includes(current.id)) return true;
         current = projects.find(parent => parent.id === current.parentId);
       }
-      const hasAllowedChild = (parentId: string): boolean => {
+      const hasAllowedChild = (parentId: string, visitedChild = new Set<string>()): boolean => {
+        if (visitedChild.has(parentId)) return false;
+        visitedChild.add(parentId);
         const children = projects.filter(c => c.parentId === parentId);
-        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id));
+        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id, visitedChild));
       };
       return hasAllowedChild(p.id);
     });
@@ -100,11 +104,12 @@ export default function Home() {
   const effectiveSelectedIds = selectedLv1Ids.length > 0 ? selectedLv1Ids : lv1Projects.map(p => p.id);
 
   // 선택된 LV1 프로젝트의 모든 하위 프로젝트 ID 수집
-  const getDescendantIds = (parentIds: string[]): string[] => {
+  const getDescendantIds = (parentIds: string[], visited = new Set<string>()): string[] => {
     let result = [...parentIds];
-    const children = projects.filter(p => p.parentId && parentIds.includes(p.parentId));
+    const children = projects.filter(p => p.parentId && parentIds.includes(p.parentId) && !visited.has(p.id));
     if (children.length > 0) {
-      result = [...result, ...getDescendantIds(children.map(c => c.id))];
+      children.forEach(c => visited.add(c.id));
+      result = [...result, ...getDescendantIds(children.map(c => c.id), visited)];
     }
     return result;
   };

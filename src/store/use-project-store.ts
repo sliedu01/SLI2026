@@ -288,9 +288,12 @@ export const useProjectStore = create<ProjectState>()(
 /**
  * 프로젝트의 세션과 하위 프로젝트를 기반으로 날짜/시간/인원수를 실시간으로 집계하는 헬퍼 함수
  */
-export function getAggregatedProject(p: Project, allProjects: Project[]): Project {
+export function getAggregatedProject(p: Project, allProjects: Project[], visited = new Set<string>()): Project {
+  if (visited.has(p.id)) return { ...p };
+  visited.add(p.id);
+
   const children = allProjects.filter(child => child.parentId === p.id);
-  const aggregatedChildren = children.map(c => getAggregatedProject(c, allProjects));
+  const aggregatedChildren = children.map(c => getAggregatedProject(c, allProjects, visited));
   
   const hasSessions = p.sessions && p.sessions.length > 0;
   const hasChildren = children.length > 0;

@@ -473,7 +473,9 @@ function ProjectsPageContent() {
     const filteredProjects = visibleProjects.filter(p => {
       if (selectedLv1Ids.length === 0) return true;
       let current = p;
-      while (current.parentId && current.level > 1) {
+      const visited = new Set<string>();
+      while (current.parentId && current.level > 1 && !visited.has(current.id)) {
+        visited.add(current.id);
         const parent = projects.find(prev => prev.id === current.parentId);
         if (!parent) break;
         current = parent;

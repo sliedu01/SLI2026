@@ -81,13 +81,17 @@ export default function MeetingsPage() {
 
     return projects.filter(p => {
       let current: any = p;
-      while (current) {
+      const visited = new Set<string>();
+      while (current && !visited.has(current.id)) {
+        visited.add(current.id);
         if (allowedIds.includes(current.id)) return true;
         current = projects.find(parent => parent.id === current.parentId);
       }
-      const hasAllowedChild = (parentId: string): boolean => {
+      const hasAllowedChild = (parentId: string, visitedChild = new Set<string>()): boolean => {
+        if (visitedChild.has(parentId)) return false;
+        visitedChild.add(parentId);
         const children = projects.filter(c => c.parentId === parentId);
-        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id));
+        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id, visitedChild));
       };
       return hasAllowedChild(p.id);
     });
