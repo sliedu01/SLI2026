@@ -341,13 +341,21 @@ export function getAggregatedProject(p: Project, allProjects: Project[]): Projec
   }
 
   if (sources.length > 0) {
-    minDate = sources.map(s => s.startDate).filter(Boolean).reduce((min, cur) => cur < min ? cur : min);
-    maxDate = sources.map(s => s.endDate).filter(Boolean).reduce((max, cur) => cur > max ? cur : max);
-    const sameMinDaySources = sources.filter(s => s.startDate === minDate);
-    minStartTime = sameMinDaySources.map(s => s.startTime).filter(Boolean).reduce((min, cur) => cur < min ? cur : min, "");
-    const sameMaxDaySources = sources.filter(s => s.endDate === maxDate);
-    maxEndTime = sameMaxDaySources.map(s => s.endTime).filter(Boolean).reduce((max, cur) => cur > max ? cur : max, "");
-    totalParticipantCount = sources.reduce((sum, s) => sum + s.participantCount, 0);
+    const startDates = sources.map(s => s.startDate).filter(Boolean);
+    const endDates = sources.map(s => s.endDate).filter(Boolean);
+    
+    minDate = startDates.length > 0 ? startDates.reduce((min, cur) => cur < min ? cur : min) : "";
+    maxDate = endDates.length > 0 ? endDates.reduce((max, cur) => cur > max ? cur : max) : "";
+    
+    const sameMinDaySources = sources.filter(s => s.startDate === minDate && minDate);
+    const startTimes = sameMinDaySources.map(s => s.startTime).filter(Boolean);
+    minStartTime = startTimes.length > 0 ? startTimes.reduce((min, cur) => cur < min ? cur : min) : "";
+    
+    const sameMaxDaySources = sources.filter(s => s.endDate === maxDate && maxDate);
+    const endTimes = sameMaxDaySources.map(s => s.endTime).filter(Boolean);
+    maxEndTime = endTimes.length > 0 ? endTimes.reduce((max, cur) => cur > max ? cur : max) : "";
+    
+    totalParticipantCount = sources.reduce((sum, s) => sum + (s.participantCount || 0), 0);
   }
 
   return {

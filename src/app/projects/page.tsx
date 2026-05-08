@@ -122,27 +122,21 @@ function ProjectsPageContent() {
   }, [mounted, editId, projects]);
 
   // 권한에 따른 가시적 프로젝트 필터링
+  // 권한에 따른 가시적 프로젝트 필터링
   const visibleProjects = React.useMemo(() => {
     if (!user) return [];
     if (user.role === 'admin') return projects;
-    
-    // 권한 체크 로직:
-    // 1. 해당 프로젝트 ID가 허용 목록에 있는가?
-    // 2. 해당 프로젝트의 상위 부모 중 하나라도 허용 목록에 있는가? (하위 전파)
-    // 3. 해당 프로젝트의 하위 자식 중 하나라도 허용 목록에 있는가? (부모 노출)
     
     const allowedIds = permissions?.allowedProjectIds || [];
     if (allowedIds.includes('*')) return projects;
 
     return projects.filter(p => {
-      // 1 & 2: 본인 또는 상위 권한 확인
       let current: any = p;
       while (current) {
         if (allowedIds.includes(current.id)) return true;
         current = projects.find(parent => parent.id === current.parentId);
       }
 
-      // 3: 하위 자식 중 권한이 있는지 확인
       const hasAllowedChild = (parentId: string): boolean => {
         const children = projects.filter(c => c.parentId === parentId);
         return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id));
@@ -151,6 +145,12 @@ function ProjectsPageContent() {
       return hasAllowedChild(p.id);
     });
   }, [projects, user, permissions]);
+
+  // 모든 프로젝트의 통계 미리 계산 (성능 최적화)
+  const allStats = React.useMemo(() => {
+    const { getAggregatedStats } = useSurveyStore.getState();
+    return getAggregatedStats(projects, projects.map(p => p.id), undefined, 'UNIFIED');
+  }, [projects]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -200,24 +200,19 @@ function ProjectsPageContent() {
       return ids;
     };
 
-    const descendantIds = getAllDescendantIds(p.id);
+    const descendantIds = React.useMemo(() => getAllDescendantIds(p.id), [p.id, projects]);
     const uniquePartnerCount = new Set(
       projects
         .filter(proj => descendantIds.includes(proj.id) && proj.partnerId && proj.partnerId !== 'none')
         .map(proj => proj.partnerId)
     ).size;
 
-    const { getAggregatedStats } = useSurveyStore();
-    const satisfactionStats = getAggregatedStats(projects, [p.id], undefined, 'SATISFACTION');
-    const competencyStats = getAggregatedStats(projects, [p.id], undefined, 'COMPETENCY');
-
-    const stat = satisfactionStats[p.id];
-    const compStat = competencyStats[p.id];
+    const stat = allStats[p.id];
     
     const avgSatisfaction = stat?.satAvg || 0;
-    const growthRate = compStat?.hakeGain ? compStat.hakeGain * 100 : 0; // Hake's Gain을 백분율로 표시
+    const growthRate = stat?.hakeGain ? stat.hakeGain * 100 : 0; 
     const participantCount = stat?.satCount || 0;
-    const compCount = compStat?.compCount || 0;
+    const compCount = stat?.compCount || 0;
 
     const partner = partners.find(ptr => ptr.id === p.partnerId);
 
