@@ -12,6 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { downloadFile } from '@/lib/file-download';
+import { useAuthStore } from '@/store/use-auth-store';
 
 interface FileUploadZoneProps {
   id?: string;
@@ -66,9 +67,17 @@ export function FileUploadZone({
     if (inputRef.current) inputRef.current.value = '';
   };
 
+  const { user } = useAuthStore();
+
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!value?.fileUrl || !value?.originalName) return;
+
+    // 운영자(manager) 이상만 다운로드 가능하도록 제한
+    if (user?.role !== 'admin' && user?.role !== 'manager') {
+      alert('운영자 이상만 다운로드가 가능합니다.');
+      return;
+    }
     
     try {
       await downloadFile(value.fileUrl, value.originalName);

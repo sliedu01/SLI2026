@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 
 import { usePartnerStore, Partner } from '@/store/use-partner-store';
 import { useProjectStore, getAggregatedProject } from '@/store/use-project-store';
+import { useAuthStore } from '@/store/use-auth-store';
 import { useSurveyStore } from '@/store/use-survey-store';
 import { PartnerDialog } from '@/components/partner-dialog';
 
@@ -40,6 +41,7 @@ export default function PartnersPage() {
   const [mounted, setMounted] = React.useState(false);
   const { partners, deletePartner, isLoading, fetchPartners } = usePartnerStore();
   const { projects, fetchProjects, selectedLv1Ids } = useProjectStore();
+  const { user } = useAuthStore();
   const { getAggregatedStats } = useSurveyStore();
   
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -78,8 +80,8 @@ export default function PartnersPage() {
     if (selectedLv1Ids.length > 0) {
       const partnerProjectIds = projects.filter(proj => proj.partnerId === p.id).map(proj => proj.id);
       
-      // [수정] 사업에 배정되지 않은 신규 업체는 항상 노출 (필터링 예외)
-      if (partnerProjectIds.length === 0) return matchesSearch;
+      // 사업에 배정되지 않은 신규 업체는 '전체' 보기에서만 노출되고, 특정 사업 선택 시에는 해당 사업에 속한 업체만 노출
+      if (partnerProjectIds.length === 0) return false;
 
       const isRelatedToSelectedLv1 = partnerProjectIds.some(pid => {
         let current = projects.find(proj => proj.id === pid);
@@ -414,6 +416,11 @@ export default function PartnersPage() {
                                    key={doc.id} 
                                    onClick={(e) => {
                                      e.stopPropagation();
+                                     // 운영자(manager) 이상만 다운로드 가능하도록 제한
+                                     if (user?.role !== 'admin' && user?.role !== 'manager') {
+                                       alert('운영자 이상만 다운로드가 가능합니다.');
+                                       return;
+                                     }
                                      if (doc.fileUrl && doc.originalName) {
                                        downloadFile(doc.fileUrl, doc.originalName).catch(() => alert('파일 다운로드 실패'));
                                      }

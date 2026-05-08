@@ -121,21 +121,44 @@ export default function AdminUsersPage() {
   const toggleProject = (projectId: string) => {
     setEditPerms(prev => {
       const current = prev.allowedProjectIds || [];
-      const next = current.includes(projectId)
-        ? current.filter(id => id !== projectId)
-        : [...current, projectId];
+      const isChecked = current.includes(projectId);
+      
+      // 대상 프로젝트 찾기
+      const targetProject = projects.find(p => p.id === projectId);
+      let next = [...current];
+
+      if (isChecked) {
+        // 해제: 본인 및 하위(LV2) 모두 제거
+        next = next.filter(id => id !== projectId);
+        if (targetProject?.level === 1) {
+          const childrenIds = projects.filter(p => p.parentId === projectId).map(p => p.id);
+          next = next.filter(id => !childrenIds.includes(id));
+        }
+      } else {
+        // 선택: 본인 추가
+        next.push(projectId);
+        // LV1 선택 시 모든 하위(LV2) 자동 추가
+        if (targetProject?.level === 1) {
+          const childrenIds = projects.filter(p => p.parentId === projectId).map(p => p.id);
+          childrenIds.forEach(id => {
+            if (!next.includes(id)) next.push(id);
+          });
+        }
+      }
       return { ...prev, allowedProjectIds: next };
     });
   };
 
-  // 전체 사업 토글
+  // 전체 사업 토글 (LV1 + LV2 모두 포함)
   const toggleAllProjects = () => {
     setEditPerms(prev => {
       const current = prev.allowedProjectIds || [];
-      if (current.length === lv1Projects.length) {
+      const allProjectIds = projects.filter(p => p.level <= 2).map(p => p.id);
+      
+      if (current.length === allProjectIds.length) {
         return { ...prev, allowedProjectIds: [] };
       }
-      return { ...prev, allowedProjectIds: lv1Projects.map(p => p.id) };
+      return { ...prev, allowedProjectIds: allProjectIds };
     });
   };
 
@@ -371,37 +394,60 @@ export default function AdminUsersPage() {
                   {/* 사업 범위 (LV1) */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">사업 범위 (LV1)</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">사업 범위 (LV1 & LV2)</label>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={toggleAllProjects}
                         className="h-6 text-[10px] font-bold text-indigo-500 hover:bg-indigo-50"
                       >
-                        {(editPerms.allowedProjectIds || []).length === lv1Projects.length ? '전체 해제' : '전체 선택'}
+                        {(editPerms.allowedProjectIds || []).length === projects.filter(p => p.level <= 2).length ? '전체 해제' : '전체 선택'}
                       </Button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {lv1Projects.map(p => {
-                        const checked = (editPerms.allowedProjectIds || []).includes(p.id);
+                    <div className="space-y-3">
+                      {lv1Projects.map(lv1 => {
+                        const lv1Checked = (editPerms.allowedProjectIds || []).includes(lv1.id);
+                        const lv2s = projects.filter(p => p.parentId === lv1.id && p.level === 2);
+                        
                         return (
-                          <label
-                            key={p.id}
-                            className={cn(
+                          <div key={lv1.id} className="space-y-2">
+                            {/* LV1 Item */}
+                            <label className={cn(
                               "flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all text-xs font-bold",
-                              checked
-                                ? "bg-indigo-50 border-indigo-200 text-indigo-700"
-                                : "bg-slate-50 border-slate-100 text-slate-500 hover:border-slate-200"
+                              lv1Checked ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "bg-white border-slate-100 text-slate-500 hover:border-slate-200"
+                            )}>
+                              <input
+                                type="checkbox"
+                                checked={lv1Checked}
+                                onChange={() => toggleProject(lv1.id)}
+                                className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-400 w-3.5 h-3.5"
+                              />
+                              <span className="truncate">{lv1.name} (LV1)</span>
+                            </label>
+
+                            {/* LV2 Children */}
+                            {lv2s.length > 0 && (
+                              <div className="grid grid-cols-2 gap-1.5 pl-6">
+                                {lv2s.map(lv2 => {
+                                  const lv2Checked = (editPerms.allowedProjectIds || []).includes(lv2.id);
+                                  return (
+                                    <label key={lv2.id} className={cn(
+                                      "flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all text-[10px] font-medium",
+                                      lv2Checked ? "bg-slate-900 border-slate-900 text-white" : "bg-white border-slate-100 text-slate-400 hover:bg-slate-50"
+                                    )}>
+                                      <input
+                                        type="checkbox"
+                                        checked={lv2Checked}
+                                        onChange={() => toggleProject(lv2.id)}
+                                        className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-400 w-3 h-3"
+                                      />
+                                      <span className="truncate">{lv2.name}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
                             )}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleProject(p.id)}
-                              className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-400 w-3.5 h-3.5"
-                            />
-                            <span className="truncate">{p.name}</span>
-                          </label>
+                          </div>
                         );
                       })}
                     </div>
@@ -409,7 +455,14 @@ export default function AdminUsersPage() {
 
                   {/* 기능 모듈 접근 */}
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">기능 모듈 접근</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">기능 모듈 접근</label>
+                      {editRole === 'viewer' && (
+                        <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">
+                          관찰자는 허용할 탭을 직접 체크해야 합니다.
+                        </span>
+                      )}
+                    </div>
                     <div className="grid grid-cols-3 gap-2">
                       {([
                         ['canAccessProjects', '사업 관리'],
@@ -441,6 +494,12 @@ export default function AdminUsersPage() {
                         );
                       })}
                     </div>
+                    {editRole === 'viewer' && (
+                      <p className="text-[10px] text-slate-400 font-medium leading-relaxed bg-slate-50 p-3 rounded-xl border border-dashed border-slate-200 mt-2">
+                        * 관찰자(Viewer) 등급은 <span className="text-indigo-600 font-black">업로드된 증빙 서류의 다운로드가 제한</span>됩니다.
+                        (운영자 등급 이상만 가능)
+                      </p>
+                    )}
                   </div>
 
                   {/* 행위 권한 */}
