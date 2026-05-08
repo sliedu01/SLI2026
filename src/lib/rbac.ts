@@ -158,15 +158,54 @@ export function hasModuleAccess(
 /**
  * 특정 프로젝트에 대한 접근 권한 체크
  */
+/**
+ * 특정 프로젝트에 대한 접근 권한이 있는지 확인 (재귀적)
+ * 1. Admin은 모든 프로젝트 접근 가능
+ * 2. '*' 권한이 있으면 모든 프로젝트 접근 가능
+ * 3. 직접 ID가 포함되어 있으면 접근 가능
+ * 4. 상위 프로젝트 ID가 권한에 포함되어 있으면 하위 프로젝트도 접근 가능 (상속)
+ */
 export function hasProjectAccess(
   role: UserRole,
   permissions: UserPermission | null,
-  projectId: string
+  projectId: string,
+  allProjects: { id: string, parentId: string | null }[] = []
 ): boolean {
   if (role === 'admin') return true;
   if (!permissions) return false;
   if (permissions.allowedProjectIds.includes('*')) return true;
-  return permissions.allowedProjectIds.includes(projectId);
+  
+  // 1. 직접 포함 여부 확인
+  if (permissions.allowedProjectIds.includes(projectId)) return true;
+
+  // 2. 상위 프로젝트 중 하나라도 권한이 있는지 확인 (상향식 재귀)
+  let current = allProjects.find(p => p.id === projectId);
+  while (current && current.parentId) {
+    if (permissions.allowedProjectIds.includes(current.parentId)) return true;
+    current = allProjects.find(p => p.id === current!.parentId);
+  }
+
+  return false;
+}
+
+/**
+ * 사용자가 접근 가능한 모든 프로젝트 ID 목록 반환
+ */
+export function getVisibleProjectIds(
+  role: UserRole,
+  permissions: UserPermission | null,
+  allProjects: { id: string, parentId: string | null, level: number }[]
+): string[] {
+  if (role === 'admin' || (permissions && permissions.allowedProjectIds.includes('*'))) {
+    return allProjects.map(p => p.id);
+  }
+  
+  if (!permissions) return [];
+
+  // 본인 및 모든 하위 프로젝트 포함
+  return allProjects
+    .filter(p => hasProjectAccess(role, permissions, p.id, allProjects))
+    .map(p => p.id);
 }
 
 /**

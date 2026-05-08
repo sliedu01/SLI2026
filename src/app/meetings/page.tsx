@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useMeetingStore, Meeting } from "@/store/use-meeting-store";
 import { useProjectStore } from "@/store/use-project-store";
+import { useAuthStore } from "@/store/use-auth-store";
 import { 
   Video, Plus, ArrowUpDown, Trash2, Edit, 
   Search, Calendar as CalendarIcon, Filter,
@@ -45,6 +46,7 @@ export default function MeetingsPage() {
 
   const { meetings, fetchMeetings, addMeeting, updateMeeting, deleteMeeting, getSortedMeetings } = useMeetingStore();
   const { projects, fetchProjects, selectedLv1Ids, setSelectedLv1Ids } = useProjectStore();
+  const { user, permissions } = useAuthStore();
   
   const currentLv1Id = selectedLv1Ids[0] || 'all';
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>(currentLv1Id);
@@ -69,9 +71,32 @@ export default function MeetingsPage() {
     fetchProjects();
   }, []);
 
+  // 권한에 따른 가시적 프로젝트 필터링
+  const visibleProjects = React.useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'admin') return projects;
+    
+    const allowedIds = permissions?.allowedProjectIds || [];
+    if (allowedIds.includes('*')) return projects;
+
+    return projects.filter(p => {
+      let current: any = p;
+      while (current) {
+        if (allowedIds.includes(current.id)) return true;
+        current = projects.find(parent => parent.id === current.parentId);
+      }
+      const hasAllowedChild = (parentId: string): boolean => {
+        const children = projects.filter(c => c.parentId === parentId);
+        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id));
+      };
+      return hasAllowedChild(p.id);
+    });
+  }, [projects, user, permissions]);
+
   const filteredMeetings = React.useMemo(() => {
     const sorted = getSortedMeetings();
-    let filtered = sorted;
+    let filtered = sorted.filter(m => visibleProjects.some(vp => vp.id === m.projectId));
+    
     if (selectedProjectId && selectedProjectId !== 'all') {
       filtered = filtered.filter(m => m.projectId === selectedProjectId);
     }
@@ -171,7 +196,7 @@ export default function MeetingsPage() {
               </SelectTrigger>
               <SelectContent className="rounded-xl shadow-2xl border-slate-100 dark:border-slate-800">
                 <SelectItem value="all" className="text-[10px] font-bold">전체 사업 회의 보기</SelectItem>
-                {projects.filter(p => p.level === 1).map(p => (
+                {visibleProjects.filter(p => p.level === 1).map(p => (
                   <SelectItem key={p.id} value={p.id} className="text-[10px] font-bold">{p.name}</SelectItem>
                 ))}
               </SelectContent>

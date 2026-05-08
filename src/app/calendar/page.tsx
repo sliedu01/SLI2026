@@ -28,6 +28,7 @@ import { useProjectStore } from '@/store/use-project-store';
 import { useMeetingStore } from '@/store/use-meeting-store';
 import { useBudgetStore } from '@/store/use-budget-store';
 import { usePartnerStore } from '@/store/use-partner-store';
+import { useAuthStore } from '@/store/use-auth-store';
 import CalendarView, { CalendarEvent } from './_components/calendar-view';
 
 export default function CalendarPage() {
@@ -42,6 +43,7 @@ export default function CalendarPage() {
   const { fetchMeetings, getSortedMeetings, isLoading: isMeetingLoading } = useMeetingStore();
   const { expenditures, managements, categories, fetchBudgets, isLoading: isBudgetLoading } = useBudgetStore();
   const { partners, fetchPartners } = usePartnerStore();
+  const { user, permissions } = useAuthStore();
 
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>('all');
   const [selectedLv2Ids, setSelectedLv2Ids] = React.useState<string[]>([]);
@@ -58,7 +60,30 @@ export default function CalendarPage() {
   }, [fetchProjects, fetchMeetings, fetchBudgets, fetchPartners]);
 
   const isLoading = isProjectLoading || isMeetingLoading || isBudgetLoading;
-  const lv1Projects = projects.filter(p => p.level === 1);
+  
+  // 권한에 따른 가시적 프로젝트 필터링
+  const visibleProjects = React.useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'admin') return projects;
+    
+    const allowedIds = permissions?.allowedProjectIds || [];
+    if (allowedIds.includes('*')) return projects;
+
+    return projects.filter(p => {
+      let current: any = p;
+      while (current) {
+        if (allowedIds.includes(current.id)) return true;
+        current = projects.find(parent => parent.id === current.parentId);
+      }
+      const hasAllowedChild = (parentId: string): boolean => {
+        const children = projects.filter(c => c.parentId === parentId);
+        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id));
+      };
+      return hasAllowedChild(p.id);
+    });
+  }, [projects, user, permissions]);
+
+  const lv1Projects = visibleProjects.filter(p => p.level === 1);
 
   // 글로벌 사업 선택 상태 동기화
   React.useEffect(() => {
@@ -87,8 +112,8 @@ export default function CalendarPage() {
   };
   const lv2Projects = React.useMemo(() => {
     if (selectedProjectId === 'all') return [];
-    return projects.filter(p => p.parentId === selectedProjectId && p.level === 2);
-  }, [selectedProjectId, projects]);
+    return visibleProjects.filter(p => p.parentId === selectedProjectId && p.level === 2);
+  }, [selectedProjectId, visibleProjects]);
 
   React.useEffect(() => {
     if (lv2Projects.length > 0) {
@@ -112,8 +137,8 @@ export default function CalendarPage() {
 
     // 1. 사업 일정 — 리프 노드(하위 자식이 없는 실제 운영 일정)만 표시
     if (showProjects) {
-      // LV2 이상 프로젝트 중 리프 노드만 추출
-      const leafProjects = projects.filter(p => {
+      // visibleProjects 중 리프 노드만 추출
+      const leafProjects = visibleProjects.filter(p => {
         if (p.level < 2) return false;
         // 이 프로젝트를 부모로 가진 하위 프로젝트가 없으면 리프 노드
         const hasChildren = projects.some(child => child.parentId === p.id);
@@ -215,6 +240,11 @@ export default function CalendarPage() {
     // 2. 회의 일정
     if (showMeetings) {
       getSortedMeetings().forEach(m => {
+        // 사업 권한 필터링
+        if (!visibleProjects.some(vp => vp.id === m.projectId)) {
+          return;
+        }
+
         // 사업 선택 필터링
         if (selectedProjectId !== 'all' && m.projectId !== selectedProjectId) {
           return;
@@ -248,6 +278,11 @@ export default function CalendarPage() {
         const mgmt = managements.find(m => m.id === e.managementId);
         const cat = categories.find(c => c.id === mgmt?.categoryId);
         
+        // 사업 권한 필터링
+        if (cat?.projectId && !visibleProjects.some(vp => vp.id === cat.projectId)) {
+          return;
+        }
+
         // 사업 선택 필터링
         if (selectedProjectId !== 'all' && cat?.projectId !== selectedProjectId) {
           return;

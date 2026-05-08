@@ -41,7 +41,7 @@ export default function PartnersPage() {
   const [mounted, setMounted] = React.useState(false);
   const { partners, deletePartner, isLoading, fetchPartners } = usePartnerStore();
   const { projects, fetchProjects, selectedLv1Ids } = useProjectStore();
-  const { user } = useAuthStore();
+  const { user, permissions } = useAuthStore();
   const { getAggregatedStats } = useSurveyStore();
   
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -52,6 +52,28 @@ export default function PartnersPage() {
   const [dialogMode, setDialogMode] = React.useState<'add' | 'edit'>('add');
   const [selectedPartnerId, setSelectedPartnerId] = React.useState<string | undefined>(undefined);
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>("all");
+
+  // 권한에 따른 가시적 프로젝트 필터링
+  const visibleProjects = React.useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'admin') return projects;
+    
+    const allowedIds = permissions?.allowedProjectIds || [];
+    if (allowedIds.includes('*')) return projects;
+
+    return projects.filter(p => {
+      let current: any = p;
+      while (current) {
+        if (allowedIds.includes(current.id)) return true;
+        current = projects.find(parent => parent.id === current.parentId);
+      }
+      const hasAllowedChild = (parentId: string): boolean => {
+        const children = projects.filter(c => c.parentId === parentId);
+        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id));
+      };
+      return hasAllowedChild(p.id);
+    });
+  }, [projects, user, permissions]);
 
   const { setSelectedLv1Ids } = useProjectStore();
 
@@ -76,13 +98,17 @@ export default function PartnersPage() {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           p.manager.toLowerCase().includes(searchTerm.toLowerCase());
     
+    // 권한 필터링: 사용자가 볼 수 있는 프로젝트에 연결된 업체인가?
+    const partnerProjectIds = projects.filter(proj => proj.partnerId === p.id).map(proj => proj.id);
+    const hasAccessToAnyProjectOfPartner = partnerProjectIds.some(pid => 
+      visibleProjects.some(vp => vp.id === pid)
+    );
+    
+    // 만약 업체가 어떤 사업에도 배정되지 않았다면, 관리자가 아니면 보지 못하게 할지 결정 (여기서는 숨김)
+    if (user?.role !== 'admin' && !hasAccessToAnyProjectOfPartner) return false;
+
     // 글로벌 LV1 필터링 적용
     if (selectedLv1Ids.length > 0) {
-      const partnerProjectIds = projects.filter(proj => proj.partnerId === p.id).map(proj => proj.id);
-      
-      // 사업에 배정되지 않은 신규 업체는 '전체' 보기에서만 노출되고, 특정 사업 선택 시에는 해당 사업에 속한 업체만 노출
-      if (partnerProjectIds.length === 0) return false;
-
       const isRelatedToSelectedLv1 = partnerProjectIds.some(pid => {
         let current = projects.find(proj => proj.id === pid);
         while (current && current.parentId && current.level > 1) {
@@ -113,6 +139,8 @@ export default function PartnersPage() {
     // 실시간으로 프로젝트 데이터를 집계하여 최신 상태 유지 (세션 및 하위 프로젝트 반영)
     const partnerProjects = projects
       .filter(p => p.partnerId === partnerId)
+      // 권한 있는 사업만 필터링
+      .filter(p => visibleProjects.some(vp => vp.id === p.id))
       .filter(p => {
         if (selectedLv1Ids.length === 0) return true;
         let current = p;
@@ -282,7 +310,7 @@ export default function PartnersPage() {
               </SelectTrigger>
               <SelectContent className="rounded-xl border-slate-100 shadow-2xl">
                 <SelectItem value="all" className="text-[11px] font-bold">전체 사업 통합 협력사</SelectItem>
-                {projects.filter(p => p.level === 1).map((p) => (
+                {visibleProjects.filter(p => p.level === 1).map((p) => (
                   <SelectItem key={p.id} value={p.id} className="text-[11px] font-bold">
                     {p.name}
                   </SelectItem>

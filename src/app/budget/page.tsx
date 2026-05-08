@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useBudgetStore, Expenditure } from '@/store/use-budget-store';
 import { useProjectStore } from '@/store/use-project-store';
+import { useAuthStore } from '@/store/use-auth-store';
 import { ExpenditureDialog } from '@/components/expenditure-dialog';
 import { CategoryManagementDialog } from '@/components/budget/category-management-dialog';
 import { cn } from '@/lib/utils';
@@ -66,6 +67,7 @@ function BudgetPageContent() {
     setActiveProjectId
   } = useBudgetStore();
   const { projects, fetchProjects, selectedLv1Ids, setSelectedLv1Ids } = useProjectStore();
+  const { user, permissions } = useAuthStore();
 
   // 다이얼로그 상태
   const [expenditureDialogOpen, setExpenditureDialogOpen] = React.useState(false);
@@ -87,6 +89,28 @@ function BudgetPageContent() {
     fetchProjects();
     fetchBudgets();
   }, [fetchProjects, fetchBudgets]);
+
+  // 권한에 따른 가시적 프로젝트 필터링
+  const visibleProjects = React.useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'admin') return projects;
+    
+    const allowedIds = permissions?.allowedProjectIds || [];
+    if (allowedIds.includes('*')) return projects;
+
+    return projects.filter(p => {
+      let current: any = p;
+      while (current) {
+        if (allowedIds.includes(current.id)) return true;
+        current = projects.find(parent => parent.id === current.parentId);
+      }
+      const hasAllowedChild = (parentId: string): boolean => {
+        const children = projects.filter(c => c.parentId === parentId);
+        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id));
+      };
+      return hasAllowedChild(p.id);
+    });
+  }, [projects, user, permissions]);
 
   // editId 파라미터 처리
   React.useEffect(() => {
@@ -217,7 +241,7 @@ function BudgetPageContent() {
               </SelectTrigger>
               <SelectContent className="rounded-xl border-slate-100 shadow-2xl">
                 <SelectItem value="all" className="text-[11px] font-bold">전체 사업 통합 예산</SelectItem>
-                {projects.filter(p => p.level === 1).map((p) => (
+                {visibleProjects.filter(p => p.level === 1).map((p) => (
                   <SelectItem key={p.id} value={p.id} className="text-[11px] font-bold">
                     {p.name}
                   </SelectItem>

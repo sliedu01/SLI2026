@@ -30,6 +30,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useProjectStore, Project } from '@/store/use-project-store';
 import { usePartnerStore } from '@/store/use-partner-store';
+import { useAuthStore } from '@/store/use-auth-store';
 import { useSurveyStore } from '@/store/use-survey-store';
 import { ProjectDialog } from '@/components/project-dialog';
 import { SurveyEntryDialog } from '@/components/survey-entry-dialog';
@@ -66,6 +67,7 @@ function ProjectsPageContent() {
     sortDirection
   } = useProjectStore();
   const { fetchPartners } = usePartnerStore();
+  const { user, permissions } = useAuthStore();
 
   const [mounted, setMounted] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
@@ -118,6 +120,37 @@ function ProjectsPageContent() {
       }
     }
   }, [mounted, editId, projects]);
+
+  // 권한에 따른 가시적 프로젝트 필터링
+  const visibleProjects = React.useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'admin') return projects;
+    
+    // 권한 체크 로직:
+    // 1. 해당 프로젝트 ID가 허용 목록에 있는가?
+    // 2. 해당 프로젝트의 상위 부모 중 하나라도 허용 목록에 있는가? (하위 전파)
+    // 3. 해당 프로젝트의 하위 자식 중 하나라도 허용 목록에 있는가? (부모 노출)
+    
+    const allowedIds = permissions?.allowedProjectIds || [];
+    if (allowedIds.includes('*')) return projects;
+
+    return projects.filter(p => {
+      // 1 & 2: 본인 또는 상위 권한 확인
+      let current: any = p;
+      while (current) {
+        if (allowedIds.includes(current.id)) return true;
+        current = projects.find(parent => parent.id === current.parentId);
+      }
+
+      // 3: 하위 자식 중 권한이 있는지 확인
+      const hasAllowedChild = (parentId: string): boolean => {
+        const children = projects.filter(c => c.parentId === parentId);
+        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id));
+      };
+
+      return hasAllowedChild(p.id);
+    });
+  }, [projects, user, permissions]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -379,9 +412,10 @@ function ProjectsPageContent() {
 
   const renderProjectRows = (parentId: string | null, depth: number = 0) => {
     const sorted = getSortedProjects(parentId);
+    // projects 대신 visibleProjects 사용
     const displayProjects = depth === 0 
-      ? sorted.filter(p => p.level === 1 && (selectedLv1Ids.length === 0 || selectedLv1Ids.includes(p.id))) 
-      : sorted;
+      ? sorted.filter(p => p.level === 1 && (selectedLv1Ids.length === 0 || selectedLv1Ids.includes(p.id)) && visibleProjects.some(vp => vp.id === p.id)) 
+      : sorted.filter(p => visibleProjects.some(vp => vp.id === p.id));
 
     return (
       <div className="flex flex-col gap-1">
@@ -435,7 +469,7 @@ function ProjectsPageContent() {
   };
 
   const GanttView = () => {
-    const filteredProjects = projects.filter(p => {
+    const filteredProjects = visibleProjects.filter(p => {
       if (selectedLv1Ids.length === 0) return true;
       let current = p;
       while (current.parentId && current.level > 1) {
@@ -565,7 +599,7 @@ function ProjectsPageContent() {
               </SelectTrigger>
               <SelectContent className="rounded-xl border-slate-100 shadow-2xl">
                 <SelectItem value="all" className="text-[11px] font-bold">전체 사업 목록</SelectItem>
-                {projects.filter(p => p.level === 1).map((p) => (
+                {visibleProjects.filter(p => p.level === 1).map((p) => (
                   <SelectItem key={p.id} value={p.id} className="text-[11px] font-bold">
                     {p.name}
                   </SelectItem>

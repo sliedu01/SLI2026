@@ -21,6 +21,7 @@ import { useProjectStore } from '@/store/use-project-store';
 import { useBudgetStore } from '@/store/use-budget-store';
 import { useSurveyStore } from '@/store/use-survey-store';
 import { usePartnerStore } from '@/store/use-partner-store';
+import { useAuthStore } from '@/store/use-auth-store';
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -47,6 +48,7 @@ export default function Home() {
   const { categories, fetchBudgets } = useBudgetStore();
   const { getAggregatedStats, fetchSurveys } = useSurveyStore();
   const { partners, fetchPartners } = usePartnerStore();
+  const { user, permissions } = useAuthStore();
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>("all");
 
   // 대시보드 선택된 사업과 동기화
@@ -68,8 +70,30 @@ export default function Home() {
 
   if (!mounted) return null;
 
+  // 권한에 따른 가시적 프로젝트 필터링
+  const visibleProjects = React.useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'admin') return projects;
+    
+    const allowedIds = permissions?.allowedProjectIds || [];
+    if (allowedIds.includes('*')) return projects;
+
+    return projects.filter(p => {
+      let current: any = p;
+      while (current) {
+        if (allowedIds.includes(current.id)) return true;
+        current = projects.find(parent => parent.id === current.parentId);
+      }
+      const hasAllowedChild = (parentId: string): boolean => {
+        const children = projects.filter(c => c.parentId === parentId);
+        return children.some(c => allowedIds.includes(c.id) || hasAllowedChild(c.id));
+      };
+      return hasAllowedChild(p.id);
+    });
+  }, [projects, user, permissions]);
+
   // 0. 프로젝트 필터링 로직
-  const lv1Projects = projects.filter(p => p.level === 1);
+  const lv1Projects = visibleProjects.filter(p => p.level === 1);
   
   // 선택된 사업이 없으면 전체 선택으로 간주하거나, 비어있는 상태로 유지
   // 여기서는 사용자가 명시적으로 선택한 것만 필터링하거나, 아무것도 선택 안 했으면 전체를 보여줌
@@ -86,7 +110,7 @@ export default function Home() {
   };
 
   const filteredProjectIds = getDescendantIds(effectiveSelectedIds);
-  const filteredProjects = projects.filter(p => filteredProjectIds.includes(p.id));
+  const filteredProjects = visibleProjects.filter(p => filteredProjectIds.includes(p.id));
 
   // 1. KPI 집계 데이터 (필터링 반영)
   const totalProjectsCount = filteredProjects.length;
@@ -98,9 +122,10 @@ export default function Home() {
   const totalSpent = filteredCategories.reduce((sum, c) => sum + c.totalExpenditure, 0);
   const budgetExecutionRate = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
   
-  // 파트너는 전체 유지 (또는 필터링된 프로젝트에 참여 중인 파트너만?)
-  // 여기서는 시스템 전체 파트너 유지
-  const totalPartners = partners.length;
+  // 파트너 필터링: 사용자가 볼 수 있는 프로젝트에 연결된 파트너만
+  const visiblePartnerIds = new Set(visibleProjects.map(p => p.partnerId).filter(Boolean));
+  const filteredPartners = partners.filter(p => user?.role === 'admin' || visiblePartnerIds.has(p.id));
+  const totalPartners = filteredPartners.length;
   
   // 전문가 성과 지산 기반 통계 집계 (필터링된 프로그램 단위 전체 합산)
   const programProjectIds = filteredProjects.filter(p => p.level === 4).map(p => p.id);
@@ -321,7 +346,7 @@ export default function Home() {
                <TrendingUp className="size-3 text-emerald-500" /> 주요 비목 집행
             </h3>
             <div className="space-y-2">
-               {categories.slice(0, 3).map((c, i) => (
+               {filteredCategories.slice(0, 3).map((c, i) => (
                  <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50/50">
                     <span className="text-[10px] font-bold text-slate-700">{c.name}</span>
                     <span className="text-[10px] font-bold text-blue-600">₩{(c.totalExpenditure/1000000).toFixed(1)}M</span>
@@ -335,15 +360,15 @@ export default function Home() {
             </h3>
             <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                    <p className="text-[18px] font-bold text-slate-900">{partners.length}</p>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase">총 파트너</p>
+                    <p className="text-[18px] font-bold text-slate-900">{totalPartners}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase">가용 파트너</p>
                 </div>
                 <div>
-                    <p className="text-[18px] font-bold text-emerald-600">{partners.filter(p => p.documents.length >= 3).length}</p>
+                    <p className="text-[18px] font-bold text-emerald-600">{filteredPartners.filter(p => p.documents.length >= 3).length}</p>
                     <p className="text-[9px] font-bold text-slate-400 uppercase">증빙 완비</p>
                 </div>
                 <div>
-                    <p className="text-[18px] font-bold text-blue-600">{projects.length}</p>
+                    <p className="text-[18px] font-bold text-blue-600">{filteredProjects.length}</p>
                     <p className="text-[9px] font-bold text-slate-400 uppercase">수행 사업</p>
                 </div>
             </div>
