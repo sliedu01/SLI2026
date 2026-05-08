@@ -290,7 +290,7 @@ export default function AdminUsersPage() {
                           </Badge>
                         </div>
                         <p className="text-[10px] font-bold text-slate-400 truncate">
-                          {u.loginId} · {u.email}
+                          {u.loginId} · {u.email} {u.phone && ` · ${u.phone}`}
                         </p>
                         {u.organization && (
                           <p className="text-[10px] font-bold text-slate-300 flex items-center gap-1 mt-0.5">

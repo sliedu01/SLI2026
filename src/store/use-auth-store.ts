@@ -47,6 +47,8 @@ interface AuthState {
   signUp: (data: SignUpPayload) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  updateProfile: (data: Partial<Pick<UserProfile, 'name' | 'phone' | 'organization'>>) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
 
   // Profile / Permission Fetch
   fetchProfile: () => Promise<void>;
@@ -230,6 +232,35 @@ export const useAuthStore = create<AuthState>()(
           redirectTo: `${window.location.origin}/auth/reset-password`,
         });
         if (error) throw new Error(error.message);
+      },
+
+      // ─────────────────────────────────────────────
+      // 본인 프로필 수정
+      // ─────────────────────────────────────────────
+      updateProfile: async (data) => {
+        const { user } = get();
+        if (!user) return;
+
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({
+            ...data,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
+
+        if (error) throw error;
+        await get().fetchProfile();
+      },
+
+      // ─────────────────────────────────────────────
+      // 비밀번호 변경
+      // ─────────────────────────────────────────────
+      updatePassword: async (password) => {
+        const { error } = await supabase.auth.updateUser({
+          password: password
+        });
+        if (error) throw error;
       },
 
       // ─────────────────────────────────────────────

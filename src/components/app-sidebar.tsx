@@ -160,27 +160,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {/* 사용자 정보 + 로그아웃 */}
       {isAuthenticated && user && (
         <SidebarFooter className="border-t border-slate-100 p-2">
-          <div className="flex items-center gap-2 px-2 py-1.5 group-data-[collapsible=icon]:justify-center">
-            <div className={cn(
-              "size-7 rounded-lg flex items-center justify-center text-white text-[10px] font-black shrink-0",
-              user.role === 'admin' ? 'bg-red-500' :
-              user.role === 'manager' ? 'bg-amber-500' :
-              user.role === 'user' ? 'bg-blue-500' : 'bg-slate-400'
-            )}>
-              {user.name.charAt(0)}
-            </div>
-            <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-              <p className="text-[11px] font-bold text-slate-900 truncate">{user.name}</p>
-              <p className="text-[9px] font-bold text-slate-400 truncate">
-                {ROLE_LABELS[user.role]} · {user.organization || user.email}
-              </p>
-            </div>
+          <div className="flex items-center gap-1">
+            <Link 
+              href="/profile" 
+              className="flex flex-1 items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-all group/user overflow-hidden"
+              title="개인정보 수정"
+            >
+              <div className={cn(
+                "size-7 rounded-lg flex items-center justify-center text-white text-[10px] font-black shrink-0 shadow-sm transition-transform group-hover/user:scale-110",
+                user.role === 'admin' ? 'bg-red-500' :
+                user.role === 'manager' ? 'bg-amber-500' :
+                user.role === 'user' ? 'bg-blue-500' : 'bg-slate-400'
+              )}>
+                {user.name.charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
+                <p className="text-[11px] font-bold text-slate-900 truncate">{user.name}</p>
+                <p className="text-[9px] font-bold text-slate-400 truncate">
+                  {ROLE_LABELS[user.role]} · {user.organization || user.email}
+                </p>
+              </div>
+            </Link>
             <button
               onClick={handleLogout}
-              className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors group-data-[collapsible=icon]:hidden shrink-0"
+              className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all group-data-[collapsible=icon]:hidden shrink-0"
               title="로그아웃"
             >
-              <LogOut className="size-3.5 text-slate-400" />
+              <LogOut className="size-3.5" />
             </button>
           </div>
         </SidebarFooter>
