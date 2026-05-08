@@ -27,7 +27,6 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   return (
     <RealtimeProvider>
       <AuthGuard>
-        <AutoMigration />
         <SidebarProvider>
           <ClientSideSidebar />
           <SidebarInset>

@@ -99,12 +99,8 @@ export default function Home() {
   // 0. 프로젝트 필터링 로직
   const lv1Projects = visibleProjects.filter(p => p.level === 1);
   
-  // 선택된 사업이 없으면 전체 선택으로 간주하거나, 비어있는 상태로 유지
-  // 여기서는 사용자가 명시적으로 선택한 것만 필터링하거나, 아무것도 선택 안 했으면 전체를 보여줌
-  const effectiveSelectedIds = selectedLv1Ids.length > 0 ? selectedLv1Ids : lv1Projects.map(p => p.id);
-
   // 선택된 LV1 프로젝트의 모든 하위 프로젝트 ID 수집
-  const getDescendantIds = (parentIds: string[], visited = new Set<string>()): string[] => {
+  const getDescendantIds = React.useCallback((parentIds: string[], visited = new Set<string>()): string[] => {
     let result = [...parentIds];
     const children = projects.filter(p => p.parentId && parentIds.includes(p.parentId) && !visited.has(p.id));
     if (children.length > 0) {
@@ -112,59 +108,70 @@ export default function Home() {
       result = [...result, ...getDescendantIds(children.map(c => c.id), visited)];
     }
     return result;
-  };
+  }, [projects]);
 
-  const filteredProjectIds = getDescendantIds(effectiveSelectedIds);
-  const filteredProjects = visibleProjects.filter(p => filteredProjectIds.includes(p.id));
+  const { filteredProjects, effectiveSelectedIds } = React.useMemo(() => {
+    const ids = selectedLv1Ids.length > 0 ? selectedLv1Ids : lv1Projects.map(p => p.id);
+    const descendantIds = getDescendantIds(ids);
+    return {
+      effectiveSelectedIds: ids,
+      filteredProjects: visibleProjects.filter(p => descendantIds.includes(p.id))
+    };
+  }, [selectedLv1Ids, lv1Projects, visibleProjects, getDescendantIds]);
 
   // 1. KPI 집계 데이터 (필터링 반영)
   const totalProjectsCount = filteredProjects.length;
   
   // 예산 데이터 필터링
-  // BudgetCategory -> Project mapping (Category has projectId)
-  const filteredCategories = categories.filter(c => c.projectId && effectiveSelectedIds.includes(c.projectId));
-  const totalBudget = filteredCategories.reduce((sum, c) => sum + c.totalBudget, 0);
-  const totalSpent = filteredCategories.reduce((sum, c) => sum + c.totalExpenditure, 0);
+  const filteredCategories = React.useMemo(() => {
+    return categories.filter(c => c.projectId && effectiveSelectedIds.includes(c.projectId));
+  }, [categories, effectiveSelectedIds]);
+
+  const totalBudget = React.useMemo(() => filteredCategories.reduce((sum, c) => sum + c.totalBudget, 0), [filteredCategories]);
+  const totalSpent = React.useMemo(() => filteredCategories.reduce((sum, c) => sum + c.totalExpenditure, 0), [filteredCategories]);
   const budgetExecutionRate = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
   
-  // 파트너 필터링: 사용자가 볼 수 있는 프로젝트에 연결된 파트너만
-  const visiblePartnerIds = new Set(visibleProjects.map(p => p.partnerId).filter(Boolean));
-  const filteredPartners = partners.filter(p => user?.role === 'admin' || visiblePartnerIds.has(p.id));
+  // 파트너 필터링
+  const filteredPartners = React.useMemo(() => {
+    const visiblePartnerIds = new Set(visibleProjects.map(p => p.partnerId).filter(Boolean));
+    return partners.filter(p => user?.role === 'admin' || visiblePartnerIds.has(p.id));
+  }, [partners, visibleProjects, user]);
+
   const totalPartners = filteredPartners.length;
   
-  // 전문가 성과 지산 기반 통계 집계 (필터링된 프로그램 단위 전체 합산)
-  const programProjectIds = filteredProjects.filter(p => p.level === 4).map(p => p.id);
-  const surveyStats = getAggregatedStats(projects, programProjectIds, undefined, 'UNIFIED');
-  const overallStats = surveyStats['_overall'];
+  // 전문가 성과 지산 기반 통계 집계
+  const surveyStats = React.useMemo(() => {
+    const programProjectIds = filteredProjects.filter(p => p.level === 4).map(p => p.id);
+    return getAggregatedStats(projects, programProjectIds, undefined, 'UNIFIED');
+  }, [getAggregatedStats, projects, filteredProjects]);
 
+  const overallStats = surveyStats['_overall'];
   const avgSatisfaction = overallStats?.satAvg || 0;
   const hakeGainPercent = Math.round((overallStats?.hakeGain || 0) * 100);
 
-  // 2. 사업별 시각화 데이터 (선택된 LV1들만)
-  const dashboardData = lv1Projects
-    .filter(p => effectiveSelectedIds.includes(p.id))
-    .map(p => {
-      const descendants = getDescendantIds([p.id]);
-      
-      // 해당 LV1 및 하위 프로젝트들의 예산 집계
-      const projectCats = categories.filter(c => c.projectId && descendants.includes(c.projectId));
-      const pBudget = projectCats.reduce((s, c) => s + c.totalBudget, 0);
-      const pSpent = projectCats.reduce((s, c) => s + c.totalExpenditure, 0);
-      const executionRate = pBudget > 0 ? (pSpent / pBudget) * 100 : 0;
+  // 2. 사업별 시각화 데이터
+  const dashboardData = React.useMemo(() => {
+    return lv1Projects
+      .filter(p => effectiveSelectedIds.includes(p.id))
+      .map(p => {
+        const descendants = getDescendantIds([p.id]);
+        const projectCats = categories.filter(c => c.projectId && descendants.includes(c.projectId));
+        const pBudget = projectCats.reduce((s, c) => s + c.totalBudget, 0);
+        const pSpent = projectCats.reduce((s, c) => s + c.totalExpenditure, 0);
+        const executionRate = pBudget > 0 ? (pSpent / pBudget) * 100 : 0;
+        const pStats = surveyStats[p.id];
+        const performance = pStats ? Math.round(pStats.hakeGain * 100) : 0;
 
-      // 성과 지표: 하위 프로그램들의 평균 Gain
-      const pStats = surveyStats[p.id];
-      const performance = pStats ? Math.round(pStats.hakeGain * 100) : 0;
-
-      return {
-        name: p.name,
-        executionRate: Number(executionRate.toFixed(2)),
-        performance: performance,
-        budget: pBudget,
-        spent: pSpent,
-        id: p.id
-      };
-    });
+        return {
+          name: p.name,
+          executionRate: Number(executionRate.toFixed(2)),
+          performance: performance,
+          budget: pBudget,
+          spent: pSpent,
+          id: p.id
+        };
+      });
+  }, [lv1Projects, effectiveSelectedIds, categories, getDescendantIds, surveyStats]);
 
 
   return (
