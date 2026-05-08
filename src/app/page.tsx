@@ -68,8 +68,6 @@ export default function Home() {
     fetchPartners();
   }, [fetchProjects, fetchBudgets, fetchSurveys, fetchPartners]);
 
-  if (!mounted) return null;
-
   // 권한에 따른 가시적 프로젝트 필터링
   const visibleProjects = React.useMemo(() => {
     if (!user) return [];
@@ -173,6 +171,7 @@ export default function Home() {
       });
   }, [lv1Projects, effectiveSelectedIds, categories, getDescendantIds, surveyStats]);
 
+  if (!mounted) return null;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
