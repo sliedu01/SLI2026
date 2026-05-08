@@ -128,7 +128,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     const targetProjectId = projectId || get().activeProjectId;
     
     let catsQuery = supabase.from('budget_categories').select('*').order('created_at', { ascending: true });
-    if (targetProjectId) {
+    if (targetProjectId && targetProjectId !== 'all') {
       catsQuery = catsQuery.eq('project_id', targetProjectId);
     }
 

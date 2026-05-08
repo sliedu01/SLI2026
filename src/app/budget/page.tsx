@@ -129,23 +129,27 @@ function BudgetPageContent() {
   }, [expenditures, filteredManagements]);
 
   // editId 파라미터 처리
+  // editId 파라미터 처리 (최초 1회만 실행되도록 관리)
+  const processedEditIdRef = React.useRef<string | null>(null);
+
   React.useEffect(() => {
-    if (mounted && editId && expenditures.length > 0) {
+    if (mounted && editId && expenditures.length > 0 && processedEditIdRef.current !== editId) {
       const expenditure = expenditures.find(e => e.id === editId);
       if (expenditure) {
+        processedEditIdRef.current = editId;
         const management = managements.find(m => m.id === expenditure.managementId);
         const category = management ? categories.find(c => c.id === management.categoryId) : null;
         const targetProjectId = category?.projectId;
 
         if (targetProjectId && targetProjectId !== activeProjectId) {
           setActiveProjectId(targetProjectId);
-          fetchBudgets(targetProjectId || undefined);
+          fetchBudgets(targetProjectId);
         }
         setEditingExpenditure(expenditure);
         setExpenditureDialogOpen(true);
       }
     }
-  }, [mounted, editId, expenditures, activeProjectId, setActiveProjectId, fetchBudgets, categories, managements]);
+  }, [mounted, editId, expenditures, activeProjectId, setActiveProjectId, fetchBudgets]); // categories, managements 제거하여 무한 루프 방지
 
 
   // 글로벌 선택과 동기화
