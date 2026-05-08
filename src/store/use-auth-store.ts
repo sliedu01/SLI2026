@@ -376,10 +376,17 @@ export const useAuthStore = create<AuthState>()(
           permMap.set(mapped.userId, mapped);
         });
 
-        return (profiles || []).map((p: Record<string, unknown>) => ({
-          ...mapProfile(p),
-          permission: permMap.get(p.id as string),
-        }));
+        const result: (UserProfile & { permission?: UserPermission })[] = [];
+        (profiles || []).forEach((p: Record<string, unknown>) => {
+          const profile = mapProfile(p);
+          if (profile) {
+            result.push({
+              ...profile,
+              permission: permMap.get(p.id as string),
+            });
+          }
+        });
+        return result;
       },
 
       // ─────────────────────────────────────────────
