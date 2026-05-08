@@ -29,7 +29,6 @@ import { useMeetingStore } from '@/store/use-meeting-store';
 import { useBudgetStore } from '@/store/use-budget-store';
 import { usePartnerStore } from '@/store/use-partner-store';
 import { useAuthStore } from '@/store/use-auth-store';
-import { hasModuleAccess } from '@/lib/rbac';
 import CalendarView, { CalendarEvent } from './_components/calendar-view';
 
 export default function CalendarPage() {
@@ -49,12 +48,8 @@ export default function CalendarPage() {
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>('all');
   const [selectedLv2Ids, setSelectedLv2Ids] = React.useState<string[]>([]);
   const [showProjects, setShowProjects] = React.useState(true);
-  const [showMeetings, setShowMeetings] = React.useState(true);
-  const [showBudget, setShowBudget] = React.useState(true);
-
-  // 관찰자 등 권한이 없는 경우 회의/지출 표시 제한
-  const canShowMeetings = user ? hasModuleAccess(user.role, permissions, 'meetings') : false;
-  const canShowBudget = user ? hasModuleAccess(user.role, permissions, 'budget') : false;
+  const [showMeetings, setShowMeetings] = React.useState(user?.role !== 'viewer');
+  const [showBudget, setShowBudget] = React.useState(user?.role !== 'viewer');
 
   React.useEffect(() => {
     setMounted(true);
@@ -248,8 +243,8 @@ export default function CalendarPage() {
       });
     }
 
-    // 2. 회의 일정 (권한이 있는 경우에만)
-    if (showMeetings && canShowMeetings) {
+    // 2. 회의 일정
+    if (showMeetings) {
       getSortedMeetings().forEach(m => {
         // 사업 권한 필터링
         if (!visibleProjects.some(vp => vp.id === m.projectId)) {
@@ -283,8 +278,8 @@ export default function CalendarPage() {
       });
     }
 
-    // 3. 지출 내역 (권한이 있는 경우에만)
-    if (showBudget && canShowBudget) {
+    // 3. 지출 내역
+    if (showBudget) {
       expenditures.forEach(e => {
         const mgmt = managements.find(m => m.id === e.managementId);
         const cat = categories.find(c => c.id === mgmt?.categoryId);
@@ -319,7 +314,7 @@ export default function CalendarPage() {
     }
 
     return allEvents;
-  }, [projects, expenditures, partners, managements, categories, showProjects, showMeetings, showBudget, selectedLv2Ids, selectedProjectId, findAncestor, getSortedMeetings, canShowMeetings, canShowBudget]);
+  }, [projects, expenditures, partners, managements, categories, showProjects, showMeetings, showBudget, selectedLv2Ids, selectedProjectId, findAncestor, getSortedMeetings]);
 
   const toggleAllLv2 = () => {
     if (selectedLv2Ids.length === lv2Projects.length) {
@@ -615,45 +610,43 @@ export default function CalendarPage() {
                 </div>
               </div>
 
-              {/* 기타 유형 필터 (권한이 있는 모듈만 표시) */}
-              {(canShowMeetings || canShowBudget) && (
+              {/* 기타 유형 필터 */}
               <div className="flex items-center min-h-[44px] divide-x divide-slate-100 bg-white">
-                {canShowMeetings && (
-                <div className="flex items-center h-full">
-                  <div className="px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => setShowMeetings(!showMeetings)}
-                      className={cn(
-                        "h-6 px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
-                        showMeetings ? "text-amber-600" : "text-slate-400"
-                      )}
-                    >
-                      <div className={cn("size-2 rounded-full", showMeetings ? "bg-amber-500" : "bg-slate-300")} />
-                      회의 일정
-                    </Button>
+                {(user?.role === 'admin' || user?.role === 'manager' || permissions?.canAccessMeetings) && (
+                  <div className="flex items-center h-full">
+                    <div className="px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => setShowMeetings(!showMeetings)}
+                        className={cn(
+                          "h-6 px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
+                          showMeetings ? "text-amber-600" : "text-slate-400"
+                        )}
+                      >
+                        <div className={cn("size-2 rounded-full", showMeetings ? "bg-amber-500" : "bg-slate-300")} />
+                        회의 일정
+                      </Button>
+                    </div>
                   </div>
-                </div>
                 )}
-                {canShowBudget && (
-                <div className="flex items-center h-full">
-                  <div className="px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => setShowBudget(!showBudget)}
-                      className={cn(
-                        "h-6 px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
-                        showBudget ? "text-indigo-600" : "text-slate-400"
-                      )}
-                    >
-                      <div className={cn("size-2 rounded-full", showBudget ? "bg-indigo-500" : "bg-slate-300")} />
-                      지출 내역
-                    </Button>
+                {(user?.role === 'admin' || user?.role === 'manager' || permissions?.canAccessBudget) && (
+                  <div className="flex items-center h-full">
+                    <div className="px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => setShowBudget(!showBudget)}
+                        className={cn(
+                          "h-6 px-0 text-[10px] font-black justify-start gap-2 hover:bg-transparent uppercase tracking-tight",
+                          showBudget ? "text-indigo-600" : "text-slate-400"
+                        )}
+                      >
+                        <div className={cn("size-2 rounded-full", showBudget ? "bg-indigo-500" : "bg-slate-300")} />
+                        지출 내역
+                      </Button>
+                    </div>
                   </div>
-                </div>
                 )}
               </div>
-              )}
             </div>
           </div>
         </div>
