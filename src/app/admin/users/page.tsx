@@ -123,27 +123,14 @@ export default function AdminUsersPage() {
       const current = prev.allowedProjectIds || [];
       const isChecked = current.includes(projectId);
       
-      // 대상 프로젝트 찾기
-      const targetProject = projects.find(p => p.id === projectId);
       let next = [...current];
 
       if (isChecked) {
-        // 해제: 본인 및 하위(LV2) 모두 제거
+        // 해제: 본인만 제거 (하위 자동 제거 로직 삭제 - 명시적 관리 유도)
         next = next.filter(id => id !== projectId);
-        if (targetProject?.level === 1) {
-          const childrenIds = projects.filter(p => p.parentId === projectId).map(p => p.id);
-          next = next.filter(id => !childrenIds.includes(id));
-        }
       } else {
-        // 선택: 본인 추가
+        // 선택: 본인만 추가
         next.push(projectId);
-        // LV1 선택 시 모든 하위(LV2) 자동 추가
-        if (targetProject?.level === 1) {
-          const childrenIds = projects.filter(p => p.parentId === projectId).map(p => p.id);
-          childrenIds.forEach(id => {
-            if (!next.includes(id)) next.push(id);
-          });
-        }
       }
       return { ...prev, allowedProjectIds: next };
     });

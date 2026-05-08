@@ -90,7 +90,6 @@ function BudgetPageContent() {
     fetchBudgets();
   }, [fetchProjects, fetchBudgets]);
 
-  // 권한에 따른 가시적 프로젝트 필터링
   const visibleProjects = React.useMemo(() => {
     if (!user) return [];
     if (user.role === 'admin') return projects;
@@ -111,6 +110,23 @@ function BudgetPageContent() {
       return hasAllowedChild(p.id);
     });
   }, [projects, user, permissions]);
+
+  // 권한에 따른 데이터 필터링
+  const filteredCategories = React.useMemo(() => {
+    return categories.filter(cat => 
+      !cat.projectId || visibleProjects.some(vp => vp.id === cat.projectId)
+    );
+  }, [categories, visibleProjects]);
+
+  const filteredManagements = React.useMemo(() => {
+    const catIds = filteredCategories.map(c => c.id);
+    return managements.filter(m => catIds.includes(m.categoryId));
+  }, [managements, filteredCategories]);
+
+  const filteredExpenditures = React.useMemo(() => {
+    const manIds = filteredManagements.map(m => m.id);
+    return expenditures.filter(e => manIds.includes(e.managementId));
+  }, [expenditures, filteredManagements]);
 
   // editId 파라미터 처리
   React.useEffect(() => {
@@ -164,8 +180,8 @@ function BudgetPageContent() {
 
   if (!mounted) return null;
 
-  const totalCatBudget = categories.reduce((sum, c) => sum + c.totalBudget, 0);
-  const totalCatSpent = categories.reduce((sum, c) => sum + (c.totalExpenditure || 0), 0);
+  const totalCatBudget = filteredCategories.reduce((sum, c) => sum + c.totalBudget, 0);
+  const totalCatSpent = filteredCategories.reduce((sum, c) => sum + (c.totalExpenditure || 0), 0);
 
   const handleEditExpenditure = (exp: Expenditure) => {
     setEditingExpenditure(exp);
@@ -322,8 +338,8 @@ function BudgetPageContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {categories.map(cat => {
-                  const catMans = managements.filter(m => m.categoryId === cat.id);
+                {filteredCategories.map(cat => {
+                  const catMans = filteredManagements.filter(m => m.categoryId === cat.id);
                   return (
                     <React.Fragment key={cat.id}>
                       <tr className="bg-slate-50/50 border-t-2 border-slate-200">
@@ -352,7 +368,7 @@ function BudgetPageContent() {
                       </tr>
                       {catMans.map(man => {
                         const usageRate = (man.totalExpenditure / (man.budgetAmount || 1)) * 100;
-                        const manExps = expenditures.filter(exp => exp.managementId === man.id);
+                        const manExps = filteredExpenditures.filter(exp => exp.managementId === man.id);
                         const isExpanded = expandedManIds.has(man.id);
                         
                         return (
@@ -456,7 +472,7 @@ function BudgetPageContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {expenditures
+                {filteredExpenditures
                   .sort((a, b) => b.date.localeCompare(a.date, undefined, { numeric: true, sensitivity: 'base' }) || b.createdAt - a.createdAt)
                   .map(exp => {
                     const management = managements.find(m => m.id === exp.managementId);
@@ -487,7 +503,7 @@ function BudgetPageContent() {
                       </tr>
                     );
                   })}
-                {expenditures.length === 0 && (
+                {filteredExpenditures.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-20 text-center text-[11px] text-slate-300 font-bold uppercase tracking-widest">
                       등록된 지출 내역이 없습니다.
