@@ -67,7 +67,18 @@ function BudgetPageContent() {
     setActiveProjectId
   } = useBudgetStore();
   const { projects, fetchProjects, selectedLv1Ids, setSelectedLv1Ids } = useProjectStore();
-  const { user, permissions } = useAuthStore();
+  const { user, permissions, hasModuleAccess, canPerform } = useAuthStore();
+
+  // 모듈 접근 권한 체크 (방어적 코드)
+  React.useEffect(() => {
+    if (mounted && !hasModuleAccess('budget')) {
+      // AuthGuard에서 처리하도록 위임
+    }
+  }, [mounted, hasModuleAccess]);
+
+  if (mounted && !hasModuleAccess('budget')) {
+    return null; // AuthGuard에서 처리하도록 위임하거나 빈 화면 표시
+  }
 
   // 다이얼로그 상태
   const [expenditureDialogOpen, setExpenditureDialogOpen] = React.useState(false);
@@ -276,14 +287,16 @@ function BudgetPageContent() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline"
-            onClick={() => setCategoryManagementOpen(true)}
-            className="rounded-lg h-9 text-[11px] font-bold border-slate-200 px-4 hover:bg-slate-50"
-          >
-            <Settings2 className="size-3.5 mr-1.5" />
-            예산구조관리
-          </Button>
+          {user?.role === 'admin' && (
+            <Button 
+              variant="outline"
+              onClick={() => setCategoryManagementOpen(true)}
+              className="rounded-lg h-9 text-[11px] font-bold border-slate-200 px-4 hover:bg-slate-50"
+            >
+              <Settings2 className="size-3.5 mr-1.5" />
+              예산구조관리
+            </Button>
+          )}
           <Button 
             variant="outline"
             onClick={handleExportExcel}
@@ -292,16 +305,18 @@ function BudgetPageContent() {
             <FileSpreadsheet className="size-3.5 mr-1.5" />
             엑셀 출력
           </Button>
-          <Button 
-            onClick={() => {
-              setEditingExpenditure(undefined);
-              setExpenditureDialogOpen(true);
-            }} 
-            className="rounded-lg h-9 bg-slate-900 hover:bg-slate-800 font-bold gap-1.5 px-4 text-[11px] shadow-md ml-2"
-          >
-            <Plus className="size-3.5" /> 
-            지출 내역 등록
-          </Button>
+          {(canPerform('create') || user?.role === 'admin') && (
+            <Button 
+              onClick={() => {
+                setEditingExpenditure(undefined);
+                setExpenditureDialogOpen(true);
+              }} 
+              className="rounded-lg h-9 bg-slate-900 hover:bg-slate-800 font-bold gap-1.5 px-4 text-[11px] shadow-md ml-2"
+            >
+              <Plus className="size-3.5" /> 
+              지출 내역 등록
+            </Button>
+          )}
         </div>
       </div>
 
@@ -432,17 +447,19 @@ function BudgetPageContent() {
                                     <td className="px-4 py-1.5 text-right">-</td>
                                     <td className="px-4 py-1.5 text-center text-[9px] text-slate-400">{proofLabel}</td>
                                     <td className="px-4 py-1.5 text-center">
-                                      <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="size-6 text-slate-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEditExpenditure(exp);
-                                        }}
-                                      >
-                                        <Edit2 className="size-3" />
-                                      </Button>
+                                      {(canPerform('update') || user?.role === 'admin') && (
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          className="size-6 text-slate-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEditExpenditure(exp);
+                                          }}
+                                        >
+                                          <Edit2 className="size-3" />
+                                        </Button>
+                                      )}
                                     </td>
                                   </tr>
                                 );
@@ -500,12 +517,16 @@ function BudgetPageContent() {
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex justify-center gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditExpenditure(exp)} className="size-7 text-slate-300 hover:text-blue-600 transition-colors">
-                              <Edit2 className="size-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteExpenditure(exp)} className="size-7 text-slate-300 hover:text-red-600 transition-colors">
-                              <Trash2 className="size-3.5" />
-                            </Button>
+                            {(canPerform('update') || user?.role === 'admin') && (
+                              <Button variant="ghost" size="icon" onClick={() => handleEditExpenditure(exp)} className="size-7 text-slate-300 hover:text-blue-600 transition-colors">
+                                <Edit2 className="size-3.5" />
+                              </Button>
+                            )}
+                            {(canPerform('delete') || user?.role === 'admin') && (
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteExpenditure(exp)} className="size-7 text-slate-300 hover:text-red-600 transition-colors">
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>

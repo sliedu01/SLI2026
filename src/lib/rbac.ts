@@ -143,6 +143,9 @@ export function hasModuleAccess(
   if (role === 'admin') return true;
   if (!permissions) return false;
 
+  // 1. 프리셋에서 기본적으로 허용되지 않는 모듈인지 확인 (안전장치)
+  // 프리셋에 명시적으로 false로 되어 있는 경우, permissions가 true여도 차단 (관찰자 등 특수 등급 보호)
+  const preset = ROLE_PRESETS[role];
   const moduleAccessMap: Record<ModuleKey, keyof UserPermission> = {
     projects: 'canAccessProjects',
     partners: 'canAccessPartners',
@@ -152,7 +155,16 @@ export function hasModuleAccess(
     budget: 'canAccessBudget',
   };
 
-  return permissions[moduleAccessMap[module]] as boolean;
+  const permissionKey = moduleAccessMap[module];
+  
+  // 프리셋이 있고, 프리셋에서 해당 모듈이 false인 경우 (관찰자의 설문/회의/예산 등)
+  // 단, 관찰자에게 명시적으로 권한을 준 경우를 허용하려면 이 로직을 조정해야 함.
+  // 여기서는 사용자의 요청에 따라 '관찰자'는 프리셋을 강제함.
+  if (role === 'viewer' && !(preset[permissionKey] as boolean)) {
+    return false;
+  }
+
+  return permissions[permissionKey] as boolean;
 }
 
 /**

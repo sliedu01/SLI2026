@@ -46,10 +46,21 @@ export default function MeetingsPage() {
 
   const { meetings, fetchMeetings, addMeeting, updateMeeting, deleteMeeting, getSortedMeetings } = useMeetingStore();
   const { projects, fetchProjects, selectedLv1Ids, setSelectedLv1Ids } = useProjectStore();
-  const { user, permissions } = useAuthStore();
+  const { user, permissions, hasModuleAccess } = useAuthStore();
   
   const currentLv1Id = selectedLv1Ids[0] || 'all';
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>(currentLv1Id);
+
+  // 모듈 접근 권한 체크 (방어적 코드)
+  React.useEffect(() => {
+    if (mounted && !hasModuleAccess('meetings')) {
+      // AuthGuard가 처리하겠지만, UI 유출 방지를 위해 초기화 시 체크
+    }
+  }, [mounted, hasModuleAccess]);
+
+  if (mounted && !hasModuleAccess('meetings')) {
+    return null; // AuthGuard에서 처리하도록 위임하거나 빈 화면 표시
+  }
 
   React.useEffect(() => {
     setSelectedProjectId(currentLv1Id);

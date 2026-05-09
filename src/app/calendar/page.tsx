@@ -48,8 +48,16 @@ export default function CalendarPage() {
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>('all');
   const [selectedLv2Ids, setSelectedLv2Ids] = React.useState<string[]>([]);
   const [showProjects, setShowProjects] = React.useState(true);
-  const [showMeetings, setShowMeetings] = React.useState(user?.role !== 'viewer');
-  const [showBudget, setShowBudget] = React.useState(user?.role !== 'viewer');
+  const [showMeetings, setShowMeetings] = React.useState(false);
+  const [showBudget, setShowBudget] = React.useState(false);
+
+  // 초기 권한에 따른 필터링 상태 설정
+  React.useEffect(() => {
+    if (user) {
+      setShowMeetings(hasModuleAccess('meetings'));
+      setShowBudget(hasModuleAccess('budget'));
+    }
+  }, [user, hasModuleAccess]);
 
   React.useEffect(() => {
     setMounted(true);
@@ -244,7 +252,7 @@ export default function CalendarPage() {
     }
 
     // 2. 회의 일정
-    if (showMeetings) {
+    if (showMeetings && hasModuleAccess('meetings')) {
       getSortedMeetings().forEach(m => {
         // 사업 권한 필터링
         if (!visibleProjects.some(vp => vp.id === m.projectId)) {
@@ -279,7 +287,7 @@ export default function CalendarPage() {
     }
 
     // 3. 지출 내역
-    if (showBudget) {
+    if (showBudget && hasModuleAccess('budget')) {
       expenditures.forEach(e => {
         const mgmt = managements.find(m => m.id === e.managementId);
         const cat = categories.find(c => c.id === mgmt?.categoryId);
@@ -612,7 +620,7 @@ export default function CalendarPage() {
 
               {/* 기타 유형 필터 */}
               <div className="flex items-center min-h-[44px] divide-x divide-slate-100 bg-white">
-                {(user?.role === 'admin' || user?.role === 'manager' || permissions?.canAccessMeetings) && (
+                {hasModuleAccess('meetings') && (
                   <div className="flex items-center h-full">
                     <div className="px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
                       <Button 
@@ -629,7 +637,7 @@ export default function CalendarPage() {
                     </div>
                   </div>
                 )}
-                {(user?.role === 'admin' || user?.role === 'manager' || permissions?.canAccessBudget) && (
+                {hasModuleAccess('budget') && (
                   <div className="flex items-center h-full">
                     <div className="px-4 py-2 bg-slate-50/50 h-full flex items-center shrink-0">
                       <Button 

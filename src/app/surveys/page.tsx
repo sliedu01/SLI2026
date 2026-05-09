@@ -67,6 +67,18 @@ export default function SurveyPage() {
     selectedLv1Ids, setSelectedLv1Ids
   } = useProjectStore();
   const { partners, fetchPartners } = usePartnerStore();
+  const { user, permissions, hasModuleAccess, canPerform } = useAuthStore();
+
+  // 모듈 접근 권한 체크
+  React.useEffect(() => {
+    if (mounted && !hasModuleAccess('surveys')) {
+      // AuthGuard에서 처리하도록 위임
+    }
+  }, [mounted, hasModuleAccess]);
+
+  if (mounted && !hasModuleAccess('surveys')) {
+    return null;
+  }
 
   const stats = useSurveyStats(responses, templates, selectedProjectIds);
   const currentProject = projects.find(p => p.id === selectedProjectIds[0]);
@@ -233,8 +245,12 @@ export default function SurveyPage() {
         <div className="flex items-center justify-between gap-4 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 w-full">
           <div className="flex items-center gap-1.5">
             <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} label="분석 대시보드" />
-            <TabButton active={activeTab === 'data'} onClick={() => setActiveTab('data')} icon={BarChart3} label="Raw 데이터 관리" />
-            <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings2} label="설문 템플릿 설정" />
+            {(canPerform('update') || user?.role === 'admin') && (
+              <TabButton active={activeTab === 'data'} onClick={() => setActiveTab('data')} icon={BarChart3} label="Raw 데이터 관리" />
+            )}
+            {user?.role === 'admin' && (
+              <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings2} label="설문 템플릿 설정" />
+            )}
           </div>
           
           <div className="flex items-center gap-2 pr-2 border-l border-slate-200 dark:border-slate-800 ml-2 pl-4">
