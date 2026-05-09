@@ -23,6 +23,7 @@ import { SurveyListTable } from '@/components/surveys/survey-list-table';
 import { ProjectTree } from '@/components/surveys/project-tree';
 import { PasteDialog, EditDialog } from '@/components/surveys/survey-dialogs';
 import { SurveyTemplateSettings } from '@/components/surveys/template-settings';
+import { TemplateEditDialog } from '@/components/surveys/template-edit-dialog';
 import { useSurveyStats } from '@/hooks/use-survey-stats';
 import { generateSurveyReport, downloadAsHWP } from '@/utils/survey-report-utils';
 import { ExpertReportTemplate } from '@/components/surveys/expert-report-template';
@@ -41,6 +42,8 @@ export default function SurveyPage() {
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [editingResponse, setEditingResponse] = React.useState<any>(null);
+  const [isTemplateEditDialogOpen, setIsTemplateEditDialogOpen] = React.useState(false);
+  const [editingTemplate, setEditingTemplate] = React.useState<SurveyTemplate | null>(null);
   const [deleteConfirm, setDeleteConfirm] = React.useState<{
     open: boolean;
     title: string;
@@ -53,7 +56,11 @@ export default function SurveyPage() {
     onConfirm: () => {}
   });
 
-  const { responses, templates, fetchSurveys, updateResponse, deleteResponse, addResponse, deleteTemplate } = useSurveyStore();
+  const { 
+    responses, templates, fetchSurveys, 
+    updateResponse, deleteResponse, addResponse, 
+    updateTemplate, deleteTemplate 
+  } = useSurveyStore();
   const { 
     projects, visibleProjectIds, expandedIds, selectedProjectIds, 
     fetchProjects, toggleExpand, setSelectedProjectIds,
@@ -344,8 +351,8 @@ export default function SurveyPage() {
                 });
               }}
               onEdit={(tmpl) => {
-                // 템플릿 편집 로직 (향후 구현 가능)
-                alert('템플릿 편집 기능은 준비 중입니다.');
+                setEditingTemplate(tmpl);
+                setIsTemplateEditDialogOpen(true);
               }}
               onDelete={async (id) => {
                 if(confirm('템플릿을 삭제하시겠습니까?')) await deleteTemplate(id);
@@ -367,6 +374,14 @@ export default function SurveyPage() {
         onUpdateAnswer={(qId, score) => setEditingResponse((prev: any) => ({
           ...prev, answers: prev.answers.map((a: any) => a.questionId === qId ? {...a, score} : a)
         }))}
+      />
+      <TemplateEditDialog 
+        open={isTemplateEditDialogOpen} 
+        onOpenChange={setIsTemplateEditDialogOpen}
+        template={editingTemplate}
+        onSave={async (id, data) => {
+          await updateTemplate(id, data);
+        }}
       />
       <DeleteConfirmDialog confirm={deleteConfirm} setConfirm={setDeleteConfirm} />
     </div>
