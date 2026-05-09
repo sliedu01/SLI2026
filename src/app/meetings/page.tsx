@@ -58,8 +58,8 @@ export default function MeetingsPage() {
     }
   }, [mounted, hasModuleAccess]);
 
-  if (mounted && !hasModuleAccess('meetings')) {
-    return null; // AuthGuard에서 처리하도록 위임하거나 빈 화면 표시
+  if (!mounted || !hasModuleAccess('meetings')) {
+    return null;
   }
 
   React.useEffect(() => {

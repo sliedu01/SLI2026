@@ -14,9 +14,10 @@ import {
   SelectItem, 
   SelectTrigger 
 } from "@/components/ui/select";
-import { useSurveyStore } from '@/store/use-survey-store';
+import { useSurveyStore, SurveyTemplate, SurveyResponse } from '@/store/use-survey-store';
 import { useProjectStore } from '@/store/use-project-store';
 import { usePartnerStore } from '@/store/use-partner-store';
+import { useAuthStore } from '@/store/use-auth-store';
 import { SurveyStatsCards } from '@/components/surveys/survey-stats-cards';
 import { SurveyCharts } from '@/components/surveys/survey-charts';
 import { SurveyListTable } from '@/components/surveys/survey-list-table';
@@ -76,7 +77,7 @@ export default function SurveyPage() {
     }
   }, [mounted, hasModuleAccess]);
 
-  if (mounted && !hasModuleAccess('surveys')) {
+  if (!mounted || !hasModuleAccess('surveys')) {
     return null;
   }
 

@@ -76,8 +76,8 @@ function BudgetPageContent() {
     }
   }, [mounted, hasModuleAccess]);
 
-  if (mounted && !hasModuleAccess('budget')) {
-    return null; // AuthGuard에서 처리하도록 위임하거나 빈 화면 표시
+  if (!mounted || !hasModuleAccess('budget')) {
+    return null;
   }
 
   // 다이얼로그 상태

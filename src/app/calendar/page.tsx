@@ -43,7 +43,7 @@ export default function CalendarPage() {
   const { fetchMeetings, getSortedMeetings, isLoading: isMeetingLoading } = useMeetingStore();
   const { expenditures, managements, categories, fetchBudgets, isLoading: isBudgetLoading } = useBudgetStore();
   const { partners, fetchPartners } = usePartnerStore();
-  const { user, permissions } = useAuthStore();
+  const { user, permissions, hasModuleAccess } = useAuthStore();
 
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>('all');
   const [selectedLv2Ids, setSelectedLv2Ids] = React.useState<string[]>([]);
