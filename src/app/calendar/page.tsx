@@ -652,9 +652,10 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* 캘린더 메인 컨텐츠 그리드 */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-4">
+      {/* 캘린더 메인 컨텐츠 그리드 - 반응형 고도화 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 xl:grid-cols-10 gap-6 h-full min-h-[800px]">
+        {/* 캘린더 영역 (모바일: 1열, 800px~1280px(lg): 8/12, 1280px~(xl): 8/10) */}
+        <div className="lg:col-span-8 xl:col-span-8 bg-white rounded-3xl border border-slate-200/60 shadow-xl overflow-hidden flex flex-col h-full">
           {isLoading ? (
             <div className="h-[600px] flex items-center justify-center bg-white rounded-2xl border border-slate-100 shadow-sm">
               <div className="flex flex-col items-center gap-4">
@@ -667,8 +668,8 @@ export default function CalendarPage() {
           )}
         </div>
 
-        {/* 사이드바 - 예정된 일정 */}
-        <div className="space-y-6">
+        {/* 사이드바 영역 (모바일: 1열, 800px~: 나머지 비율) */}
+        <div className="lg:col-span-4 xl:col-span-2 space-y-6">
           <Card className="rounded-2xl border border-slate-200/60 shadow-sm bg-white p-5">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-[10px] font-black text-slate-900 tracking-widest flex items-center gap-2">

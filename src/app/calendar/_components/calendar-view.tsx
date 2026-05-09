@@ -351,6 +351,10 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
           --fc-today-bg-color: #f8fafc;
           --fc-page-bg-color: #ffffff;
           font-family: inherit;
+          height: 100% !important;
+        }
+        .fc .fc-view-harness {
+          background: #fff;
         }
         .fc .fc-col-header-cell {
           padding: 8px 0;
@@ -364,6 +368,37 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
           letter-spacing: 0.1em;
           text-decoration: none !important;
         }
+        
+        /* 반응형 폰트 및 레이아웃 조정 (1280px 이상) */
+        @media (min-width: 1280px) {
+          .fc .fc-col-header-cell-cushion { font-size: 10px; }
+          .fc .fc-daygrid-day-number { font-size: 10px; }
+          .event-inner { font-size: 12px !important; }
+          .fc .fc-toolbar-title { font-size: 20px !important; }
+        }
+
+        /* 반응형 모바일 최적화 (800px 미만) */
+        @media (max-width: 800px) {
+          .fc .fc-toolbar {
+            flex-direction: column;
+            gap: 8px;
+          }
+          .fc .fc-toolbar-title {
+            font-size: 14px !important;
+          }
+          .fc .fc-button {
+            font-size: 8px !important;
+            padding: 2px 4px !important;
+          }
+          .premium-event {
+            margin: 0.5px 0 !important;
+          }
+          .event-inner {
+            font-size: 8px !important;
+            padding: 1px 2px;
+          }
+        }
+
         .fc .fc-daygrid-day-number {
           font-size: 8px;
           font-weight: 700;
