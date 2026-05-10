@@ -14,7 +14,7 @@ import {
   Copy,
   Check
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfWeek, addWeeks, subWeeks, addDays, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -340,19 +340,27 @@ export default function CalendarPage() {
     );
   };
 
+  const [referenceDate, setReferenceDate] = React.useState(new Date());
+  
+  const windowStart = React.useMemo(() => {
+    return startOfWeek(referenceDate, { weekStartsOn: 1 });
+  }, [referenceDate]);
+  
+  const windowEnd = React.useMemo(() => {
+    return addDays(addWeeks(windowStart, 2), -1);
+  }, [windowStart]);
+
   const [isUpcomingCopied, setIsUpcomingCopied] = React.useState(false);
 
   const extractUpcomingText = async () => {
-    const now = new Date();
-    const twoWeeksLater = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     const upcoming = events.filter(e => {
       const eventDate = new Date(e.start);
-      return eventDate >= now && eventDate <= twoWeeksLater;
+      return eventDate >= windowStart && eventDate <= windowEnd;
     }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
     if (upcoming.length === 0) return;
 
-    let text = `[예정일정 (2주) 추출]\n\n`;
+    let text = `[예정일정 (${format(windowStart, 'MM.dd')}~${format(windowEnd, 'MM.dd')}) 추출]\n\n`;
 
     const eventsByDate: Record<string, typeof upcoming> = {};
     upcoming.forEach(event => {
@@ -423,9 +431,17 @@ export default function CalendarPage() {
             timeKey = `(${props.startTime})`;
           }
           
+          let quotaInfo = '';
+          if (props.attendance !== undefined && props.attendance !== null && props.attendance > 0) {
+            quotaInfo = ` (참여 ${props.attendance}명/정원 ${props.capacity || 0}명)`;
+          } else if (props.capacity) {
+            quotaInfo = ` (정원: ${props.capacity}명)`;
+          }
+          
           projectGroups.get(groupKey).items.push({
             subName,
             timeKey,
+            quotaInfo,
             rawEvent: event
           });
         } else {
@@ -450,10 +466,13 @@ export default function CalendarPage() {
          
          group.items.forEach((item: any) => {
             const subTimeStr = (!allSameTime && item.timeKey) ? ` ${item.timeKey}` : '';
+            const quotaStr = item.quotaInfo || '';
             if (item.subName !== group.upperName) {
-              text += `- ${item.subName}${subTimeStr}\n`;
+              text += `- ${item.subName}${subTimeStr}${quotaStr}\n`;
             } else if (!allSameTime && item.timeKey) {
-              text += `- ${group.upperName}${item.timeKey}\n`;
+              text += `- ${group.upperName}${item.timeKey}${quotaStr}\n`;
+            } else if (quotaStr) {
+              text += `- ${group.upperName}${quotaStr}\n`;
             }
          });
          
@@ -696,14 +715,35 @@ export default function CalendarPage() {
                 {isUpcomingCopied ? "복사 완료" : "텍스트 추출"}
               </Button>
             </div>
+            <div className="flex items-center justify-between mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-slate-400 hover:text-indigo-600"
+                onClick={() => setReferenceDate(prev => subWeeks(prev, 1))}
+              >
+                <span className="text-[10px] font-bold">◀</span>
+              </Button>
+              <div className="text-center">
+                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-tight">
+                  {format(windowStart, 'MM.dd')} ~ {format(windowEnd, 'MM.dd')}
+                </p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-slate-400 hover:text-indigo-600"
+                onClick={() => setReferenceDate(prev => addWeeks(prev, 1))}
+              >
+                <span className="text-[10px] font-bold">▶</span>
+              </Button>
+            </div>
+
             <div className="space-y-5">
               {(() => {
-                const now = new Date();
-                const twoWeeksLater = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-                
                 const upcoming = events.filter(e => {
                   const eventDate = new Date(e.start);
-                  return eventDate >= now && eventDate <= twoWeeksLater;
+                  return eventDate >= windowStart && eventDate <= windowEnd;
                 }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
                 if (upcoming.length === 0) {
@@ -780,9 +820,17 @@ export default function CalendarPage() {
                         timeKey = `(${props.startTime})`;
                       }
                       
+                      let quotaInfo = '';
+                      if (props.attendance !== undefined && props.attendance !== null && props.attendance > 0) {
+                        quotaInfo = ` (참여 ${props.attendance}명/정원 ${props.capacity || 0}명)`;
+                      } else if (props.capacity) {
+                        quotaInfo = ` (정원: ${props.capacity}명)`;
+                      }
+
                       projectGroups.get(groupKey).items.push({
                         subName,
                         timeKey,
+                        quotaInfo,
                         rawEvent: event
                       });
                     } else {
@@ -816,11 +864,16 @@ export default function CalendarPage() {
                               <div className="pl-3 space-y-1 border-l-2 border-emerald-200 ml-1.5">
                                 {group.items.map((item: any, iIdx: number) => {
                                   const subTimeStr = (!allSameTime && item.timeKey) ? ` ${item.timeKey}` : '';
+                                  const quotaStr = item.quotaInfo || '';
                                   const label = item.subName !== group.upperName ? item.subName : group.upperName;
                                   return (
                                     <p key={iIdx} className="text-[11px] text-slate-600 break-words leading-tight flex gap-1.5">
                                       <span className="text-slate-300">-</span>
-                                      <span>{label} <span className="text-slate-400">{subTimeStr}</span></span>
+                                      <span>
+                                        {label} 
+                                        <span className="text-slate-400">{subTimeStr}</span>
+                                        {quotaStr && <span className="text-indigo-500 font-bold ml-1">{quotaStr}</span>}
+                                      </span>
                                     </p>
                                   );
                                 })}
