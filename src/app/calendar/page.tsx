@@ -601,7 +601,7 @@ export default function CalendarPage() {
                     운영 일정
                   </Button>
                 </div>
-                <div className="flex-1 px-4 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <div className="flex-1 px-4 py-2 flex flex-wrap items-center gap-1.5">
                   <Button 
                     variant="outline"
                     size="sm"
@@ -622,7 +622,7 @@ export default function CalendarPage() {
                       size="sm"
                       onClick={() => toggleLv2(p.id)}
                       className={cn(
-                        "h-7 px-3 rounded-lg font-bold text-[10px] transition-all border-none shadow-none shrink-0",
+                        "h-7 px-3 rounded-lg font-bold text-[10px] transition-all border-none shadow-none",
                         selectedLv2Ids.includes(p.id) 
                           ? "bg-slate-50 text-emerald-600 ring-1 ring-emerald-500/30" 
                           : "bg-slate-50 text-slate-400 hover:bg-slate-100"
