@@ -13,7 +13,8 @@ import {
   FileSpreadsheet,
   Settings2,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 import { exportToExcel } from '@/lib/excel-export';
 

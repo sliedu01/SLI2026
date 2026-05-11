@@ -7,7 +7,7 @@ import { useAuthStore } from "@/store/use-auth-store";
 import { 
   Video, Plus, ArrowUpDown, Trash2, Edit, 
   Search, Calendar as CalendarIcon, Filter,
-  LayoutGrid
+  LayoutGrid, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

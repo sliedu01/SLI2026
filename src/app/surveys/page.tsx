@@ -4,7 +4,7 @@ import * as React from 'react';
 import { 
   FileText, Clipboard, Download, Plus, Search, 
   BarChart3, Settings2, LayoutDashboard, Share2, AlertTriangle,
-  LayoutGrid, FileDown
+  LayoutGrid, FileDown, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
