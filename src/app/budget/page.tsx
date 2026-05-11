@@ -69,14 +69,7 @@ function BudgetPageContent() {
   const { projects, fetchProjects, selectedLv1Ids, setSelectedLv1Ids } = useProjectStore();
   const { user, permissions, hasModuleAccess, canPerform } = useAuthStore();
 
-  // 모듈 접근 권한 체크 (방어적 코드)
-  React.useEffect(() => {
-    if (mounted && !hasModuleAccess('budget')) {
-      // AuthGuard에서 처리하도록 위임
-    }
-  }, [mounted, hasModuleAccess]);
-
-  if (!mounted || !hasModuleAccess('budget')) {
+  if (!mounted) {
     return null;
   }
 

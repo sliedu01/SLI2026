@@ -51,14 +51,7 @@ export default function MeetingsPage() {
   const currentLv1Id = selectedLv1Ids[0] || 'all';
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>(currentLv1Id);
 
-  // 모듈 접근 권한 체크 (방어적 코드)
-  React.useEffect(() => {
-    if (mounted && !hasModuleAccess('meetings')) {
-      // AuthGuard가 처리하겠지만, UI 유출 방지를 위해 초기화 시 체크
-    }
-  }, [mounted, hasModuleAccess]);
-
-  if (!mounted || !hasModuleAccess('meetings')) {
+  if (!mounted) {
     return null;
   }
 

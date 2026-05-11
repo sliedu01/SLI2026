@@ -140,11 +140,13 @@ export function hasModuleAccess(
   permissions: UserPermission | null,
   module: ModuleKey
 ): boolean {
-  if (role?.toLowerCase() === 'admin') return true;
+  if (role?.toLowerCase() === 'admin') {
+    return true;
+  }
   
   // 1. 프리셋에서 기본적으로 허용되지 않는 모듈인지 확인 (강력한 안전장치)
-  // 프리셋에서 해당 모듈이 명시적으로 false인 경우, 개별 권한이 true여도 차단함
   const preset = ROLE_PRESETS[role];
+  if (!preset) return false;
   const moduleAccessMap: Record<ModuleKey, keyof UserPermission> = {
     projects: 'canAccessProjects',
     partners: 'canAccessPartners',

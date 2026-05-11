@@ -91,9 +91,12 @@ function mapProfile(row: Record<string, unknown> | null): UserProfile | null {
 }
 
 function mapPermission(row: Record<string, unknown> | null, role?: UserRole): UserPermission {
+  // role이 없으면 viewer로 처리
+  const activeRole = (role?.toLowerCase() as UserRole) || 'viewer';
+  const preset = ROLE_PRESETS[activeRole] || ROLE_PRESETS.viewer;
+
   if (!row) {
     // 레코드가 없으면 해당 등급의 기본 프리셋을 반환 (누락 방어)
-    const preset = role ? ROLE_PRESETS[role] : ROLE_PRESETS['viewer'];
     return {
       id: '',
       userId: '',
@@ -331,6 +334,8 @@ export const useAuthStore = create<AuthState>()(
       hasModuleAccess: (module) => {
         const { user, permissions } = get();
         if (!user) return false;
+        // admin인 경우 항상 true 반환 (최종 방어)
+        if (user.role === 'admin') return true;
         return checkModuleAccess(user.role, permissions, module);
       },
 

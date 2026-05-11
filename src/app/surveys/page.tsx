@@ -70,14 +70,7 @@ export default function SurveyPage() {
   const { partners, fetchPartners } = usePartnerStore();
   const { user, permissions, hasModuleAccess, canPerform } = useAuthStore();
 
-  // 모듈 접근 권한 체크
-  React.useEffect(() => {
-    if (mounted && !hasModuleAccess('surveys')) {
-      // AuthGuard에서 처리하도록 위임
-    }
-  }, [mounted, hasModuleAccess]);
-
-  if (!mounted || !hasModuleAccess('surveys')) {
+  if (!mounted) {
     return null;
   }
 
