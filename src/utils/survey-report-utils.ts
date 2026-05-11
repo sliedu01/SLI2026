@@ -3,8 +3,16 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
+const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
+const PAGE_PADDING_MM = 20; // 상하 여백
+const USABLE_HEIGHT_MM = A4_HEIGHT_MM - PAGE_PADDING_MM; // 하단 여백만 고려
+
 /**
- * PDF 다운로드: 페이지별로 캡처하여 잘림 방지
+ * PDF 다운로드: 콘텐츠 인식 페이지 분할로 글자/행 잘림 방지
+ * - 각 섹션을 자연 높이로 캡처
+ * - A4를 넘는 경우 "안전 절단점" (테이블 행 사이, 블록 사이 빈 공간)을 자동 탐색
+ * - 표는 행 단위로 분할되어 페이지에 반영
  */
 export async function generateSurveyReport(containerId: string, projectName: string) {
   const container = document.getElementById(containerId);
@@ -12,27 +20,150 @@ export async function generateSurveyReport(containerId: string, projectName: str
 
   const pages = container.querySelectorAll('.report-page');
   const pdf = new jsPDF('p', 'mm', 'a4');
-  const imgWidth = 210;
-  const pageHeight = 297;
+  let isFirstPage = true;
 
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i] as HTMLElement;
-    
+
+    // 첫 페이지(표지)는 고정 A4 높이 유지, 나머지는 자연 높이로 캡처
+    const origMinHeight = page.style.minHeight;
+    const origHeight = page.style.height;
+    if (i > 0) {
+      page.style.minHeight = 'auto';
+      page.style.height = 'auto';
+    }
+
     const canvas = await html2canvas(page, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
+      windowWidth: page.scrollWidth,
     });
 
-    const imgData = canvas.toDataURL('image/png');
-    
-    if (i > 0) pdf.addPage();
-    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
+    // 원래 스타일 복원
+    if (i > 0) {
+      page.style.minHeight = origMinHeight;
+      page.style.height = origHeight;
+    }
+
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    const pxPerMm = canvasWidth / A4_WIDTH_MM;
+    const maxPageHeightPx = USABLE_HEIGHT_MM * pxPerMm;
+
+    // A4 한 페이지 이내인 경우 그대로 삽입
+    if (canvasHeight <= maxPageHeightPx * 1.02) {
+      if (!isFirstPage) pdf.addPage();
+      isFirstPage = false;
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const imgHeightMm = (canvasHeight / pxPerMm);
+      pdf.addImage(imgData, 'JPEG', 0, 0, A4_WIDTH_MM, Math.min(imgHeightMm, A4_HEIGHT_MM));
+      continue;
+    }
+
+    // A4를 넘는 경우: 안전한 절단점을 찾아 분할
+    let yOffset = 0;
+    while (yOffset < canvasHeight) {
+      const remaining = canvasHeight - yOffset;
+      let sliceHeight = Math.min(maxPageHeightPx, remaining);
+
+      // 마지막 조각이 아닌 경우 안전한 절단점 탐색
+      if (remaining > maxPageHeightPx) {
+        sliceHeight = findSafeCutPoint(canvas, yOffset, sliceHeight, pxPerMm);
+      }
+
+      // 이 슬라이스를 새 캔버스로 추출
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvasWidth;
+      sliceCanvas.height = Math.ceil(sliceHeight);
+      const ctx = sliceCanvas.getContext('2d')!;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvasWidth, sliceCanvas.height);
+      ctx.drawImage(
+        canvas,
+        0, yOffset, canvasWidth, Math.ceil(sliceHeight),
+        0, 0, canvasWidth, Math.ceil(sliceHeight)
+      );
+
+      if (!isFirstPage) pdf.addPage();
+      isFirstPage = false;
+
+      const imgData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+      const imgHeightMm = sliceHeight / pxPerMm;
+      pdf.addImage(imgData, 'JPEG', 0, 0, A4_WIDTH_MM, imgHeightMm);
+
+      yOffset += sliceHeight;
+    }
   }
 
   const date = new Date().toISOString().slice(2, 10).replace(/-/g, '');
   pdf.save(`교육성과보고서_${projectName}_${date}.pdf`);
+}
+
+/**
+ * 안전한 절단점 탐색
+ * - 이상적인 절단 위치(maxHeight) 부근에서 "거의 흰색"인 가로줄을 찾음
+ * - 테이블 행 사이, 블록 요소 사이의 빈 공간이 이에 해당
+ * - 검색 범위: 이상 절단점에서 위로 30mm까지
+ */
+function findSafeCutPoint(
+  canvas: HTMLCanvasElement,
+  yOffset: number,
+  idealHeight: number,
+  pxPerMm: number
+): number {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return idealHeight;
+
+  const width = canvas.width;
+  const searchRangePx = Math.round(30 * pxPerMm); // 30mm 범위 내 탐색
+  const minSlicePx = Math.round(40 * pxPerMm); // 최소 40mm는 확보
+
+  const idealCutY = yOffset + idealHeight;
+  const searchStart = Math.max(idealCutY - searchRangePx, yOffset + minSlicePx);
+  const searchEnd = Math.min(idealCutY, canvas.height - 1);
+
+  // 샘플링 간격 (성능 최적화: 모든 픽셀 검사 대신 일부만)
+  const sampleStep = Math.max(1, Math.floor(width / 200));
+
+  let bestY = idealHeight;
+  let bestScore = -1;
+
+  // 이상 절단점에서 위로 올라가며 "흰 줄" 탐색
+  for (let y = searchEnd; y >= searchStart; y--) {
+    const imageData = ctx.getImageData(0, y, width, 1);
+    const data = imageData.data;
+    let whiteCount = 0;
+    let sampleCount = 0;
+
+    for (let x = 0; x < width * 4; x += sampleStep * 4) {
+      const r = data[x], g = data[x + 1], b = data[x + 2];
+      // 밝기 기준: RGB 모두 235 이상이면 "흰색 계열"
+      if (r > 235 && g > 235 && b > 235) whiteCount++;
+      sampleCount++;
+    }
+
+    const whiteness = whiteCount / sampleCount;
+
+    // 95% 이상 흰색 → 완벽한 절단점 (행 사이 또는 블록 사이 빈 공간)
+    if (whiteness > 0.95) {
+      return y - yOffset;
+    }
+
+    // 가장 높은 whiteness 점수를 기록
+    if (whiteness > bestScore) {
+      bestScore = whiteness;
+      bestY = y - yOffset;
+    }
+  }
+
+  // 80% 이상 흰색인 줄을 찾았으면 사용
+  if (bestScore > 0.80) return bestY;
+
+  // 적절한 절단점을 못 찾은 경우 이상 높이 그대로 사용
+  return idealHeight;
 }
 
 /**
