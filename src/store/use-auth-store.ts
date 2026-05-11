@@ -18,7 +18,7 @@ import {
 } from '@/lib/rbac';
 
 // ============================================================
-// 회원가입 페이로드 타입
+// 회원가입 페이로드 정의
 // ============================================================
 
 export interface SignUpPayload {
@@ -70,7 +70,7 @@ interface AuthState {
 }
 
 // ============================================================
-// DB row → 프론트엔드 모델 매핑 헬퍼
+// DB row -> 프론트엔드 모델 매핑 헬퍼
 // ============================================================
 
 function mapProfile(row: Record<string, unknown> | null): UserProfile | null {
@@ -144,9 +144,6 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       isInitialized: false,
 
-      // ─────────────────────────────────────────────
-      // 초기화: 세션 복원 및 프로필 로드
-      // ─────────────────────────────────────────────
       initialize: async () => {
         try {
           set({ isLoading: true });
@@ -167,9 +164,6 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      // ─────────────────────────────────────────────
-      // 로그인
-      // ─────────────────────────────────────────────
       signIn: async (email, password) => {
         set({ isLoading: true });
         try {
@@ -177,90 +171,50 @@ export const useAuthStore = create<AuthState>()(
             email,
             password,
           });
-
-          if (error) throw new Error(error.message);
-
-          await get().fetchProfile();
-          await get().fetchPermissions();
-
-          // 활성화 체크
-          const user = get().user;
-          if (user && !user.isActive) {
-            await supabase.auth.signOut();
-            set({ user: null, permissions: null, isAuthenticated: false });
-            throw new Error('계정이 비활성화 상태입니다. 관리자에게 문의하세요.');
-          }
-
-          // 최근 로그인 시각 업데이트
-          if (user) {
-            await supabase
-              .from('user_profiles')
-              .update({ last_login_at: new Date().toISOString() })
-              .eq('id', user.id);
-          }
-
-          set({ isAuthenticated: true });
-        } catch (err) {
-          set({ user: null, permissions: null, isAuthenticated: false });
-          throw err;
+          if (error) throw error;
+          await get().initialize();
         } finally {
           set({ isLoading: false });
         }
       },
 
-      // ─────────────────────────────────────────────
-      // 회원가입
-      // ─────────────────────────────────────────────
-      signUp: async (data) => {
+      signUp: async (payload) => {
         set({ isLoading: true });
         try {
-          const { error } = await supabase.auth.signUp({
-            email: data.email,
-            password: data.password,
-            options: {
-              data: {
-                login_id: data.loginId,
-                name: data.name,
-                phone: data.phone || '',
-                organization: data.organization || '',
-              },
-            },
+          const { data, error: authError } = await supabase.auth.signUp({
+            email: payload.email,
+            password: payload.password,
           });
 
-          if (error) throw new Error(error.message);
-          // 가입 후 자동 프로필 생성은 DB 트리거에서 처리
-        } catch (err) {
-          throw err;
+          if (authError) throw authError;
+          if (!data.user) throw new Error('User creation failed');
+
+          const { error: profileError } = await supabase.from('user_profiles').insert({
+            id: data.user.id,
+            login_id: payload.loginId,
+            name: payload.name,
+            phone: payload.phone,
+            organization: payload.organization,
+            email: payload.email,
+            role: 'viewer', // 기본값
+          });
+
+          if (profileError) throw profileError;
         } finally {
           set({ isLoading: false });
         }
       },
 
-      // ─────────────────────────────────────────────
-      // 로그아웃
-      // ─────────────────────────────────────────────
       signOut: async () => {
         await supabase.auth.signOut();
-        set({
-          user: null,
-          permissions: null,
-          isAuthenticated: false,
-        });
+        set({ user: null, permissions: null, isAuthenticated: false });
       },
 
-      // ─────────────────────────────────────────────
-      // 비밀번호 초기화 (이메일 발송)
-      // ─────────────────────────────────────────────
       resetPassword: async (email) => {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/reset-password`,
-        });
-        if (error) throw new Error(error.message);
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        if (error) throw error;
       },
 
-      // ─────────────────────────────────────────────
-      // 본인 프로필 수정
-      // ─────────────────────────────────────────────
       updateProfile: async (data) => {
         const { user } = get();
         if (!user) return;
@@ -268,7 +222,9 @@ export const useAuthStore = create<AuthState>()(
         const { error } = await supabase
           .from('user_profiles')
           .update({
-            ...data,
+            name: data.name,
+            phone: data.phone,
+            organization: data.organization,
             updated_at: new Date().toISOString(),
           })
           .eq('id', user.id);
@@ -277,19 +233,13 @@ export const useAuthStore = create<AuthState>()(
         await get().fetchProfile();
       },
 
-      // ─────────────────────────────────────────────
-      // 비밀번호 변경
-      // ─────────────────────────────────────────────
       updatePassword: async (password) => {
         const { error } = await supabase.auth.updateUser({
-          password: password
+          password: password,
         });
         if (error) throw error;
       },
 
-      // ─────────────────────────────────────────────
-      // 프로필 / 권한 데이터 로드
-      // ─────────────────────────────────────────────
       fetchProfile: async () => {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser) return;
@@ -318,18 +268,11 @@ export const useAuthStore = create<AuthState>()(
           .eq('user_id', authUser.id)
           .single();
 
-        if (error) {
-          console.error('Failed to fetch permissions:', error);
-          return;
-        }
-
         const { user } = get();
+        // data가 null이어도 mapPermission 내부에서 preset으로 처리함
         set({ permissions: mapPermission(data, user?.role) });
       },
 
-      // ─────────────────────────────────────────────
-      // 편의 권한 체크 메서드
-      // ─────────────────────────────────────────────
       hasModuleAccess: (module) => {
         const { user, permissions } = get();
         if (!user) return false;
@@ -347,12 +290,14 @@ export const useAuthStore = create<AuthState>()(
       canPerform: (action) => {
         const { user, permissions } = get();
         if (!user) return false;
+        if (user.role === 'admin') return true;
         return canPerformAction(user.role, permissions, action);
       },
 
       getBudgetAccessLevel: () => {
         const { user, permissions } = get();
         if (!user) return 'business_only';
+        if (user.role === 'admin') return 'full';
         return computeBudgetAccess(user.role, permissions);
       },
 
@@ -361,9 +306,6 @@ export const useAuthStore = create<AuthState>()(
         return user?.role === 'admin';
       },
 
-      // ─────────────────────────────────────────────
-      // 관리자 전용: 전체 사용자 조회
-      // ─────────────────────────────────────────────
       fetchAllUsers: async () => {
         const { data: profiles, error: pErr } = await supabase
           .from('user_profiles')
@@ -390,16 +332,13 @@ export const useAuthStore = create<AuthState>()(
           if (profile) {
             result.push({
               ...profile,
-              permission: permMap.get(p.id as string),
+              permission: permMap.get(profile.id),
             });
           }
         });
         return result;
       },
 
-      // ─────────────────────────────────────────────
-      // 관리자 전용: 등급 변경
-      // ─────────────────────────────────────────────
       updateUserRole: async (userId, role) => {
         const { error } = await supabase
           .from('user_profiles')
@@ -409,9 +348,6 @@ export const useAuthStore = create<AuthState>()(
         if (error) throw error;
       },
 
-      // ─────────────────────────────────────────────
-      // 관리자 전용: 권한 업데이트
-      // ─────────────────────────────────────────────
       updateUserPermissions: async (userId, perms) => {
         const updateData: Record<string, unknown> = {
           updated_at: new Date().toISOString(),
@@ -440,15 +376,12 @@ export const useAuthStore = create<AuthState>()(
 
         const { error } = await supabase
           .from('user_permissions')
-          .update(updateData)
+          .upsert({ user_id: userId, ...updateData })
           .eq('user_id', userId);
 
         if (error) throw error;
       },
 
-      // ─────────────────────────────────────────────
-      // 관리자 전용: 계정 활성/비활성 토글
-      // ─────────────────────────────────────────────
       toggleUserActive: async (userId, isActive) => {
         const { error } = await supabase
           .from('user_profiles')
