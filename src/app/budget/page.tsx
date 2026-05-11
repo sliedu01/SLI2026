@@ -70,19 +70,13 @@ function BudgetPageContent() {
   const { projects, fetchProjects, selectedLv1Ids, setSelectedLv1Ids } = useProjectStore();
   const { user, permissions, hasModuleAccess, canPerform } = useAuthStore();
 
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="size-8 text-indigo-600 animate-spin" />
-      </div>
-    );
-  }
-
-  // 다이얼로그 상태
+  // 다이얼로그 상태 (모든 Hook은 조기 리턴 전에 선언해야 함)
   const [expenditureDialogOpen, setExpenditureDialogOpen] = React.useState(false);
   const [categoryManagementOpen, setCategoryManagementOpen] = React.useState(false);
   const [editingExpenditure, setEditingExpenditure] = React.useState<Expenditure | undefined>(undefined);
   const [expandedManIds, setExpandedManIds] = React.useState<Set<string>>(new Set());
+
+  const processedEditIdRef = React.useRef<string | null>(null);
 
   const toggleManExpand = (id: string) => {
     setExpandedManIds(prev => {
@@ -141,10 +135,7 @@ function BudgetPageContent() {
     return expenditures.filter(e => manIds.includes(e.managementId));
   }, [expenditures, filteredManagements]);
 
-  // editId 파라미터 처리
   // editId 파라미터 처리 (최초 1회만 실행되도록 관리)
-  const processedEditIdRef = React.useRef<string | null>(null);
-
   React.useEffect(() => {
     if (mounted && editId && expenditures.length > 0 && processedEditIdRef.current !== editId) {
       const expenditure = expenditures.find(e => e.id === editId);
@@ -162,8 +153,7 @@ function BudgetPageContent() {
         setExpenditureDialogOpen(true);
       }
     }
-  }, [mounted, editId, expenditures, activeProjectId, setActiveProjectId, fetchBudgets]); // categories, managements 제거하여 무한 루프 방지
-
+  }, [mounted, editId, expenditures, activeProjectId, setActiveProjectId, fetchBudgets]);
 
   // 글로벌 선택과 동기화
   React.useEffect(() => {
@@ -195,7 +185,14 @@ function BudgetPageContent() {
     fetchBudgets(id === 'all' ? undefined : id);
   };
 
-  if (!mounted) return null;
+  // 모든 Hook 선언 후 조기 리턴
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="size-8 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
 
   const totalCatBudget = filteredCategories.reduce((sum, c) => sum + c.totalBudget, 0);
   const totalCatSpent = filteredCategories.reduce((sum, c) => sum + (c.totalExpenditure || 0), 0);

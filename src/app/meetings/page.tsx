@@ -51,27 +51,10 @@ export default function MeetingsPage() {
   const currentLv1Id = selectedLv1Ids[0] || 'all';
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>(currentLv1Id);
 
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="size-8 text-indigo-600 animate-spin" />
-      </div>
-    );
-  }
-
+  // 모든 Hook은 조기 리턴 전에 선언 (React Hook 규칙)
   React.useEffect(() => {
     setSelectedProjectId(currentLv1Id);
   }, [currentLv1Id]);
-
-  const handleLv1Change = (id: string | null) => {
-    if (!id) return;
-    setSelectedProjectId(id);
-    if (id === 'all') {
-      setSelectedLv1Ids([]);
-    } else {
-      setSelectedLv1Ids([id]);
-    }
-  };
 
   React.useEffect(() => {
     setMounted(true);
@@ -128,7 +111,24 @@ export default function MeetingsPage() {
     }
   }, [filteredMeetings, selectedMeetingId]);
 
-  if (!mounted) return null;
+  // 모든 Hook 선언 후 조기 리턴
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="size-8 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  const handleLv1Change = (id: string | null) => {
+    if (!id) return;
+    setSelectedProjectId(id);
+    if (id === 'all') {
+      setSelectedLv1Ids([]);
+    } else {
+      setSelectedLv1Ids([id]);
+    }
+  };
 
   const selectedMeeting = meetings.find(m => m.id === selectedMeetingId);
 

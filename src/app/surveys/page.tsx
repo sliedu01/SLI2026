@@ -70,14 +70,7 @@ export default function SurveyPage() {
   const { partners, fetchPartners } = usePartnerStore();
   const { user, permissions, hasModuleAccess, canPerform } = useAuthStore();
 
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="size-8 text-indigo-600 animate-spin" />
-      </div>
-    );
-  }
-
+  // 모든 Hook은 조기 리턴 전에 선언 (React Hook 규칙)
   const stats = useSurveyStats(responses, templates, selectedProjectIds);
   const currentProject = projects.find(p => p.id === selectedProjectIds[0]);
 
@@ -108,6 +101,37 @@ export default function SurveyPage() {
 
   const lv1Projects = projects.filter(p => p.level === 1);
   const currentLv1Id = selectedLv1Ids[0] || 'all';
+
+  const radarData = React.useMemo(() => {
+    if (!stats?.themeStats) return [];
+    return Object.entries(stats.themeStats)
+      .filter(([_, d]) => d.satAvg > 0)
+      .map(([theme, d]) => ({
+        subject: theme,
+        A: d.satAvg,
+        fullMark: 5
+      }));
+  }, [stats]);
+
+  const improvementData = React.useMemo(() => {
+    if (!stats?.themeStats) return [];
+    return Object.entries(stats.themeStats)
+      .filter(([_, d]) => d.preAvg > 0 || d.postAvg > 0)
+      .map(([theme, d]) => ({
+        name: theme,
+        사전: d.preAvg,
+        사후: d.postAvg
+      }));
+  }, [stats]);
+
+  // 모든 Hook 선언 후 조기 리턴
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="size-8 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
 
   const handleLv1Change = (id: string | null) => {
     if (!id) return;
@@ -192,30 +216,6 @@ export default function SurveyPage() {
       setIsProcessing(false);
     }
   };
-
-  const radarData = React.useMemo(() => {
-    if (!stats?.themeStats) return [];
-    return Object.entries(stats.themeStats)
-      .filter(([_, d]) => d.satAvg > 0)
-      .map(([theme, d]) => ({
-        subject: theme,
-        A: d.satAvg,
-        fullMark: 5
-      }));
-  }, [stats]);
-
-  const improvementData = React.useMemo(() => {
-    if (!stats?.themeStats) return [];
-    return Object.entries(stats.themeStats)
-      .filter(([_, d]) => d.preAvg > 0 || d.postAvg > 0)
-      .map(([theme, d]) => ({
-        name: theme,
-        사전: d.preAvg,
-        사후: d.postAvg
-      }));
-  }, [stats]);
-
-  // 중복 체크 제거
 
   return (
     <div className="flex gap-4 h-[calc(100vh-4rem)]">
