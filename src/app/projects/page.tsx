@@ -80,7 +80,7 @@ function ProjectsPageContent() {
   
   // 설문 입력 관련 상태
   const [surveyEntryDialogOpen, setSurveyEntryDialogOpen] = React.useState(false);
-  const [selectedSurveyProject, setSelectedSurveyProject] = React.useState<Project | null>(null);
+  const [selectedSurveyProject, setSelectedSurveyProject] = React.useState<Project | {id: string, name: string} | null>(null);
   const [selectedSurveyType, setSelectedSurveyType] = React.useState<SurveyType>('SATISFACTION');
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>("all");
 
@@ -426,6 +426,39 @@ function ProjectsPageContent() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            type="button"
+            className="size-6 text-emerald-600 hover:bg-emerald-50 rounded"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedSurveyProject({ id: session.id, name: session.content || `교육일정 ${index + 1}회차` });
+              setSelectedSurveyType('SATISFACTION');
+              setSurveyEntryDialogOpen(true);
+            }}
+            title="만족도 조사 입력"
+          >
+            <ClipboardCheck className="size-3" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            type="button"
+            className="size-6 text-blue-600 hover:bg-blue-50 rounded"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedSurveyProject({ id: session.id, name: session.content || `교육일정 ${index + 1}회차` });
+              setSelectedSurveyType('COMPETENCY');
+              setSurveyEntryDialogOpen(true);
+            }}
+            title="역량평가 입력"
+          >
+            <Activity className="size-3" />
+          </Button>
         </div>
       </div>
     );
