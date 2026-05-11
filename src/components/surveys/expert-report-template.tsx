@@ -119,17 +119,17 @@ export function ExpertReportTemplate({
       `}</style>
 
       {/* Page 1: Cover - 왼쪽 정렬 반영 */}
-      <div className="report-page flex flex-col items-start justify-between border-[2px] border-slate-900 px-24">
-        <div className="text-left mt-32 w-full">
+      <div className="report-page flex flex-col items-start justify-between border-[2px] border-slate-900 px-24 py-32">
+        <div className="text-left w-full shrink-0">
           <p className="text-2xl font-bold tracking-[0.2em] mb-16 text-slate-400">2026 교육 성과 분석 보고서</p>
-          <h1 className="text-5xl font-black leading-tight mb-10 border-l-8 border-slate-900 pl-8">
+          <h1 className="text-4xl sm:text-5xl font-black leading-snug mb-10 border-l-8 border-slate-900 pl-8 break-keep">
             {mainProjectName}<br/>
-            <span className="text-3xl font-bold text-slate-700">교육 전문가 정밀 성과 분석 보고서</span>
+            <span className="text-2xl sm:text-3xl font-bold text-slate-700 mt-4 inline-block">교육 전문가 정밀 성과 분석 보고서</span>
           </h1>
           <p className="text-xl text-slate-400 uppercase tracking-widest pl-10">Expert Precision Performance Analytics Report</p>
         </div>
 
-        <div className="w-full space-y-8 text-2xl mt-20 pl-10">
+        <div className="w-full space-y-8 text-2xl mt-20 pl-10 shrink-0">
           <div className="flex justify-between border-b border-slate-300 pb-2">
             <span className="font-bold">분석 대상</span>
             <span>{subProjects.length}개 프로그램 통합</span>
@@ -148,7 +148,7 @@ export function ExpertReportTemplate({
           </div>
         </div>
 
-        <div className="mb-20 text-4xl font-black tracking-[1em] w-full text-right border-t-2 border-slate-100 pt-8">
+        <div className="mt-20 text-4xl font-black tracking-[1em] w-full text-right border-t-2 border-slate-100 pt-8 shrink-0">
           {organizationName}
         </div>
       </div>

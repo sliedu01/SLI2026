@@ -324,8 +324,8 @@ export default function SurveyPage() {
                     </Button>
                   </div>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-950 p-12 rounded-[2rem] border border-slate-200/50 dark:border-slate-800/50">
-                  <div id="expert-report-preview" className="bg-white">
+                <div className="bg-slate-50 dark:bg-slate-950 p-12 rounded-[2rem] border border-slate-200/50 dark:border-slate-800/50 overflow-x-auto">
+                  <div id="expert-report-preview" className="bg-white min-w-[210mm]">
                     <ExpertReportTemplate 
                       projects={projects.filter(p => selectedProjectIds.includes(p.id))}
                       projectName={projects.find(p => p.id === selectedProjectIds[0])?.name || '전체 사업'} 
