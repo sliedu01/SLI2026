@@ -266,10 +266,13 @@ export const useAuthStore = create<AuthState>()(
           .from('user_permissions')
           .select('*')
           .eq('user_id', authUser.id)
-          .single();
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Failed to fetch permissions:', error);
+        }
 
         const { user } = get();
-        // data가 null이어도 mapPermission 내부에서 preset으로 처리함
         set({ permissions: mapPermission(data, user?.role) });
       },
 

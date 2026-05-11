@@ -52,7 +52,11 @@ export default function MeetingsPage() {
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>(currentLv1Id);
 
   if (!mounted) {
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="size-8 text-indigo-600 animate-spin" />
+      </div>
+    );
   }
 
   React.useEffect(() => {

@@ -123,11 +123,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenu>
               {filteredNav.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title} className="h-9 px-3">
-                    <Link href={item.url}>
-                      <item.icon className="size-4" />
-                      <span className="text-[11px] font-medium">{item.title}</span>
-                    </Link>
+                  <SidebarMenuButton render={<Link href={item.url} />} tooltip={item.title} className="h-9 px-3">
+                    <item.icon className="size-4" />
+                    <span className="text-[11px] font-medium">{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -142,20 +140,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               {/* 관리자만 사용자 관리 메뉴 표시 */}
               {isAdmin() && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="사용자 관리" className="h-9 px-3">
-                    <Link href="/admin/users">
-                      <Shield className="size-4" />
-                      <span className="text-[11px] font-medium">사용자 관리</span>
-                    </Link>
+                  <SidebarMenuButton render={<Link href="/admin/users" />} tooltip="사용자 관리" className="h-9 px-3">
+                    <Shield className="size-4" />
+                    <span className="text-[11px] font-medium">사용자 관리</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="환경설정" className="h-9 px-3">
-                  <Link href="/settings">
-                    <Settings className="size-4" />
-                    <span className="text-[11px] font-medium">환경설정</span>
-                  </Link>
+                <SidebarMenuButton render={<Link href="/settings" />} tooltip="환경설정" className="h-9 px-3">
+                  <Settings className="size-4" />
+                  <span className="text-[11px] font-medium">환경설정</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

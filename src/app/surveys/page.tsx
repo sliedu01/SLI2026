@@ -71,7 +71,11 @@ export default function SurveyPage() {
   const { user, permissions, hasModuleAccess, canPerform } = useAuthStore();
 
   if (!mounted) {
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="size-8 text-indigo-600 animate-spin" />
+      </div>
+    );
   }
 
   const stats = useSurveyStats(responses, templates, selectedProjectIds);
@@ -211,7 +215,7 @@ export default function SurveyPage() {
       }));
   }, [stats]);
 
-  if (!mounted) return null;
+  // 중복 체크 제거
 
   return (
     <div className="flex gap-4 h-[calc(100vh-4rem)]">

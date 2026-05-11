@@ -70,7 +70,11 @@ function BudgetPageContent() {
   const { user, permissions, hasModuleAccess, canPerform } = useAuthStore();
 
   if (!mounted) {
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="size-8 text-indigo-600 animate-spin" />
+      </div>
+    );
   }
 
   // 다이얼로그 상태
