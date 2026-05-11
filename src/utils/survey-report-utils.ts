@@ -16,9 +16,30 @@ const USABLE_HEIGHT_MM = A4_HEIGHT_MM - PAGE_PADDING_MM; // 하단 여백만 고
  */
 export async function generateSurveyReport(containerId: string, projectName: string) {
   const container = document.getElementById(containerId);
-  if (!container) return;
+  if (!container) {
+    alert('보고서 콘텐츠를 찾을 수 없습니다. 보고서 프리뷰가 화면에 표시된 상태에서 다시 시도해주세요.');
+    return;
+  }
 
+  // 캡처 전: overflow 제한 해제 (부모 컨테이너의 overflow:hidden이 캡처를 방해할 수 있음)
+  const overflowAnchestors: { el: HTMLElement; orig: string }[] = [];
+  let ancestor: HTMLElement | null = container.parentElement;
+  while (ancestor && ancestor !== document.body) {
+    const cs = getComputedStyle(ancestor);
+    if (cs.overflow !== 'visible' || cs.overflowY !== 'visible' || cs.overflowX !== 'visible') {
+      overflowAnchestors.push({ el: ancestor, orig: ancestor.style.overflow });
+      ancestor.style.overflow = 'visible';
+    }
+    ancestor = ancestor.parentElement;
+  }
+
+  try {
   const pages = container.querySelectorAll('.report-page');
+  if (pages.length === 0) {
+    alert('보고서 페이지가 없습니다.');
+    return;
+  }
+
   const pdf = new jsPDF('p', 'mm', 'a4');
   let isFirstPage = true;
 
@@ -100,6 +121,16 @@ export async function generateSurveyReport(containerId: string, projectName: str
 
   const date = new Date().toISOString().slice(2, 10).replace(/-/g, '');
   pdf.save(`교육성과보고서_${projectName}_${date}.pdf`);
+
+  } catch (err) {
+    console.error('PDF 생성 오류:', err);
+    alert('PDF 생성 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
+  } finally {
+    // overflow 스타일 복원
+    overflowAnchestors.forEach(({ el, orig }) => {
+      el.style.overflow = orig;
+    });
+  }
 }
 
 /**

@@ -156,13 +156,13 @@ export default function SurveyPage() {
   };
 
   const handleDownloadPDF = async () => {
-    if (!currentProject) return;
-    await generateSurveyReport('expert-report-content', currentProject.name);
+    const name = currentProject?.name || projects.find(p => p.id === selectedProjectIds[0])?.name || '전체 사업';
+    await generateSurveyReport('expert-report-content', name);
   };
 
   const handleDownloadHWP = () => {
-    if (!currentProject) return;
-    downloadAsHWP('expert-report-content', currentProject.name);
+    const name = currentProject?.name || projects.find(p => p.id === selectedProjectIds[0])?.name || '전체 사업';
+    downloadAsHWP('expert-report-content', name);
   };
 
   const handleProcessPaste = async (shouldClear: boolean) => {
