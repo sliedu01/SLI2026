@@ -239,7 +239,27 @@ export default function SurveyPage() {
             projects={projects} partners={partners} 
             visibleProjectIds={visibleProjectIds} expandedIds={expandedIds} 
             selectedProjectIds={selectedProjectIds} 
-            onToggleExpand={toggleExpand} onSelect={setSelectedProjectIds} 
+            onToggleExpand={toggleExpand} 
+            onSelect={(ids) => {
+              const id = ids[0];
+              if (!id) {
+                setSelectedProjectIds([]);
+                return;
+              }
+              
+              // 선택된 프로젝트의 모든 하위 프로젝트 ID 수집 (재귀적)
+              const getAllDescendantIds = (parentId: string): string[] => {
+                const children = projects.filter(p => p.parentId === parentId);
+                let result = children.map(c => c.id);
+                children.forEach(c => {
+                  result = [...result, ...getAllDescendantIds(c.id)];
+                });
+                return result;
+              };
+
+              const descendantIds = getAllDescendantIds(id);
+              setSelectedProjectIds([id, ...descendantIds]);
+            }} 
           />
         </div>
       </Card>
