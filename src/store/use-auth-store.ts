@@ -91,12 +91,10 @@ function mapProfile(row: Record<string, unknown> | null): UserProfile | null {
 }
 
 function mapPermission(row: Record<string, unknown> | null, role?: UserRole): UserPermission {
-  // role이 없으면 viewer로 처리
   const activeRole = (role?.toLowerCase() as UserRole) || 'viewer';
   const preset = ROLE_PRESETS[activeRole] || ROLE_PRESETS.viewer;
 
   if (!row) {
-    // 레코드가 없으면 해당 등급의 기본 프리셋을 반환 (누락 방어)
     return {
       id: '',
       userId: '',
@@ -114,21 +112,22 @@ function mapPermission(row: Record<string, unknown> | null, role?: UserRole): Us
       budgetAccessLevel: preset.budgetAccessLevel,
     };
   }
+
   return {
     id: row.id as string,
     userId: row.user_id as string,
     allowedProjectIds: (row.allowed_project_ids as string[]) || [],
-    canAccessProjects: row.can_access_projects as boolean,
-    canAccessPartners: row.can_access_partners as boolean,
-    canAccessSurveys: row.can_access_surveys as boolean,
-    canAccessMeetings: row.can_access_meetings as boolean,
-    canAccessCalendar: row.can_access_calendar as boolean,
-    canAccessBudget: row.can_access_budget as boolean,
-    canCreate: row.can_create as boolean,
-    canUpdate: row.can_update as boolean,
-    canDelete: row.can_delete as boolean,
-    canApprove: row.can_approve as boolean,
-    budgetAccessLevel: (row.budget_access_level as BudgetAccessLevel) || 'business_only',
+    canAccessProjects: !!row.can_access_projects,
+    canAccessPartners: !!row.can_access_partners,
+    canAccessSurveys: !!row.can_access_surveys,
+    canAccessMeetings: !!row.can_access_meetings,
+    canAccessCalendar: !!row.can_access_calendar,
+    canAccessBudget: !!row.can_access_budget,
+    canCreate: !!row.can_create,
+    canUpdate: !!row.can_update,
+    canDelete: !!row.can_delete,
+    canApprove: !!row.can_approve,
+    budgetAccessLevel: (row.budget_access_level as BudgetAccessLevel) || preset.budgetAccessLevel,
   };
 }
 
