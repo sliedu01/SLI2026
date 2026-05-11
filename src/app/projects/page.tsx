@@ -295,14 +295,18 @@ function ProjectsPageContent() {
           </div>
         </div>
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 shrink-0">
           {p.level < 4 && (
             <Button 
               variant="ghost" 
               size="icon" 
               type="button"
               className="size-6 text-blue-600 hover:bg-blue-50 rounded"
-              onClick={() => handleAddChild(p)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddChild(p);
+              }}
+              title="하위 사업 추가"
             >
               <Plus className="size-3.5" />
             </Button>
@@ -314,11 +318,13 @@ function ProjectsPageContent() {
                 size="icon" 
                 type="button"
                 className="size-6 text-emerald-600 hover:bg-emerald-50 rounded"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setSelectedSurveyProject(p);
                   setSelectedSurveyType('SATISFACTION');
                   setSurveyEntryDialogOpen(true);
                 }}
+                title="만족도 조사 입력"
               >
                 <ClipboardCheck className="size-3" />
               </Button>
@@ -327,11 +333,13 @@ function ProjectsPageContent() {
                 size="icon" 
                 type="button"
                 className="size-6 text-blue-600 hover:bg-blue-50 rounded"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setSelectedSurveyProject(p);
                   setSelectedSurveyType('COMPETENCY');
                   setSurveyEntryDialogOpen(true);
                 }}
+                title="역량평가 입력"
               >
                 <Activity className="size-3" />
               </Button>
@@ -342,9 +350,11 @@ function ProjectsPageContent() {
             size="icon" 
             type="button"
             className="size-6 text-indigo-400 hover:bg-indigo-50 rounded"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (confirm('전체 정보를 복사하시겠습니까?')) copyProject(p.id);
             }}
+            title="사업 정보 복사"
           >
             <Copy className="size-3" />
           </Button>
@@ -353,7 +363,11 @@ function ProjectsPageContent() {
             size="icon" 
             type="button"
             className="size-6 text-slate-400 hover:bg-slate-100 rounded"
-            onClick={() => handleEdit(p)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit(p);
+            }}
+            title="수정"
           >
             <Pencil className="size-3" />
           </Button>
@@ -362,9 +376,11 @@ function ProjectsPageContent() {
             size="icon" 
             type="button"
             className="size-6 text-red-400 hover:bg-red-50 rounded"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if(confirm('정말 삭제하시겠습니까?')) deleteProject(p.id);
             }}
+            title="삭제"
           >
             <Trash2 className="size-3" />
           </Button>
