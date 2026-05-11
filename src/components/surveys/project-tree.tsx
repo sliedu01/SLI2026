@@ -29,7 +29,9 @@ export function ProjectTree({
           if (!visibleProjectIds.includes(p.id)) return null;
           const isExpanded = expandedIds.includes(p.id);
           const isSelected = selectedProjectIds.includes(p.id);
-          const hasVisibleChildren = projects.some(c => c.parentId === p.id && visibleProjectIds.includes(c.id));
+          const hasChildrenProjects = projects.some(c => c.parentId === p.id && visibleProjectIds.includes(c.id));
+          const hasSessions = p.sessions && p.sessions.length > 0;
+          const hasVisibleChildren = hasChildrenProjects || hasSessions;
           const partner = partners.find(ptr => ptr.id === p.partnerId);
 
           return (
@@ -41,7 +43,10 @@ export function ProjectTree({
                     ? "bg-slate-900 text-white shadow-md shadow-slate-200 dark:shadow-none" 
                     : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
                 )}
-                onClick={() => onSelect([p.id])}
+                onClick={() => {
+                  if (isSelected) onSelect([]);
+                  else onSelect([p.id]);
+                }}
               >
                 <div 
                   className="p-0.5 rounded-md hover:bg-white/20 transition-colors"
@@ -79,8 +84,43 @@ export function ProjectTree({
                 )}
               </div>
               {isExpanded && hasVisibleChildren && (
-                <div className="ml-4 pl-3 border-l-2 border-slate-100 dark:border-slate-800/50 mt-1">
-                  {renderNodes(p.id, depth + 1)}
+                <div className="ml-4 pl-3 border-l-2 border-slate-100 dark:border-slate-800/50 mt-1 space-y-1">
+                  {hasSessions && p.sessions!.map((session, index) => {
+                    const isSessionSelected = selectedProjectIds.includes(session.id);
+                    return (
+                      <div key={session.id} className="select-none">
+                        <div 
+                          className={cn(
+                            "flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer group transition-all duration-200",
+                            isSessionSelected 
+                              ? "bg-slate-900 text-white shadow-md shadow-slate-200 dark:shadow-none" 
+                              : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                          )}
+                          onClick={() => {
+                            if (isSessionSelected) onSelect([]);
+                            else onSelect([session.id]);
+                          }}
+                        >
+                          <div className="p-0.5 rounded-md">
+                            <div className="size-4" />
+                          </div>
+                          <Folder className={cn("size-4", isSessionSelected ? "text-slate-300" : "text-slate-400 opacity-50")} />
+                          <div className="flex-1 overflow-hidden">
+                            <p className="text-xs font-bold truncate tracking-tight">{session.content || `교육일정 ${index + 1}회차`}</p>
+                            <p className={cn("text-[10px] opacity-60 font-medium", isSessionSelected ? "text-slate-300" : "text-slate-500")}>
+                              {index + 1}차시
+                            </p>
+                          </div>
+                          {isSessionSelected ? (
+                            <CheckSquare className="size-4 text-blue-400" />
+                          ) : (
+                            <Square className="size-4 opacity-20 group-hover:opacity-40" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {hasChildrenProjects && renderNodes(p.id, depth + 1)}
                 </div>
               )}
             </div>

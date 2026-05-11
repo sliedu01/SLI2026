@@ -72,7 +72,20 @@ export default function SurveyPage() {
 
   // 모든 Hook은 조기 리턴 전에 선언 (React Hook 규칙)
   const stats = useSurveyStats(responses, templates, selectedProjectIds);
-  const currentProject = projects.find(p => p.id === selectedProjectIds[0]);
+  const currentProject = React.useMemo(() => {
+    const id = selectedProjectIds[0];
+    if (!id) return null;
+    const proj = projects.find(p => p.id === id);
+    if (proj) return proj;
+    for (const p of projects) {
+      const session = p.sessions?.find(s => s.id === id);
+      if (session) {
+        const idx = p.sessions!.findIndex(s => s.id === id);
+        return { id: session.id, name: session.content || `${p.name} - ${idx + 1}차시`, level: p.level + 1 } as any;
+      }
+    }
+    return null;
+  }, [selectedProjectIds, projects]);
   const [isDownloadingPDF, setIsDownloadingPDF] = React.useState(false);
 
   React.useEffect(() => {
@@ -245,11 +258,16 @@ export default function SurveyPage() {
                 setSelectedProjectIds([]);
                 return;
               }
-              
-              // 선택된 프로젝트의 모든 하위 프로젝트 ID 수집 (재귀적)
+              // 선택된 프로젝트의 모든 하위 프로젝트 및 차시 ID 수집 (재귀적)
               const getAllDescendantIds = (parentId: string): string[] => {
+                const parent = projects.find(p => p.id === parentId);
+                let result: string[] = [];
+                if (parent && parent.sessions) {
+                  result = [...parent.sessions.map(s => s.id)];
+                }
+
                 const children = projects.filter(p => p.parentId === parentId);
-                let result = children.map(c => c.id);
+                result = [...result, ...children.map(c => c.id)];
                 children.forEach(c => {
                   result = [...result, ...getAllDescendantIds(c.id)];
                 });
