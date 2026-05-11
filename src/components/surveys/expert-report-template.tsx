@@ -45,7 +45,7 @@ export function ExpertReportTemplate({
   const satTemplate = templates.find(t => t.type === 'SATISFACTION');
   const compTemplate = templates.find(t => t.type === 'COMPETENCY');
 
-  // 응답자별 데이터 가공 (Appendix용)
+  // 응답자별 데이터 가공 (Appendix용) - 학생 번호순 정렬
   const respondentData = React.useMemo(() => {
     const map = new Map<string, { id: string, sat: number[], pre: number[], post: number[], comments: string[] }>();
     
@@ -66,7 +66,14 @@ export function ExpertReportTemplate({
         }
       });
     });
-    return Array.from(map.values());
+
+    // 학생 번호 기준 자연 정렬 (숫자 추출 후 오름차순)
+    return Array.from(map.values()).sort((a, b) => {
+      const numA = parseInt(a.id.replace(/\D/g, '')) || 0;
+      const numB = parseInt(b.id.replace(/\D/g, '')) || 0;
+      if (numA !== numB) return numA - numB;
+      return a.id.localeCompare(b.id, 'ko');
+    });
   }, [responses, templates]);
 
   return (
@@ -311,7 +318,7 @@ export function ExpertReportTemplate({
           <tbody>
             {respondentData.filter(r => r.sat.length > 0).map((r, i) => (
               <tr key={i}>
-                <td>{r.id.slice(0, 8)}</td>
+                <td>학생 {i + 1}</td>
                 {r.sat.map((s, si) => <td key={si}>{s}</td>)}
                 <td className="font-bold bg-slate-50">{(r.sat.reduce((a,b)=>a+b,0)/r.sat.length).toFixed(2)}</td>
               </tr>
@@ -378,7 +385,7 @@ export function ExpertReportTemplate({
             <tbody>
               {respondentData.filter(r => r.pre.length > 0).map((r, i) => (
                 <tr key={i}>
-                  <td>{r.id.slice(0, 8)}</td>
+                  <td>학생 {i + 1}</td>
                   {r.pre.map((p, pi) => (
                     <React.Fragment key={pi}>
                       <td>{p}</td>
