@@ -307,32 +307,36 @@ function ProjectsPageContent() {
               <Plus className="size-3.5" />
             </Button>
           )}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            type="button"
-            className="size-6 text-emerald-600 hover:bg-emerald-50 rounded"
-            onClick={() => {
-              setSelectedSurveyProject(p);
-              setSelectedSurveyType('SATISFACTION');
-              setSurveyEntryDialogOpen(true);
-            }}
-          >
-            <ClipboardCheck className="size-3" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            type="button"
-            className="size-6 text-blue-600 hover:bg-blue-50 rounded"
-            onClick={() => {
-              setSelectedSurveyProject(p);
-              setSelectedSurveyType('COMPETENCY');
-              setSurveyEntryDialogOpen(true);
-            }}
-          >
-            <Activity className="size-3" />
-          </Button>
+          {p.level >= 2 && (
+            <>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                type="button"
+                className="size-6 text-emerald-600 hover:bg-emerald-50 rounded"
+                onClick={() => {
+                  setSelectedSurveyProject(p);
+                  setSelectedSurveyType('SATISFACTION');
+                  setSurveyEntryDialogOpen(true);
+                }}
+              >
+                <ClipboardCheck className="size-3" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                type="button"
+                className="size-6 text-blue-600 hover:bg-blue-50 rounded"
+                onClick={() => {
+                  setSelectedSurveyProject(p);
+                  setSelectedSurveyType('COMPETENCY');
+                  setSurveyEntryDialogOpen(true);
+                }}
+              >
+                <Activity className="size-3" />
+              </Button>
+            </>
+          )}
           <Button 
             variant="ghost" 
             size="icon" 

@@ -73,6 +73,7 @@ export default function SurveyPage() {
   // 모든 Hook은 조기 리턴 전에 선언 (React Hook 규칙)
   const stats = useSurveyStats(responses, templates, selectedProjectIds);
   const currentProject = projects.find(p => p.id === selectedProjectIds[0]);
+  const [isDownloadingPDF, setIsDownloadingPDF] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
@@ -154,8 +155,6 @@ export default function SurveyPage() {
       useProjectStore.getState().setVisibleProjectIds([id, ...children.map(p => p.id)]);
     }
   };
-
-  const [isDownloadingPDF, setIsDownloadingPDF] = React.useState(false);
 
   const handleDownloadPDF = async () => {
     setIsDownloadingPDF(true);
