@@ -155,45 +155,47 @@ function findSafeCutPoint(
   const idealCutY = yOffset + idealHeight;
   const searchStart = Math.max(idealCutY - searchRangePx, yOffset + minSlicePx);
   const searchEnd = Math.min(idealCutY, canvas.height - 1);
+  const searchHeight = searchEnd - searchStart + 1;
 
-  // 샘플링 간격 (성능 최적화: 모든 픽셀 검사 대신 일부만)
+  if (searchHeight <= 0) return idealHeight;
+
+  // 성능 최적화: 전체 탐색 영역의 픽셀 데이터를 한 번에 가져옴
+  const imageData = ctx.getImageData(0, searchStart, width, searchHeight);
+  const data = imageData.data;
+
+  // 샘플링 간격
   const sampleStep = Math.max(1, Math.floor(width / 200));
 
   let bestY = idealHeight;
   let bestScore = -1;
 
-  // 이상 절단점에서 위로 올라가며 "흰 줄" 탐색
-  for (let y = searchEnd; y >= searchStart; y--) {
-    const imageData = ctx.getImageData(0, y, width, 1);
-    const data = imageData.data;
+  // 아래에서 위로 탐색 (이상적인 절단점에 가까운 곳 우선)
+  for (let row = searchHeight - 1; row >= 0; row--) {
     let whiteCount = 0;
     let sampleCount = 0;
+    const rowOffset = row * width * 4;
 
     for (let x = 0; x < width * 4; x += sampleStep * 4) {
-      const r = data[x], g = data[x + 1], b = data[x + 2];
-      // 밝기 기준: RGB 모두 235 이상이면 "흰색 계열"
+      const idx = rowOffset + x;
+      const r = data[idx], g = data[idx + 1], b = data[idx + 2];
       if (r > 235 && g > 235 && b > 235) whiteCount++;
       sampleCount++;
     }
 
     const whiteness = whiteCount / sampleCount;
+    const actualY = searchStart + row;
 
-    // 95% 이상 흰색 → 완벽한 절단점 (행 사이 또는 블록 사이 빈 공간)
     if (whiteness > 0.95) {
-      return y - yOffset;
+      return actualY - yOffset;
     }
 
-    // 가장 높은 whiteness 점수를 기록
     if (whiteness > bestScore) {
       bestScore = whiteness;
-      bestY = y - yOffset;
+      bestY = actualY - yOffset;
     }
   }
 
-  // 80% 이상 흰색인 줄을 찾았으면 사용
   if (bestScore > 0.80) return bestY;
-
-  // 적절한 절단점을 못 찾은 경우 이상 높이 그대로 사용
   return idealHeight;
 }
 
