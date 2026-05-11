@@ -14,6 +14,7 @@ import {
   hasProjectAccess as checkProjectAccess,
   canPerformAction,
   getBudgetAccessLevel as computeBudgetAccess,
+  ROLE_PRESETS,
 } from '@/lib/rbac';
 
 // ============================================================
@@ -89,23 +90,25 @@ function mapProfile(row: Record<string, unknown> | null): UserProfile | null {
   };
 }
 
-function mapPermission(row: Record<string, unknown> | null): UserPermission {
+function mapPermission(row: Record<string, unknown> | null, role?: UserRole): UserPermission {
   if (!row) {
+    // 레코드가 없으면 해당 등급의 기본 프리셋을 반환 (누락 방어)
+    const preset = role ? ROLE_PRESETS[role] : ROLE_PRESETS['viewer'];
     return {
       id: '',
       userId: '',
-      allowedProjectIds: [],
-      canAccessProjects: true,
-      canAccessPartners: true,
-      canAccessSurveys: false,
-      canAccessMeetings: false,
-      canAccessCalendar: true,
-      canAccessBudget: false,
-      canCreate: false,
-      canUpdate: false,
-      canDelete: false,
-      canApprove: false,
-      budgetAccessLevel: 'business_only',
+      allowedProjectIds: preset.allowedProjectIds,
+      canAccessProjects: preset.canAccessProjects,
+      canAccessPartners: preset.canAccessPartners,
+      canAccessSurveys: preset.canAccessSurveys,
+      canAccessMeetings: preset.canAccessMeetings,
+      canAccessCalendar: preset.canAccessCalendar,
+      canAccessBudget: preset.canAccessBudget,
+      canCreate: preset.canCreate,
+      canUpdate: preset.canUpdate,
+      canDelete: preset.canDelete,
+      canApprove: preset.canApprove,
+      budgetAccessLevel: preset.budgetAccessLevel,
     };
   }
   return {
@@ -318,7 +321,8 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
-        set({ permissions: mapPermission(data) });
+        const { user } = get();
+        set({ permissions: mapPermission(data, user?.role) });
       },
 
       // ─────────────────────────────────────────────
