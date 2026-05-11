@@ -44,8 +44,7 @@ export function ProjectTree({
                     : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
                 )}
                 onClick={() => {
-                  if (isSelected) onSelect([]);
-                  else onSelect([p.id]);
+                  onSelect([p.id]);
                 }}
               >
                 <div 
@@ -97,8 +96,7 @@ export function ProjectTree({
                               : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
                           )}
                           onClick={() => {
-                            if (isSessionSelected) onSelect([]);
-                            else onSelect([session.id]);
+                            onSelect([session.id]);
                           }}
                         >
                           <div className="p-0.5 rounded-md">

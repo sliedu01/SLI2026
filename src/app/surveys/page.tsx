@@ -25,7 +25,7 @@ import { ProjectTree } from '@/components/surveys/project-tree';
 import { PasteDialog, EditDialog } from '@/components/surveys/survey-dialogs';
 import { SurveyTemplateSettings } from '@/components/surveys/template-settings';
 import { TemplateEditDialog } from '@/components/surveys/template-edit-dialog';
-import { useSurveyStats } from '@/hooks/use-survey-stats';
+import { useSurveyStats, calculateSurveyStats } from '@/hooks/use-survey-stats';
 import { generateSurveyReport, downloadAsHWP } from '@/utils/survey-report-utils';
 import { ExpertReportTemplate } from '@/components/surveys/expert-report-template';
 import { ExpertReportGenerator } from '@/lib/stat-utils';
@@ -86,6 +86,19 @@ export default function SurveyPage() {
     }
     return null;
   }, [selectedProjectIds, projects]);
+
+  const topLevelSelectedIds = React.useMemo(() => {
+    return selectedProjectIds.filter(id => {
+      const p = projects.find(proj => proj.id === id);
+      if (p) {
+        return !p.parentId || !selectedProjectIds.includes(p.parentId);
+      } else {
+        const parentProj = projects.find(proj => proj.sessions?.some(s => s.id === id));
+        return !parentProj || !selectedProjectIds.includes(parentProj.id);
+      }
+    });
+  }, [selectedProjectIds, projects]);
+
   const [isDownloadingPDF, setIsDownloadingPDF] = React.useState(false);
 
   React.useEffect(() => {
@@ -172,7 +185,7 @@ export default function SurveyPage() {
   const handleDownloadPDF = async () => {
     setIsDownloadingPDF(true);
     try {
-      const name = currentProject?.name || projects.find(p => p.id === selectedProjectIds[0])?.name || '전체 사업';
+      const name = topLevelSelectedIds.length > 1 ? '통합_및_개별분석보고서' : (currentProject?.name || '전체 사업');
       await generateSurveyReport('expert-report-content', name);
     } finally {
       setIsDownloadingPDF(false);
@@ -180,7 +193,7 @@ export default function SurveyPage() {
   };
 
   const handleDownloadHWP = () => {
-    const name = currentProject?.name || projects.find(p => p.id === selectedProjectIds[0])?.name || '전체 사업';
+    const name = topLevelSelectedIds.length > 1 ? '통합_및_개별분석보고서' : (currentProject?.name || '전체 사업');
     downloadAsHWP('expert-report-content', name);
   };
 
@@ -254,10 +267,8 @@ export default function SurveyPage() {
             onToggleExpand={toggleExpand} 
             onSelect={(ids) => {
               const id = ids[0];
-              if (!id) {
-                setSelectedProjectIds([]);
-                return;
-              }
+              if (!id) return;
+              
               // 선택된 프로젝트의 모든 하위 프로젝트 및 차시 ID 수집 (재귀적)
               const getAllDescendantIds = (parentId: string): string[] => {
                 const parent = projects.find(p => p.id === parentId);
@@ -275,7 +286,15 @@ export default function SurveyPage() {
               };
 
               const descendantIds = getAllDescendantIds(id);
-              setSelectedProjectIds([id, ...descendantIds]);
+              const allRelatedIds = [id, ...descendantIds];
+
+              if (selectedProjectIds.includes(id)) {
+                // 선택 해제: 본인 및 모든 하위 항목 제거
+                setSelectedProjectIds(selectedProjectIds.filter(x => !allRelatedIds.includes(x)));
+              } else {
+                // 다중 선택: 기존 선택 항목 유지 + 새로 클릭한 항목 및 하위 항목 추가
+                setSelectedProjectIds(Array.from(new Set([...selectedProjectIds, ...allRelatedIds])));
+              }
             }} 
           />
         </div>
@@ -369,24 +388,79 @@ export default function SurveyPage() {
                   </div>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-950 p-12 rounded-[2rem] border border-slate-200/50 dark:border-slate-800/50 overflow-x-auto">
-                  <div id="expert-report-preview" className="bg-white min-w-[210mm]">
-                    <ExpertReportTemplate 
-                      projects={projects.filter(p => selectedProjectIds.includes(p.id))}
-                      projectName={projects.find(p => p.id === selectedProjectIds[0])?.name || '전체 사업'} 
-                      organizationName="SLI 2026 교육운영팀"
-                      stats={stats || {
-                        satAvg: 0,
-                        preAvg: 0,
-                        postAvg: 0,
-                        hakeGain: 0,
-                        cohensD: 0,
-                        pValue: 1,
-                        sampleSize: 0
-                      }}
-                      responses={responses}
-                      templates={templates}
-                      chartImages={{ radar: '', improvement: '' }}
-                    />
+                  <div id="expert-report-content" className="bg-white min-w-[210mm]">
+                    
+                    {/* 통합 보고서 */}
+                    <div className="report-page-wrapper">
+                      <ExpertReportTemplate 
+                        projects={projects.filter(p => selectedProjectIds.includes(p.id))}
+                        projectName={topLevelSelectedIds.length > 1 ? '통합 분석 보고서' : (currentProject?.name || '전체 사업')} 
+                        organizationName="SLI 2026 교육운영팀"
+                        stats={stats || {
+                          satAvg: 0,
+                          preAvg: 0,
+                          postAvg: 0,
+                          hakeGain: 0,
+                          cohensD: 0,
+                          pValue: 1,
+                          sampleSize: 0
+                        }}
+                        responses={responses}
+                        templates={templates}
+                        chartImages={{ radar: '', improvement: '' }}
+                      />
+                    </div>
+
+                    {/* 개별 보고서들 (다중 선택 시) */}
+                    {topLevelSelectedIds.length > 1 && topLevelSelectedIds.map(id => {
+                      const getAllDescendantIds = (parentId: string): string[] => {
+                        const parent = projects.find(p => p.id === parentId);
+                        let result: string[] = [];
+                        if (parent && parent.sessions) {
+                          result = [...parent.sessions.map(s => s.id)];
+                        }
+                        const children = projects.filter(p => p.parentId === parentId);
+                        result = [...result, ...children.map(c => c.id)];
+                        children.forEach(c => {
+                          result = [...result, ...getAllDescendantIds(c.id)];
+                        });
+                        return result;
+                      };
+                      
+                      const descendantIds = getAllDescendantIds(id);
+                      const individualIds = [id, ...descendantIds];
+                      const indStats = calculateSurveyStats(responses, templates, individualIds);
+                      if (!indStats) return null;
+
+                      const p = projects.find(proj => proj.id === id);
+                      let name = p?.name || '';
+                      if (!p) {
+                         const parentProj = projects.find(proj => proj.sessions?.some(s => s.id === id));
+                         const session = parentProj?.sessions?.find(s => s.id === id);
+                         const idx = parentProj?.sessions?.findIndex(s => s.id === id);
+                         name = session?.content || `${parentProj?.name} - ${idx! + 1}차시`;
+                      }
+
+                      return (
+                        <div key={id} className="report-page-wrapper mt-16 border-t-[12px] border-slate-200 pt-16">
+                          <div className="px-16 pb-8 text-center print:hidden">
+                             <div className="inline-flex items-center justify-center px-4 py-2 rounded-full bg-slate-100 text-slate-500 font-bold text-sm tracking-widest border border-slate-200">
+                               개별 분석 보고서 : {name}
+                             </div>
+                          </div>
+                          <ExpertReportTemplate 
+                            projects={projects.filter(proj => individualIds.includes(proj.id))}
+                            projectName={name} 
+                            organizationName="SLI 2026 교육운영팀"
+                            stats={indStats}
+                            responses={responses}
+                            templates={templates}
+                            chartImages={{ radar: '', improvement: '' }}
+                          />
+                        </div>
+                      );
+                    })}
+
                   </div>
                 </div>
               </Card>
