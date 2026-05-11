@@ -122,9 +122,9 @@ export async function generateSurveyReport(containerId: string, projectName: str
   const date = new Date().toISOString().slice(2, 10).replace(/-/g, '');
   pdf.save(`교육성과보고서_${projectName}_${date}.pdf`);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('PDF 생성 오류:', err);
-    alert('PDF 생성 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
+    alert(`PDF 생성 중 오류가 발생했습니다.\n\n[오류 내용]\n${err.message || String(err)}`);
   } finally {
     // overflow 스타일 복원
     overflowAnchestors.forEach(({ el, orig }) => {
@@ -160,7 +160,13 @@ function findSafeCutPoint(
   if (searchHeight <= 0) return idealHeight;
 
   // 성능 최적화: 전체 탐색 영역의 픽셀 데이터를 한 번에 가져옴
-  const imageData = ctx.getImageData(0, searchStart, width, searchHeight);
+  let imageData;
+  try {
+    imageData = ctx.getImageData(0, searchStart, width, searchHeight);
+  } catch (err) {
+    console.warn('getImageData failed (likely tainted canvas), falling back to idealHeight:', err);
+    return idealHeight;
+  }
   const data = imageData.data;
 
   // 샘플링 간격

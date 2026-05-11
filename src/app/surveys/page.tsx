@@ -155,9 +155,16 @@ export default function SurveyPage() {
     }
   };
 
+  const [isDownloadingPDF, setIsDownloadingPDF] = React.useState(false);
+
   const handleDownloadPDF = async () => {
-    const name = currentProject?.name || projects.find(p => p.id === selectedProjectIds[0])?.name || '전체 사업';
-    await generateSurveyReport('expert-report-content', name);
+    setIsDownloadingPDF(true);
+    try {
+      const name = currentProject?.name || projects.find(p => p.id === selectedProjectIds[0])?.name || '전체 사업';
+      await generateSurveyReport('expert-report-content', name);
+    } finally {
+      setIsDownloadingPDF(false);
+    }
   };
 
   const handleDownloadHWP = () => {
@@ -284,8 +291,8 @@ export default function SurveyPage() {
                     <Clipboard className="size-4 mr-2" />
                     데이터 붙여넣기
                   </Button>
-                  <Button className="bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-xl font-bold" onClick={handleDownloadPDF}>
-                    <Download className="size-4 mr-2" />
+                  <Button disabled={isDownloadingPDF} className="bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-xl font-bold" onClick={handleDownloadPDF}>
+                    {isDownloadingPDF ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Download className="size-4 mr-2" />}
                     보고서 PDF 다운로드
                   </Button>
                   <Button variant="outline" className="rounded-xl border-slate-900 dark:border-slate-100 dark:text-slate-100 font-bold" onClick={handleDownloadHWP}>
@@ -309,8 +316,8 @@ export default function SurveyPage() {
                       <FileDown className="size-4 mr-2 text-blue-600" />
                       HWP 다운로드
                     </Button>
-                    <Button size="sm" className="bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-xl font-bold" onClick={handleDownloadPDF}>
-                      <Download className="size-4 mr-2" />
+                    <Button disabled={isDownloadingPDF} size="sm" className="bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-xl font-bold" onClick={handleDownloadPDF}>
+                      {isDownloadingPDF ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Download className="size-4 mr-2" />}
                       PDF 다운로드
                     </Button>
                     <Button variant="outline" size="sm" className="rounded-xl" onClick={() => {
