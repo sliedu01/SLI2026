@@ -20,6 +20,7 @@ interface ExpertReportTemplateProps {
   improvementData?: any[];
   isConsolidated?: boolean;
   partnerName?: string;
+  locationName?: string;
   dateRange?: string;
 }
 
@@ -35,6 +36,7 @@ export function ExpertReportTemplate({
   improvementData = [],
   isConsolidated = false,
   partnerName,
+  locationName,
   dateRange
 }: ExpertReportTemplateProps) {
   const [mounted, setMounted] = React.useState(false);
@@ -152,12 +154,18 @@ export function ExpertReportTemplate({
           </div>
           <div className="flex justify-between border-b border-slate-300 pb-2">
             <span className="font-bold">주관 부서</span>
-            <span>{organizationName} 성과관리팀</span>
+            <span>{organizationName} 서울런 현장운영팀</span>
           </div>
           {!isConsolidated && partnerName && (
             <div className="flex justify-between border-b border-slate-300 pb-2">
               <span className="font-bold">협력 기관</span>
               <span>{partnerName}</span>
+            </div>
+          )}
+          {!isConsolidated && locationName && (
+            <div className="flex justify-between border-b border-slate-300 pb-2">
+              <span className="font-bold">교육 장소</span>
+              <span>{locationName}</span>
             </div>
           )}
           {!isConsolidated && dateRange && (
@@ -300,11 +308,6 @@ export function ExpertReportTemplate({
                 ))}
               </div>
             </div>
-          </div>
-          
-          <div className="mt-32 text-center text-slate-400 text-sm">
-            본 보고서는 데이터 기반 자동 분석 시스템에 의해 생성되었으며,<br/>
-            최종 확인 및 날인 후 공식 문서로 사용 가능합니다.
           </div>
         </section>
       </div>

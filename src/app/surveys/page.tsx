@@ -451,7 +451,7 @@ export default function SurveyPage() {
                           pValue: 1,
                           sampleSize: 0
                         }}
-                        responses={responses}
+                        responses={responses.filter(r => selectedProjectIds.includes(r.projectId))}
                         templates={templates}
                         radarData={radarData}
                         improvementData={improvementData}
@@ -493,16 +493,29 @@ export default function SurveyPage() {
                       const targetProject = p || projects.find(proj => proj.sessions?.some(s => s.id === id));
                       const partner = partners.find(pt => pt.id === targetProject?.partnerId);
                       const partnerName = partner?.name || '';
+                      
+                      let locationName = targetProject?.location || '';
+                      if (!locationName) {
+                         const parentProj = projects.find(proj => proj.sessions?.some(s => s.id === id));
+                         if (parentProj?.location) locationName = parentProj.location;
+                      }
+
                       let dateRange = '';
                       if (targetProject?.startDate) {
                         const sD = new Date(targetProject.startDate);
                         const sStr = `${sD.getFullYear()}.${String(sD.getMonth()+1).padStart(2,'0')}.${String(sD.getDate()).padStart(2,'0')}`;
+                        let eStr = '';
                         if (targetProject.endDate) {
                           const eD = new Date(targetProject.endDate);
-                          const eStr = `${eD.getFullYear()}.${String(eD.getMonth()+1).padStart(2,'0')}.${String(eD.getDate()).padStart(2,'0')}`;
-                          dateRange = sStr === eStr ? sStr : `${sStr} ~ ${eStr}`;
+                          eStr = `${eD.getFullYear()}.${String(eD.getMonth()+1).padStart(2,'0')}.${String(eD.getDate()).padStart(2,'0')}`;
+                        }
+                        
+                        const timeStr = targetProject.startTime ? ` (${targetProject.startTime}${targetProject.endTime ? `~${targetProject.endTime}` : ''})` : '';
+
+                        if (eStr && sStr !== eStr) {
+                          dateRange = `${sStr} ~ ${eStr}${timeStr}`;
                         } else {
-                          dateRange = sStr;
+                          dateRange = `${sStr}${timeStr}`;
                         }
                       }
 
@@ -518,13 +531,14 @@ export default function SurveyPage() {
                             projectName={`${name} 분석 보고서`} 
                             organizationName="SLI교육그룹"
                             stats={indStats}
-                            responses={responses}
+                            responses={responses.filter(r => individualIds.includes(r.projectId))}
                             templates={templates}
                             radarData={radarData}
                             improvementData={improvementData}
                             chartImages={{ radar: '', improvement: '' }}
                             isConsolidated={false}
                             partnerName={partnerName}
+                            locationName={locationName}
                             dateRange={dateRange}
                           />
                         </div>
