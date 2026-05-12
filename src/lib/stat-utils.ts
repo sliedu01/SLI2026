@@ -88,12 +88,12 @@ export interface AnalysisResult {
 }
 
 export const ExpertReportGenerator = {
-  analyzeKeywords: (feedbacks: string[]): { positives: string[], improvements: string[] } => {
+  analyzeKeywords: (feedbacks: string[]) => {
     const total = feedbacks.length;
-    if (total === 0) return { positives: [], improvements: [] };
+    if (total === 0) return { posQuotes: [], negQuotes: [], posCount: 0, negCount: 0, total };
 
-    const posKeywords = ['재밌', '좋았', '유쾌', '최고', '도움', '만족', '즐거', '유익'];
-    const negKeywords = ['아쉽', '부족', '짧았', '힘들', '어려', '모자라', '건의', '개선'];
+    const posKeywords = ['재밌', '좋았', '유쾌', '최고', '도움', '만족', '즐거', '유익', '최고', '감사', '흥미', '이해'];
+    const negKeywords = ['아쉽', '부족', '짧았', '힘들', '어려', '모자라', '건의', '개선', '더', '시간이', '빨라'];
 
     let posCount = 0;
     let negCount = 0;
@@ -115,23 +115,15 @@ export const ExpertReportGenerator = {
       }
     });
 
-    const posRatio = Math.round((posCount / total) * 100);
-    const negRatio = Math.round((negCount / total) * 100);
-
     const posUnique = [...new Set(posQuotes)].slice(0, 3);
     const negUnique = [...new Set(negQuotes)].slice(0, 3);
 
-    const posFormatted = posUnique.length > 0 
-      ? [`총 ${posCount}건의 긍정적 키워드 도출 (전체 의견 중 ${posRatio}%)`, ...posUnique.map(q => `"${q}"`)]
-      : [];
-      
-    const negFormatted = negUnique.length > 0
-      ? [`총 ${negCount}건의 개선 요청 및 아쉬운 점 도출 (전체 의견 중 ${negRatio}%)`, ...negUnique.map(q => `"${q}"`)]
-      : [];
-
     return { 
-      positives: posFormatted, 
-      improvements: negFormatted 
+      posQuotes: posUnique, 
+      negQuotes: negUnique,
+      posCount,
+      negCount,
+      total
     };
   },
 
@@ -215,32 +207,31 @@ export const ExpertReportGenerator = {
         "'웹툰작가란 무엇일까?' 과정에서는 실습 시간의 절대적 부족과 일부 장비 및 환경 보완이 필요하다는 소견이 제기되어, 향후 운영 시 충분한 실습 시간 확보가 요구됩니다."
       ];
     } else {
-      const rawPositives = kw.positives.length > 0 ? kw.positives : (stats.feedbacks?.slice(0, 3) || []);
-      const rawNegatives = kw.improvements.length > 0 ? kw.improvements : (stats.feedbacks?.slice(-2) || []);
-      
-      const posList = rawPositives.map(p => `"${p}"`);
-      const negList = rawNegatives.map(n => `"${n}"`);
+      const posRatio = kw.total > 0 ? Math.round((kw.posCount / kw.total) * 100) : 0;
+      const negRatio = kw.total > 0 ? Math.round((kw.negCount / kw.total) * 100) : 0;
 
-      strengthsText = posList.length > 0 
+      strengthsText = kw.posQuotes.length > 0 
         ? [
-            ...posList,
-            `[종합 의견] 학습자들은 위 응답들과 같이 본 프로그램의 실습 중심 구성과 체험 요소에 큰 흥미를 느꼈으며, 이러한 능동적 참여가 높은 만족도로 직결된 것으로 분석됩니다.`
+            `전체 의견 ${kw.total}건 중 긍정 피드백 ${kw.posCount}건 (${posRatio}%) 도출`,
+            ...kw.posQuotes,
+            `종합 의견: 학습자들은 위 응답들과 같이 본 프로그램의 실습 중심 구성과 체험 요소에 큰 흥미를 느꼈으며, 이러한 능동적 참여가 높은 교육 성취로 직결된 것으로 분석됩니다.`
           ]
         : [
-            "전반적인 운영 만족도 우수", 
-            "교수자와의 활발한 상호작용", 
-            "[종합 의견] 전반적인 교육 만족도가 높으며, 향후 현재의 강점을 유지하는 것이 권장됩니다."
+            "전반적인 운영 만족도 우수 및 적극적인 학습 참여 확인", 
+            "교수자와의 활발한 상호작용 및 실습 몰입도 유지", 
+            "종합 의견: 전반적인 교육 만족도가 높으며, 향후 현재의 강점을 기반으로 커리큘럼을 유지하는 것을 권장합니다."
           ];
 
-      weaknessesText = negList.length > 0
+      weaknessesText = kw.negQuotes.length > 0
         ? [
-            ...negList,
-            `[종합 의견] 위 의견들에서 볼 수 있듯, 일부 환경적 제약이나 난이도 체감 편차가 존재하므로, 향후 운영 시 수준별 분반이나 실습 시간의 탄력적 배분 등 세밀한 보완이 요구됩니다.`
+            `전체 의견 ${kw.total}건 중 개선 요구 및 아쉬운 점 ${kw.negCount}건 (${negRatio}%) 도출`,
+            ...kw.negQuotes,
+            `종합 의견: 일부 응답에서 시간 제약이나 환경적 불편함이 확인되었습니다. 차기 운영 시에는 실습 시간의 탄력적 배분과 보조 인력 충원 등 세밀한 인프라 보완이 필요합니다.`
           ]
         : [
-            "개인별 맞춤형 실습 시간 확보 필요", 
-            "일부 장비/환경 보완 건의", 
-            "[종합 의견] 대부분 긍정적인 평가이나, 실습 인프라 및 환경에 대한 지속적인 모니터링이 필요합니다."
+            "특별한 부정적 키워드나 중대한 개선 요구사항 미발견", 
+            "대부분의 학습자가 부여된 환경과 난이도에 만족함", 
+            "종합 의견: 체계적인 준비와 운영이 돋보였으며, 앞으로도 이와 같은 쾌적한 실습 환경 및 적정 난이도를 유지하기 위한 상시 모니터링 체계가 필요합니다."
           ];
     }
 
