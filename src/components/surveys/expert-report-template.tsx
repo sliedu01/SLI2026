@@ -4,6 +4,7 @@ import * as React from 'react';
 import { ReportStats, ExpertReportGenerator } from '@/lib/stat-utils';
 import { Project } from '@/store/use-project-store';
 import { SurveyResponse, SurveyTemplate } from '@/store/use-survey-store';
+import { SurveyCharts } from '@/components/surveys/survey-charts';
 
 interface ExpertReportTemplateProps {
   stats: ReportStats;
@@ -16,6 +17,8 @@ interface ExpertReportTemplateProps {
   organizationName?: string;
   responses?: SurveyResponse[];
   templates?: SurveyTemplate[];
+  radarData?: any[];
+  improvementData?: any[];
 }
 
 export function ExpertReportTemplate({
@@ -23,9 +26,11 @@ export function ExpertReportTemplate({
   projects,
   projectName,
   chartImages,
-  organizationName = "SLI 교육연구소",
+  organizationName = "SLI교육그룹",
   responses = [],
-  templates = []
+  templates = [],
+  radarData = [],
+  improvementData = []
 }: ExpertReportTemplateProps) {
   const [mounted, setMounted] = React.useState(false);
   const [today, setToday] = React.useState('');
@@ -123,10 +128,8 @@ export function ExpertReportTemplate({
         <div className="text-left w-full shrink-0">
           <p className="text-2xl font-bold tracking-[0.2em] mb-16 text-slate-400">2026 교육 성과 분석 보고서</p>
           <h1 className="text-4xl sm:text-5xl font-black leading-snug mb-10 border-l-8 border-slate-900 pl-8 break-keep">
-            {mainProjectName}<br/>
-            <span className="text-2xl sm:text-3xl font-bold text-slate-700 mt-4 inline-block">교육 전문가 정밀 성과 분석 보고서</span>
+            {mainProjectName}
           </h1>
-          <p className="text-xl text-slate-400 uppercase tracking-widest pl-10">Expert Precision Performance Analytics Report</p>
         </div>
 
         <div className="w-full space-y-8 text-2xl mt-20 pl-10 shrink-0">
@@ -194,6 +197,13 @@ export function ExpertReportTemplate({
           </div>
         </section>
 
+        {/* 여기에 시각화 추가 (Ⅰ과 Ⅱ 사이) */}
+        {(radarData.length > 0 || improvementData.length > 0) && (
+          <section className="mt-12 mb-12 page-break-inside-avoid">
+            <SurveyCharts radarData={radarData} improvementData={improvementData} />
+          </section>
+        )}
+
         <section className="mt-12">
           <h2 className="text-2xl font-bold mb-6 border-b-4 border-slate-900 pb-2">Ⅱ. 정량적 지표 분석</h2>
           <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800">
@@ -218,25 +228,6 @@ export function ExpertReportTemplate({
       {/* Page 3: Visuals & Qualitative */}
       <div className="report-page">
         <section className="mt-4">
-          <h3 className="text-xl font-bold mb-8 flex items-center gap-2 text-slate-800">
-            <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-xs">2</span>
-            성과 시각화 분석
-          </h3>
-          <div className="grid grid-cols-2 gap-8 mb-16 px-4">
-            {chartImages.radar && (
-              <div className="flex flex-col items-center gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                <img src={chartImages.radar} alt="만족도" className="max-w-full h-auto" />
-                <p className="text-sm text-slate-600 font-bold">[그림 1] 항목별 만족도 분포</p>
-              </div>
-            )}
-            {chartImages.improvement && (
-              <div className="flex flex-col items-center gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                <img src={chartImages.improvement} alt="향상도" className="max-w-full h-auto" />
-                <p className="text-sm text-slate-600 font-bold">[그림 2] 역량 사전-사후 변화</p>
-              </div>
-            )}
-          </div>
-
           <h2 className="text-2xl font-bold mb-6 border-b-4 border-slate-900 pb-2">Ⅲ. 정성적 응답 분석 (Subjective)</h2>
           <div className="pl-8 space-y-8">
             <p className="text-lg text-justify leading-loose">

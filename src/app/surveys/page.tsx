@@ -99,6 +99,35 @@ export default function SurveyPage() {
     });
   }, [selectedProjectIds, projects]);
 
+  const reportTitle = React.useMemo(() => {
+    if (selectedProjectIds.length === 0) return '전체 사업 분석 보고서';
+    const rootLv1Names = new Set<string>();
+    
+    for (const id of selectedProjectIds) {
+      let curr = projects.find(proj => proj.id === id);
+      if (!curr) {
+        const parentProj = projects.find(proj => proj.sessions?.some(s => s.id === id));
+        if (parentProj) curr = parentProj;
+      }
+      if (curr) {
+        while (curr && curr.parentId) {
+          const parent = projects.find(x => x.id === curr?.parentId);
+          if (!parent) break;
+          curr = parent;
+        }
+        if (curr) rootLv1Names.add(curr.name);
+      }
+    }
+    
+    const rootNames = Array.from(rootLv1Names);
+    if (rootNames.length === 1) {
+      return `${rootNames[0]} 분석 보고서`;
+    } else if (rootNames.length > 1) {
+      return '통합 분석 보고서';
+    }
+    return '전체 사업 분석 보고서';
+  }, [selectedProjectIds, projects]);
+
   const [isDownloadingPDF, setIsDownloadingPDF] = React.useState(false);
 
   React.useEffect(() => {
@@ -142,13 +171,32 @@ export default function SurveyPage() {
 
   const improvementData = React.useMemo(() => {
     if (!stats?.themeStats) return [];
-    return Object.entries(stats.themeStats)
+    const data = Object.entries(stats.themeStats)
       .filter(([_, d]) => d.preAvg > 0 || d.postAvg > 0)
-      .map(([theme, d]) => ({
-        name: theme,
-        사전: d.preAvg,
-        사후: d.postAvg
-      }));
+      .map(([theme, d]) => {
+        const diff = d.postAvg - d.preAvg;
+        const pct = d.preAvg > 0 ? (diff / d.preAvg * 100) : 0;
+        const sign = diff > 0 ? '+' : '';
+        return {
+          name: theme,
+          사전: Number(d.preAvg.toFixed(2)),
+          사후: Number(d.postAvg.toFixed(2)),
+          label: `${sign}${pct.toFixed(1)}%`
+        };
+      });
+      
+    if (data.length > 0 && stats.preAvg > 0) {
+      const diff = stats.postAvg - stats.preAvg;
+      const pct = stats.preAvg > 0 ? (diff / stats.preAvg * 100) : 0;
+      const sign = diff > 0 ? '+' : '';
+      data.push({
+        name: '종합(평균)',
+        사전: Number(stats.preAvg.toFixed(2)),
+        사후: Number(stats.postAvg.toFixed(2)),
+        label: `${sign}${pct.toFixed(1)}%`
+      });
+    }
+    return data;
   }, [stats]);
 
   // 모든 Hook 선언 후 조기 리턴
@@ -185,16 +233,14 @@ export default function SurveyPage() {
   const handleDownloadPDF = async () => {
     setIsDownloadingPDF(true);
     try {
-      const name = topLevelSelectedIds.length > 1 ? '통합_및_개별분석보고서' : (currentProject?.name || '전체 사업');
-      await generateSurveyReport('expert-report-content', name);
+      await generateSurveyReport('expert-report-content', reportTitle);
     } finally {
       setIsDownloadingPDF(false);
     }
   };
 
   const handleDownloadHWP = () => {
-    const name = topLevelSelectedIds.length > 1 ? '통합_및_개별분석보고서' : (currentProject?.name || '전체 사업');
-    downloadAsHWP('expert-report-content', name);
+    downloadAsHWP('expert-report-content', reportTitle);
   };
 
   const handleProcessPaste = async (shouldClear: boolean) => {
@@ -394,8 +440,8 @@ export default function SurveyPage() {
                     <div className="report-page-wrapper">
                       <ExpertReportTemplate 
                         projects={projects.filter(p => selectedProjectIds.includes(p.id))}
-                        projectName={topLevelSelectedIds.length > 1 ? '통합 분석 보고서' : (currentProject?.name || '전체 사업')} 
-                        organizationName="SLI 2026 교육운영팀"
+                        projectName={reportTitle} 
+                        organizationName="SLI교육그룹"
                         stats={stats || {
                           satAvg: 0,
                           preAvg: 0,
@@ -407,6 +453,8 @@ export default function SurveyPage() {
                         }}
                         responses={responses}
                         templates={templates}
+                        radarData={radarData}
+                        improvementData={improvementData}
                         chartImages={{ radar: '', improvement: '' }}
                       />
                     </div>
@@ -450,11 +498,13 @@ export default function SurveyPage() {
                           </div>
                           <ExpertReportTemplate 
                             projects={projects.filter(proj => individualIds.includes(proj.id))}
-                            projectName={name} 
-                            organizationName="SLI 2026 교육운영팀"
+                            projectName={`${name} 분석 보고서`} 
+                            organizationName="SLI교육그룹"
                             stats={indStats}
                             responses={responses}
                             templates={templates}
+                            radarData={radarData}
+                            improvementData={improvementData}
                             chartImages={{ radar: '', improvement: '' }}
                           />
                         </div>

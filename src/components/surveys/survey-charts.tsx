@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Card } from '@/components/ui/card';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList
 } from 'recharts';
 
 interface SurveyChartsProps {
@@ -54,7 +54,9 @@ export function SurveyCharts({ radarData, improvementData }: SurveyChartsProps) 
               />
               <Legend verticalAlign="top" align="right" iconType="circle" />
               <Bar dataKey="사전" fill="#94a3b8" radius={[4, 4, 0, 0]} barSize={30} />
-              <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
+              <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
+                <LabelList dataKey="label" position="top" fill="#2563eb" fontSize={11} fontWeight="bold" />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
