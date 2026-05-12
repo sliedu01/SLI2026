@@ -59,6 +59,7 @@ export interface ReportStats {
   themeStats?: Record<string, { preAvg: number, postAvg: number, satAvg: number, average: number, count: number }>;
   questionStats?: Array<{ preAvg: number, postAvg: number, average: number, impRate: number }>;
   feedbacks?: string[];
+  textResponses?: Array<{ questionId: string; content: string; answers: string[] }>;
   rawScores?: { pre: number[], post: number[], sat: number[] };
 }
 

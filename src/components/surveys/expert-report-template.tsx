@@ -416,20 +416,27 @@ export function ExpertReportTemplate({
           </table>
         </div>
 
-        {stats.feedbacks && stats.feedbacks.length > 0 && (
+        {stats.textResponses && stats.textResponses.length > 0 && (
           <div className="report-section mt-8">
             <h3 className="text-[12pt] font-bold mb-3">■ 주관식 설문 의견 (RAW Data)</h3>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div className="flex flex-wrap gap-2 text-[10pt] text-slate-700 leading-relaxed">
-                {stats.feedbacks.map((f, idx) => (
-                  <div key={idx} className="flex items-start gap-1 mb-1 mr-4">
-                    <span className="flex-shrink-0 flex items-center justify-center size-5 rounded-full bg-slate-800 text-white text-[8pt] font-bold mt-0.5">
-                      {idx + 1}
-                    </span>
-                    <span>{f}</span>
+            <div className="flex flex-col gap-4">
+              {stats.textResponses.map((tr, qIdx) => (
+                <div key={tr.questionId} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <p className="font-bold text-[11pt] text-slate-800 mb-3 border-b border-slate-200 pb-2">
+                    문항 {satTemplate?.questions.findIndex(q => q.id === tr.questionId) !== -1 ? (satTemplate!.questions.findIndex(q => q.id === tr.questionId) + 1) : '-'}. {tr.content}
+                  </p>
+                  <div className="flex flex-col gap-2 text-[10pt] text-slate-700 leading-relaxed">
+                    {tr.answers.map((ans, idx) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <span className="flex-shrink-0 flex items-center justify-center size-5 rounded-full bg-slate-800 text-white text-[8pt] font-bold mt-0.5">
+                          {idx + 1}
+                        </span>
+                        <span>{ans}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

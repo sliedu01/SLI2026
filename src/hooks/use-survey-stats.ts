@@ -49,6 +49,22 @@ export function calculateSurveyStats(responses: SurveyResponse[], templates: Sur
     r.answers.filter((a: Answer) => a.text).map((a: Answer) => a.text!)
   );
 
+  const textResponsesMap = new Map<string, { questionId: string, content: string, answers: string[] }>();
+  templates.forEach(t => {
+    t.questions.filter(q => q.type === 'TEXT').forEach(q => {
+      textResponsesMap.set(q.id, { questionId: q.id, content: q.content, answers: [] });
+    });
+  });
+
+  selectedResponses.forEach(r => {
+    r.answers.forEach((a: Answer) => {
+      if (a.text && textResponsesMap.has(a.questionId)) {
+        textResponsesMap.get(a.questionId)!.answers.push(a.text);
+      }
+    });
+  });
+  const textResponses = Array.from(textResponsesMap.values()).filter(t => t.answers.length > 0);
+
   // Theme-based stats calculation
   const themeData: Record<string, { preSum: number, preCount: number, postSum: number, postCount: number, satSum: number, satCount: number }> = {};
   
@@ -105,6 +121,7 @@ export function calculateSurveyStats(responses: SurveyResponse[], templates: Sur
     pooledStd,
     tValue: pairedTValue,
     feedbacks,
+    textResponses,
     themeStats,
     rawScores: {
       pre: preScores,
