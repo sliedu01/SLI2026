@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { SurveyResponse, SurveyTemplate, Answer } from '@/store/use-survey-store';
-import { ReportStats } from '@/lib/stat-utils';
+import { ReportStats, calculatePairedTTest, getPValueFromT } from '@/lib/stat-utils';
 
 export function calculateSurveyStats(responses: SurveyResponse[], templates: SurveyTemplate[], selectedProjectIds: string[]): ReportStats | null {
   const selectedResponses = responses.filter(r => selectedProjectIds.includes(r.projectId));
@@ -41,6 +41,9 @@ export function calculateSurveyStats(responses: SurveyResponse[], templates: Sur
 
   const respondentIds = new Set(selectedResponses.map(r => r.respondentId));
   const sampleSize = respondentIds.size;
+
+  const pairedTValue = calculatePairedTTest(preScores, postScores);
+  const pValue = getPValueFromT(pairedTValue, preScores.length - 1);
 
   const feedbacks = selectedResponses.flatMap(r => 
     r.answers.filter((a: Answer) => a.text).map((a: Answer) => a.text!)
@@ -95,8 +98,12 @@ export function calculateSurveyStats(responses: SurveyResponse[], templates: Sur
     postAvg,
     hakeGain,
     cohensD,
-    pValue: 0.05,
+    pValue,
     sampleSize,
+    stdPre,
+    stdPost,
+    pooledStd,
+    tValue: pairedTValue,
     feedbacks,
     themeStats,
     rawScores: {

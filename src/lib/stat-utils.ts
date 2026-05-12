@@ -52,6 +52,10 @@ export interface ReportStats {
   cohensD: number;
   pValue: number;
   sampleSize: number;
+  stdPre?: number;
+  stdPost?: number;
+  pooledStd?: number;
+  tValue?: number;
   themeStats?: Record<string, { preAvg: number, postAvg: number, satAvg: number, average: number, count: number }>;
   questionStats?: Array<{ preAvg: number, postAvg: number, average: number, impRate: number }>;
   feedbacks?: string[];
@@ -71,25 +75,63 @@ export interface AnalysisResult {
     weaknesses: string[];
   };
   advice: string[];
+  statisticalEvidence?: {
+    n: number;
+    preAvg: string;
+    postAvg: string;
+    stdPre: string;
+    stdPost: string;
+    pooledStd: string;
+    tValue: string;
+    pValue: string;
+  };
 }
 
 export const ExpertReportGenerator = {
   analyzeKeywords: (feedbacks: string[]): { positives: string[], improvements: string[] } => {
-    const positives: string[] = [];
-    const improvements: string[] = [];
-    
-    const posKeywords = ['재밌', '좋았', '유쾌', '최고', '도움', '만족', '즐거'];
-    const negKeywords = ['아쉽', '부족', '짧았', '힘들', '어려', '모자라'];
+    const total = feedbacks.length;
+    if (total === 0) return { positives: [], improvements: [] };
+
+    const posKeywords = ['재밌', '좋았', '유쾌', '최고', '도움', '만족', '즐거', '유익'];
+    const negKeywords = ['아쉽', '부족', '짧았', '힘들', '어려', '모자라', '건의', '개선'];
+
+    let posCount = 0;
+    let negCount = 0;
+    const posQuotes: string[] = [];
+    const negQuotes: string[] = [];
 
     feedbacks.forEach(f => {
       if (!f || f.length < 2) return;
-      if (posKeywords.some(k => f.includes(k))) positives.push(f);
-      if (negKeywords.some(k => f.includes(k))) improvements.push(f);
+      const isPos = posKeywords.some(k => f.includes(k));
+      const isNeg = negKeywords.some(k => f.includes(k));
+      
+      if (isPos) {
+        posCount++;
+        posQuotes.push(f);
+      }
+      if (isNeg) {
+        negCount++;
+        negQuotes.push(f);
+      }
     });
 
+    const posRatio = Math.round((posCount / total) * 100);
+    const negRatio = Math.round((negCount / total) * 100);
+
+    const posUnique = [...new Set(posQuotes)].slice(0, 3);
+    const negUnique = [...new Set(negQuotes)].slice(0, 3);
+
+    const posFormatted = posUnique.length > 0 
+      ? [`총 ${posCount}건의 긍정적 키워드 도출 (전체 의견 중 ${posRatio}%)`, ...posUnique.map(q => `"${q}"`)]
+      : [];
+      
+    const negFormatted = negUnique.length > 0
+      ? [`총 ${negCount}건의 개선 요청 및 아쉬운 점 도출 (전체 의견 중 ${negRatio}%)`, ...negUnique.map(q => `"${q}"`)]
+      : [];
+
     return { 
-      positives: [...new Set(positives)].slice(0, 5), 
-      improvements: [...new Set(improvements)].slice(0, 5) 
+      positives: posFormatted, 
+      improvements: negFormatted 
     };
   },
 
@@ -202,14 +244,26 @@ export const ExpertReportGenerator = {
           ];
     }
 
+    const statisticalEvidence = {
+      n: stats.sampleSize || 0,
+      preAvg: (stats.preAvg || 0).toFixed(2),
+      postAvg: (stats.postAvg || 0).toFixed(2),
+      stdPre: (stats.stdPre || 0).toFixed(2),
+      stdPost: (stats.stdPost || 0).toFixed(2),
+      pooledStd: (stats.pooledStd || 0).toFixed(2),
+      tValue: (stats.tValue || 0).toFixed(3),
+      pValue: (stats.pValue || 0).toFixed(3)
+    };
+
     return {
-      title: `『 ${mainProject?.name} 』 교육 성과 정밀 분석`,
+      title: `『 ${pName} 』 교육 성과 정밀 분석`,
       metricAnalysis,
       qualitativeAnalysis: {
         strengths: strengthsText,
         weaknesses: weaknessesText
       },
-      advice
+      advice,
+      statisticalEvidence
     };
   },
 

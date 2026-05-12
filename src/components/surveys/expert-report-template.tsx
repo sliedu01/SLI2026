@@ -262,6 +262,40 @@ export function ExpertReportTemplate({
               </div>
             ))}
           </div>
+          
+          {analysis.statisticalEvidence && (
+            <div className="report-section mt-8">
+              <h3 className="text-[14pt] font-bold mb-6 flex items-center gap-2 text-slate-800">
+                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">2</span>
+                통계 검증 근거 (Statistical Evidence)
+              </h3>
+              <div className="pl-8">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 border-b border-slate-100 pb-4">
+                    <div>
+                      <p className="text-[11pt] text-slate-500 font-bold mb-1">표본 수 (N)</p>
+                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.n}명</p>
+                    </div>
+                    <div>
+                      <p className="text-[11pt] text-slate-500 font-bold mb-1">사전 평균 / 사후 평균</p>
+                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.preAvg} / {analysis.statisticalEvidence.postAvg}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11pt] text-slate-500 font-bold mb-1">통합 표준편차 (SD)</p>
+                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.pooledStd}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11pt] text-slate-500 font-bold mb-1">유의확률 (p-value)</p>
+                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.pValue}</p>
+                    </div>
+                  </div>
+                  <p className="text-[11pt] text-slate-600 leading-relaxed">
+                    * 위 수치는 Paired t-test(대응표본 t검정, t={analysis.statisticalEvidence.tValue})를 통해 산출되었으며, 유의확률을 기준으로 변화의 통계적 유의성을 검증했습니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       </div>
 
