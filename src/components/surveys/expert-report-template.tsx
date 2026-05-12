@@ -96,7 +96,7 @@ export function ExpertReportTemplate({
   }, [responses, templates]);
 
   return (
-    <div id="expert-report-content" className="bg-white text-slate-900 font-serif leading-relaxed mx-auto overflow-visible print:shadow-none">
+    <div id="expert-report-content" className="bg-white text-slate-900 leading-relaxed mx-auto overflow-visible print:shadow-none" style={{ fontFamily: '"Malgun Gothic", "맑은 고딕", dotum, sans-serif' }}>
       <style>{`
         .report-page {
           width: 210mm;
