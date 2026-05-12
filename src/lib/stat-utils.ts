@@ -124,12 +124,26 @@ export const ExpertReportGenerator = {
     // 2. 주관식 응답 기반 정성 분석
     const kw = ExpertReportGenerator.analyzeKeywords(stats.feedbacks || []);
     
-    // 3. 전략적 제언 (Strategic Advice)
-    const advice = [
-      "데이터 분석 결과, 학습자들은 실습 위주의 활동에서 가장 높은 몰입도를 보였으며 이는 높은 만족도로 직결되었습니다.",
-      "통계적으로 유의미한 역량 성장이 확인된 만큼, 본 과정을 표준 모델로 삼아 타 교육에도 확산 적용이 가능합니다.",
-      "주관식 피드백에서 나타난 시간 배분에 대한 의견을 반영하여 차기 과정에서는 실습 비중을 20% 상향 조정할 것을 제언합니다."
-    ];
+    const pName = mainProject?.name || "본 교육 과정";
+    const isHighGain = gain >= 40;
+    const isHighSat = stats.satAvg >= 4.0;
+    
+    let conclusion = `${pName} 운영 결과, 정량적 수치(만족도 ${sat}점)와 통계적 효과성(Cohen's d ${cohen}, 향상도 ${gain}%)에서 유의미한 성과를 달성하였습니다. `;
+    if (isHighGain && isHighSat) {
+      conclusion += `이는 ${pName}이 기획 의도에 맞게 학습자들의 높은 몰입을 이끌어냈으며, 단순 이론 전달을 넘어 실질적인 역량 강화 및 현장 적용 가능성을 높이는 데 크게 기여했음을 시사합니다.`;
+    } else {
+      conclusion += `이는 ${pName}이 전반적으로 학습자들에게 긍정적인 기초 역량 형성에 기여하였으며, 세부적인 맞춤형 지도를 통해 추가적인 발전 가능성이 열려 있음을 시사합니다.`;
+    }
+
+    const rec1 = isHighGain 
+      ? `성공적인 성과를 보인 ${pName}의 커리큘럼 및 실습 방법론을 핵심 교육 자산으로 내재화하여, 향후 유사 및 심화 교육 과정의 표준 모델로 확대 적용할 것을 권고합니다.` 
+      : `${pName}의 커리큘럼 내 핵심 이론과 실습의 연계성을 더욱 강화하여, 후속 과정에서는 학습자의 체감 성장 폭을 극대화할 수 있는 사전-사후 연계 강화 프로그램을 도입할 필요가 있습니다.`;
+
+    const rec2 = isHighSat
+      ? `학습자들의 높은 만족도 기조를 바탕으로 현재의 강사 풀과 교육 운영 인프라의 품질 기준을 유지하고, 나아가 후속 심화 과정 개설을 통해 참여자들의 지속적인 성장을 지원하는 맞춤형 트랙을 기획해 볼 수 있습니다.`
+      : `수집된 정성적 피드백(학습 환경, 난이도 등)을 기반으로 ${pName}의 세부 운영 방식을 세밀하게 조정하고, 개별 학습자 맞춤형 피드백 세션을 추가하여 체감 만족도와 교육 효과를 한 단계 더 끌어올릴 것을 제언합니다.`;
+
+    const advice = [conclusion, rec1, rec2];
 
     const isConsolidated = projects.length > 1;
 

@@ -16,9 +16,11 @@ interface ExpertReportTemplateProps {
   };
   organizationName?: string;
   responses?: SurveyResponse[];
-  templates?: SurveyTemplate[];
   radarData?: any[];
   improvementData?: any[];
+  isConsolidated?: boolean;
+  partnerName?: string;
+  dateRange?: string;
 }
 
 export function ExpertReportTemplate({
@@ -30,7 +32,10 @@ export function ExpertReportTemplate({
   responses = [],
   templates = [],
   radarData = [],
-  improvementData = []
+  improvementData = [],
+  isConsolidated = false,
+  partnerName,
+  dateRange
 }: ExpertReportTemplateProps) {
   const [mounted, setMounted] = React.useState(false);
   const [today, setToday] = React.useState('');
@@ -149,6 +154,18 @@ export function ExpertReportTemplate({
             <span className="font-bold">주관 부서</span>
             <span>{organizationName} 성과관리팀</span>
           </div>
+          {!isConsolidated && partnerName && (
+            <div className="flex justify-between border-b border-slate-300 pb-2">
+              <span className="font-bold">협력 기관</span>
+              <span>{partnerName}</span>
+            </div>
+          )}
+          {!isConsolidated && dateRange && (
+            <div className="flex justify-between border-b border-slate-300 pb-2">
+              <span className="font-bold">교육 일시</span>
+              <span>{dateRange}</span>
+            </div>
+          )}
         </div>
 
         <div className="mt-20 text-4xl font-black tracking-[1em] w-full text-right border-t-2 border-slate-100 pt-8 shrink-0">
@@ -268,14 +285,14 @@ export function ExpertReportTemplate({
             <div>
               <p className="font-bold text-2xl mb-6 text-indigo-300">■ 종합 결론</p>
               <p className="leading-loose pl-4 text-slate-200 text-lg text-justify">
-                본 과정은 정량적 수치({stats.satAvg.toFixed(2)}점)와 통계적 효과성({stats.cohensD.toFixed(2)}) 모두에서 최상위 수준의 성과를 달성하였음. 특히 주관식 피드백에서 나타난 실습 도구 활용에 대한 높은 몰입도는 본 프로그램이 단순 이론이 아닌 실질적 직무 역량 강화에 초점을 맞추었음을 시사함.
+                {analysis.advice[0] || `본 과정은 정량적 수치(${stats.satAvg.toFixed(2)}점)와 통계적 효과성(${stats.cohensD.toFixed(2)}) 모두에서 최상위 수준의 성과를 달성하였음.`}
               </p>
             </div>
             
             <div>
               <p className="font-bold text-2xl mb-6 text-indigo-300">■ 전략적 권고사항</p>
               <div className="space-y-6 pl-4">
-                {analysis.advice.map((adv: string, idx: number) => (
+                {analysis.advice.slice(1).map((adv: string, idx: number) => (
                   <div key={idx} className="flex gap-6 items-start">
                     <span className="bg-indigo-500 text-white size-8 rounded-full flex items-center justify-center text-sm shrink-0 mt-1 font-bold">{idx+1}</span>
                     <p className="text-xl text-slate-200 leading-relaxed">{adv}</p>

@@ -456,6 +456,7 @@ export default function SurveyPage() {
                         radarData={radarData}
                         improvementData={improvementData}
                         chartImages={{ radar: '', improvement: '' }}
+                        isConsolidated={true}
                       />
                     </div>
 
@@ -489,6 +490,22 @@ export default function SurveyPage() {
                          name = session?.content || `${parentProj?.name} - ${idx! + 1}차시`;
                       }
 
+                      const targetProject = p || projects.find(proj => proj.sessions?.some(s => s.id === id));
+                      const partner = partners.find(pt => pt.id === targetProject?.partnerId);
+                      const partnerName = partner?.name || '';
+                      let dateRange = '';
+                      if (targetProject?.startDate) {
+                        const sD = new Date(targetProject.startDate);
+                        const sStr = `${sD.getFullYear()}.${String(sD.getMonth()+1).padStart(2,'0')}.${String(sD.getDate()).padStart(2,'0')}`;
+                        if (targetProject.endDate) {
+                          const eD = new Date(targetProject.endDate);
+                          const eStr = `${eD.getFullYear()}.${String(eD.getMonth()+1).padStart(2,'0')}.${String(eD.getDate()).padStart(2,'0')}`;
+                          dateRange = sStr === eStr ? sStr : `${sStr} ~ ${eStr}`;
+                        } else {
+                          dateRange = sStr;
+                        }
+                      }
+
                       return (
                         <div key={id} className="report-page-wrapper mt-16 border-t-[12px] border-slate-200 pt-16">
                           <div className="px-16 pb-8 text-center print:hidden">
@@ -506,6 +523,9 @@ export default function SurveyPage() {
                             radarData={radarData}
                             improvementData={improvementData}
                             chartImages={{ radar: '', improvement: '' }}
+                            isConsolidated={false}
+                            partnerName={partnerName}
+                            dateRange={dateRange}
                           />
                         </div>
                       );
