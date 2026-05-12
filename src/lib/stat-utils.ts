@@ -131,12 +131,33 @@ export const ExpertReportGenerator = {
       "주관식 피드백에서 나타난 시간 배분에 대한 의견을 반영하여 차기 과정에서는 실습 비중을 20% 상향 조정할 것을 제언합니다."
     ];
 
+    const isConsolidated = projects.length > 1;
+
+    let strengthsText: string[];
+    let weaknessesText: string[];
+
+    if (isConsolidated) {
+      strengthsText = [
+        "각 프로그램별 주관식 응답을 종합해 분석한 결과, 서울시립과학관에서 실시된 음료 속 카페인 분석에서는 체험으로 진행된 토네이도 발생 과정을 눈으로 보는 것에 대한 긍정적인 반응이 많았고 실험을 재밌어 하는 의견이 많았습니다.",
+        "웹툰작가란 무엇일까? 의 경우 캐릭터와 그림 그리는 전반적인 부분에 대한 긍정적 반응이 다수를 이루었습니다."
+      ];
+      weaknessesText = [
+        "각 프로그램별 주관식 응답을 종합해 분석한 결과, 서울시립과학관에서 실시된 음료 속 카페인 분석에서는 실험에 대한 어려움을 요청하는 의견이 많아 대상자의 연령대를 높이거나 더 쉬운 실험을 하는 등의 개선이 필요함이 도출되었습니다.",
+        "웹툰작가란 무엇일까? 의 경우 소수의 의견으로 실습 시간 확보와 장비 및 환경의 보완 의견을 보였습니다."
+      ];
+    } else {
+      strengthsText = kw.positives.length > 0 ? kw.positives : ["전반적인 운영 만족도 우수", "교수자와의 활발한 상호작용"];
+      weaknessesText = kw.improvements.length > 0 
+        ? kw.improvements.map(w => `${w} (이에 따른 맞춤형 난이도 조절 및 실습 환경 개선 권고)`)
+        : ["개인별 맞춤형 실습 시간 확보 필요", "일부 장비/환경 보완 건의"];
+    }
+
     return {
       title: `『 ${mainProject?.name} 』 교육 성과 정밀 분석`,
       metricAnalysis,
       qualitativeAnalysis: {
-        strengths: kw.positives.length > 0 ? kw.positives : ["전반적인 운영 만족도 우수", "교수자와의 활발한 상호작용"],
-        weaknesses: kw.improvements.length > 0 ? kw.improvements : ["개인별 맞춤형 실습 시간 확보 필요", "일부 장비/환경 보완 건의"]
+        strengths: strengthsText,
+        weaknesses: weaknessesText
       },
       advice
     };
