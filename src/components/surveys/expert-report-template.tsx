@@ -22,6 +22,7 @@ interface ExpertReportTemplateProps {
   partnerName?: string;
   locationName?: string;
   dateRange?: string;
+  templates?: SurveyTemplate[];
 }
 
 export function ExpertReportTemplate({
