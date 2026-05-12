@@ -49,7 +49,13 @@ export function ExpertReportTemplate({
   }, []);
 
   const mainProjectName = projectName || projects.find(p => p.level === 1)?.name || projects[0]?.name || '전체 사업';
-  const subProjects = projects.filter(p => p.level > 1);
+  
+  const subProgramCount = React.useMemo(() => {
+    if (!isConsolidated) return 0;
+    const uniqueIds = new Set(responses.map(r => r.projectId));
+    const subProjectsCount = projects.filter(p => p.level > 1).length;
+    return uniqueIds.size > 1 ? uniqueIds.size : subProjectsCount;
+  }, [responses, isConsolidated, projects]);
   // const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const analysis = React.useMemo(() => ExpertReportGenerator.generateFullAnalysis(projects, stats, isConsolidated), [projects, stats, isConsolidated]);
@@ -141,10 +147,12 @@ export function ExpertReportTemplate({
         </div>
 
         <div className="w-full space-y-8 text-2xl mt-20 pl-10 shrink-0">
-          <div className="flex justify-between border-b border-slate-300 pb-2">
-            <span className="font-bold">분석 대상</span>
-            <span>{subProjects.length}개 프로그램 통합</span>
-          </div>
+          {isConsolidated && (
+            <div className="flex justify-between border-b border-slate-300 pb-2">
+              <span className="font-bold">분석 대상</span>
+              <span>{subProgramCount > 0 ? `${subProgramCount}개 프로그램 통합` : '단일 프로그램 분석'}</span>
+            </div>
+          )}
           <div className="flex justify-between border-b border-slate-300 pb-2">
             <span className="font-bold">분석 표본</span>
             <span>N = {stats.sampleSize || 0} (응답자 전수)</span>

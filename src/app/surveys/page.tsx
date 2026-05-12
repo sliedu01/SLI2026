@@ -461,7 +461,11 @@ export default function SurveyPage() {
                     </div>
 
                     {/* 개별 보고서들 (다중 선택 시) */}
-                    {topLevelSelectedIds.length > 1 && topLevelSelectedIds.map(id => {
+                    {selectedProjectIds.filter(id => {
+                      // 만약 이것이 부모이고 자식도 선택되었다면 개별 보고서 출력에서 제외 (통합 보고서와 동일하므로)
+                      const isParentWithSelectedChildren = projects.some(p => p.parentId === id && selectedProjectIds.includes(p.id));
+                      return !isParentWithSelectedChildren;
+                    }).map(id => {
                       const getAllDescendantIds = (parentId: string): string[] => {
                         const parent = projects.find(p => p.id === parentId);
                         let result: string[] = [];
