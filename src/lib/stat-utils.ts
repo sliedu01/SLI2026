@@ -160,10 +160,16 @@ export const ExpertReportGenerator = {
         "웹툰작가란 무엇일까? 의 경우 소수의 의견으로 실습 시간 확보와 장비 및 환경의 보완 의견을 보였습니다."
       ];
     } else {
-      strengthsText = kw.positives.length > 0 ? kw.positives : ["전반적인 운영 만족도 우수", "교수자와의 활발한 상호작용"];
+      strengthsText = kw.positives.length > 0 
+        ? kw.positives 
+        : (stats.feedbacks && stats.feedbacks.length > 0 
+            ? stats.feedbacks.slice(0, 3) 
+            : ["전반적인 운영 만족도 우수", "교수자와의 활발한 상호작용"]);
       weaknessesText = kw.improvements.length > 0 
         ? kw.improvements.map(w => `${w} (이에 따른 맞춤형 난이도 조절 및 실습 환경 개선 권고)`)
-        : ["개인별 맞춤형 실습 시간 확보 필요", "일부 장비/환경 보완 건의"];
+        : (stats.feedbacks && stats.feedbacks.length > 0
+            ? stats.feedbacks.slice(-2).map(w => `${w} (이에 따른 맞춤형 난이도 조절 및 실습 환경 개선 권고)`)
+            : ["개인별 맞춤형 실습 시간 확보 필요", "일부 장비/환경 보완 건의"]);
     }
 
     return {

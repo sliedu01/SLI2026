@@ -491,14 +491,22 @@ export default function SurveyPage() {
                       }
 
                       const targetProject = p || projects.find(proj => proj.sessions?.some(s => s.id === id));
-                      const partner = partners.find(pt => pt.id === targetProject?.partnerId);
-                      const partnerName = partner?.name || '';
                       
-                      let locationName = targetProject?.location || '';
-                      if (!locationName) {
-                         const parentProj = projects.find(proj => proj.sessions?.some(s => s.id === id));
-                         if (parentProj?.location) locationName = parentProj.location;
+                      let currentProj = targetProject;
+                      let foundPartnerId = currentProj?.partnerId;
+                      let foundLocation = currentProj?.location;
+
+                      while (currentProj && (!foundPartnerId || !foundLocation)) {
+                        currentProj = projects.find(x => x.id === currentProj?.parentId);
+                        if (currentProj) {
+                          if (!foundPartnerId) foundPartnerId = currentProj.partnerId;
+                          if (!foundLocation) foundLocation = currentProj.location;
+                        }
                       }
+                      
+                      const partner = partners.find(pt => pt.id === foundPartnerId);
+                      const partnerName = partner?.name || '';
+                      let locationName = foundLocation || '';
 
                       let dateRange = '';
                       if (targetProject?.startDate) {
