@@ -93,7 +93,7 @@ export const ExpertReportGenerator = {
     };
   },
 
-  generateFullAnalysis: (projects: Project[], stats: ReportStats): AnalysisResult => {
+  generateFullAnalysis: (projects: Project[], stats: ReportStats, forceConsolidated: boolean = false): AnalysisResult => {
     const mainProject = projects.find(p => p.level === 1) || projects[0];
     const gain = Math.round(stats.hakeGain * 100);
     const cohen = stats.cohensD.toFixed(2);
@@ -130,22 +130,22 @@ export const ExpertReportGenerator = {
     
     let conclusion = `${pName} 운영 결과, 정량적 수치(만족도 ${sat}점)와 통계적 효과성(Cohen's d ${cohen}, 향상도 ${gain}%)에서 유의미한 성과를 달성하였습니다. `;
     if (isHighGain && isHighSat) {
-      conclusion += `이는 ${pName}이 기획 의도에 맞게 학습자들의 높은 몰입을 이끌어냈으며, 단순 이론 전달을 넘어 실질적인 역량 강화 및 현장 적용 가능성을 높이는 데 크게 기여했음을 시사합니다.`;
+      conclusion += `본 설문에 활용된 역량 진단 지표를 종합할 때, '${pName}' 과정이 목표로 하는 구체적 핵심 역량이 학습자들에게 성공적으로 내재화(Learning Transfer)되었음을 강력히 시사합니다. 단순한 흥미 위주의 체험을 넘어 전문적 지식과 실무 감각이 동시에 향상된 성공적인 사례입니다.`;
     } else {
-      conclusion += `이는 ${pName}이 전반적으로 학습자들에게 긍정적인 기초 역량 형성에 기여하였으며, 세부적인 맞춤형 지도를 통해 추가적인 발전 가능성이 열려 있음을 시사합니다.`;
+      conclusion += `설문 결과를 바탕으로 추론할 때, '${pName}'은(는) 학습자들의 기초 개념 확립과 흥미 유발에 효과적으로 기여하였으나, 심화 역량 확보를 위해 실습 위주의 구조적 보완이 이루어진다면 더욱 탁월한 성과를 기대할 수 있습니다.`;
     }
 
     const rec1 = isHighGain 
-      ? `성공적인 성과를 보인 ${pName}의 커리큘럼 및 실습 방법론을 핵심 교육 자산으로 내재화하여, 향후 유사 및 심화 교육 과정의 표준 모델로 확대 적용할 것을 권고합니다.` 
-      : `${pName}의 커리큘럼 내 핵심 이론과 실습의 연계성을 더욱 강화하여, 후속 과정에서는 학습자의 체감 성장 폭을 극대화할 수 있는 사전-사후 연계 강화 프로그램을 도입할 필요가 있습니다.`;
+      ? `분석 결과 도출된 '${pName}'의 높은 학습 몰입도를 기반으로, 현재의 교육 커리큘럼(핵심 이론+실습)을 부서 내 표준 프레임워크로 자산화하고 타 거점 기관에도 확산 적용하는 전략을 권고합니다.` 
+      : `'${pName}'의 특성을 고려할 때, 수동적 청취 시간을 줄이고 참여형 액티비티 비중을 현행 대비 20% 이상 상향 조정함으로써 학습자의 체감 성장 폭을 극대화하는 선제적 개편이 필요합니다.`;
 
     const rec2 = isHighSat
-      ? `학습자들의 높은 만족도 기조를 바탕으로 현재의 강사 풀과 교육 운영 인프라의 품질 기준을 유지하고, 나아가 후속 심화 과정 개설을 통해 참여자들의 지속적인 성장을 지원하는 맞춤형 트랙을 기획해 볼 수 있습니다.`
-      : `수집된 정성적 피드백(학습 환경, 난이도 등)을 기반으로 ${pName}의 세부 운영 방식을 세밀하게 조정하고, 개별 학습자 맞춤형 피드백 세션을 추가하여 체감 만족도와 교육 효과를 한 단계 더 끌어올릴 것을 제언합니다.`;
+      ? `현재의 우수한 만족도 기조(강사 전문성, 운영 인프라 등)를 지속적으로 유지하면서, '${pName}' 수료생들을 대상으로 한 후속 심화 과정(Advanced Track)을 신설하여 장기적인 학습 생태계를 구축할 수 있습니다.`
+      : `응답자 주관식 피드백에서 반복적으로 제기된 환경 및 난이도 편차 이슈를 해결하기 위해, 차기 '${pName}' 운영 시에는 사전 진단 기반의 수준별 분반이나 보조 강사 투입 등 밀착형 지원 체계를 도입할 것을 제언합니다.`;
 
     const advice = [conclusion, rec1, rec2];
 
-    const isConsolidated = projects.length > 1;
+    const isConsolidated = forceConsolidated;
 
     let strengthsText: string[];
     let weaknessesText: string[];

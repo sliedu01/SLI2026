@@ -51,7 +51,7 @@ export function ExpertReportTemplate({
   const subProjects = projects.filter(p => p.level > 1);
   // const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  const analysis = React.useMemo(() => ExpertReportGenerator.generateFullAnalysis(projects, stats), [projects, stats]);
+  const analysis = React.useMemo(() => ExpertReportGenerator.generateFullAnalysis(projects, stats, isConsolidated), [projects, stats, isConsolidated]);
 
   // 설문지 매핑
   const satTemplate = templates.find(t => t.type === 'SATISFACTION');
