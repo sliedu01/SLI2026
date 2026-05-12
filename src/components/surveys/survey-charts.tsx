@@ -12,6 +12,18 @@ interface SurveyChartsProps {
   improvementData: Record<string, unknown>[];
 }
 
+const CustomZigzagLabel = (props: any) => {
+  const { x, y, width, height, value, index } = props;
+  const midY = y + height / 2;
+  const yPos = index % 2 === 0 ? midY - 12 : midY + 12; 
+  return (
+    <text x={x + width / 2} y={yPos} fill="#ffffff" fontSize={11} fontWeight="bold" textAnchor="middle">
+      {value}
+    </text>
+  );
+};
+
+
 export function SurveyCharts({ radarData, improvementData }: SurveyChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -41,21 +53,21 @@ export function SurveyCharts({ radarData, improvementData }: SurveyChartsProps) 
       <Card className="p-6 border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
         <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
           <span className="size-2 rounded-full bg-blue-500" />
-          역량 변화 분석 (Pre vs Post)
+          역량 변화 분석
         </h3>
         <div className="h-[350px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={improvementData}>
+            <BarChart data={improvementData} margin={{ left: -25, right: 10, top: 20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 5]} width={25} tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
               <Tooltip 
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}
               />
               <Legend verticalAlign="top" align="right" iconType="circle" />
               <Bar dataKey="사전" fill="#94a3b8" radius={[4, 4, 0, 0]} barSize={30} />
               <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
-                <LabelList dataKey="label" position="top" fill="#2563eb" fontSize={11} fontWeight="bold" />
+                <LabelList dataKey="label" content={<CustomZigzagLabel />} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>

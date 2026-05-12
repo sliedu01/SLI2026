@@ -174,7 +174,7 @@ export function ExpertReportTemplate({
             <div>
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-800">
                 <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-xs">2</span>
-                핵심 성과 요약 (Executive Summary)
+                핵심 성과 요약
               </h3>
               <div className="pl-8 grid grid-cols-3 gap-4">
                 <div className="bg-slate-50 p-6 border-t-4 border-emerald-500 rounded-b-xl">
@@ -228,7 +228,7 @@ export function ExpertReportTemplate({
       {/* Page 3: Visuals & Qualitative */}
       <div className="report-page">
         <section className="mt-4">
-          <h2 className="text-2xl font-bold mb-6 border-b-4 border-slate-900 pb-2">Ⅲ. 정성적 응답 분석 (Subjective)</h2>
+          <h2 className="text-2xl font-bold mb-6 border-b-4 border-slate-900 pb-2">Ⅲ. 정성적 응답 분석</h2>
           <div className="pl-8 space-y-8">
             <p className="text-lg text-justify leading-loose">
               학습자들이 주관식 응답을 통해 기술한 내용을 교육학적 관점에서 분류하여 도출된 주요 강점과 보완점임. 과도한 해석을 지양하고 반복 언급된 키워드를 중심으로 정리함.
@@ -237,7 +237,7 @@ export function ExpertReportTemplate({
             <div className="grid grid-cols-2 gap-8">
               <div className="bg-emerald-50 p-8 rounded-3xl border border-emerald-100">
                 <h4 className="text-lg font-bold text-emerald-800 mb-6 flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-emerald-500" /> 핵심 강점 (Strengths)
+                  <span className="size-2 rounded-full bg-emerald-500" /> 핵심 강점
                 </h4>
                 <ul className="space-y-4 text-slate-700">
                   {analysis.qualitativeAnalysis.strengths.map((s: string, i: number) => (
@@ -247,7 +247,7 @@ export function ExpertReportTemplate({
               </div>
               <div className="bg-orange-50 p-8 rounded-3xl border border-orange-100">
                 <h4 className="text-lg font-bold text-orange-800 mb-6 flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-orange-500" /> 개선 포인트 (Opportunities)
+                  <span className="size-2 rounded-full bg-orange-500" /> 개선 포인트
                 </h4>
                 <ul className="space-y-4 text-slate-700">
                   {analysis.qualitativeAnalysis.weaknesses.map((w: string, i: number) => (

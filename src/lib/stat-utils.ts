@@ -104,13 +104,13 @@ export const ExpertReportGenerator = {
       {
         name: "Hake's Gain (정규화 향상 지수)",
         value: `${gain}%`,
-        interpretation: gain >= 50 ? "매우 높은 학습 성취도 달성 (High Gain)" : gain >= 30 ? "안정적인 역량 성장 (Medium Gain)" : "보완이 필요한 성장 폭 (Low Gain)",
+        interpretation: gain >= 50 ? "매우 높은 학습 성취도 달성" : gain >= 30 ? "안정적인 역량 성장" : "보완이 필요한 성장 폭",
         desc: "사전 지식 수준을 고려하여 순수하게 교육을 통해 성취한 성장의 비율을 의미합니다."
       },
       {
         name: "Cohen's d (효과 크기)",
         value: cohen,
-        interpretation: Number(cohen) >= 0.8 ? "강력한 교육 임팩트 확인 (Large Effect)" : Number(cohen) >= 0.5 ? "중간 수준의 실질적 변화 (Medium Effect)" : "제한적인 변화 (Small Effect)",
+        interpretation: Number(cohen) >= 0.8 ? "강력한 교육 임팩트 확인" : Number(cohen) >= 0.5 ? "중간 수준의 실질적 변화" : "제한적인 변화",
         desc: "우연에 의한 변화가 아닌, 교육 프로그램이 학습자에게 미친 실제 영향력의 강도를 수치화한 것입니다."
       },
       {
