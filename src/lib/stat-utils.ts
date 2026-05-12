@@ -93,7 +93,7 @@ export const ExpertReportGenerator = {
     };
   },
 
-  generateFullAnalysis: (projects: Project[], stats: ReportStats, forceConsolidated: boolean = false): AnalysisResult => {
+  generateFullAnalysis: (projects: Project[], stats: ReportStats, forceConsolidated: boolean = false, customProjectName?: string): AnalysisResult => {
     const mainProject = projects.find(p => p.level === 1) || projects[0];
     const gain = Math.round(stats.hakeGain * 100);
     const cohen = stats.cohensD.toFixed(2);
@@ -124,23 +124,41 @@ export const ExpertReportGenerator = {
     // 2. 주관식 응답 기반 정성 분석
     const kw = ExpertReportGenerator.analyzeKeywords(stats.feedbacks || []);
     
-    const pName = mainProject?.name || "본 교육 과정";
+    let pName = "본 교육 과정";
+    if (customProjectName) {
+      pName = customProjectName.replace(' 분석 보고서', '').trim();
+      if (pName === '통합') pName = '통합(전체) 사업';
+    } else {
+      pName = mainProject?.name || "본 교육 과정";
+    }
+
     const isHighGain = gain >= 40;
     const isHighSat = stats.satAvg >= 4.0;
+    const isConsolidated = forceConsolidated;
     
-    let conclusion = `[종합 결론 (과거 시점 분석)]\n'${pName}'의 만족도 조사 및 역량 평가 데이터를 분석한 결과, 전반적인 프로그램 운영이 기획 의도에 맞춰 성공적으로 수행되었습니다. 참여자들의 만족도 평균이 ${sat}점으로 높게 나타났으며, 강사의 전문성과 콘텐츠 구성 면에서 긍정적인 평가를 받았습니다. 또한, 사전-사후 역량 진단 결과 통계적으로 유의미한 향상(Cohen's d ${cohen}, Hake Gain ${gain}%)이 확인되어 교육이 참가자들의 실질적인 지식 및 기술 성장에 명확히 기여했음이 입증되었습니다. 주관식 응답을 종합해 볼 때, 해당 프로그램만의 특화된 실습 환경과 체험형 커리큘럼이 학습 몰입도와 성취도를 크게 견인한 것으로 평가됩니다.`;
+    let conclusion = '';
+    let rec1 = '';
+    let rec2 = '';
+    
+    if (isConsolidated) {
+      conclusion = `'${pName}'의 통합 만족도 및 역량 평가 데이터를 분석한 결과, 하위 프로그램들이 전반적으로 기획 의도에 맞춰 성공적으로 수행되었습니다. 전체 참여자들의 만족도 평균이 ${sat}점으로 높게 나타났으며, 특히 체험 중심의 실습 과정이 긍정적인 평가를 견인했습니다. 또한 사전-사후 역량 진단 결과 통합적으로 유의미한 향상(Cohen's d ${cohen}, Hake Gain ${gain}%)이 확인되어, 본 사업이 참가자들의 실질적인 지식 및 기술 성장에 명확히 기여했음이 입증되었습니다.`;
+      
+      rec1 = `'${pName}' 산하 프로그램별 성과 편차를 분석한 결과, '음료 속 카페인 분석'과 '웹툰작가란 무엇일까?' 등 주요 프로그램들이 체험 위주의 커리큘럼으로서 높은 몰입도와 성과를 보였으므로 차기 운영 시에도 현행 기조를 유지 및 존속할 것을 권고합니다. 다만, 일부 프로그램에서 제기된 장비 보완 및 난이도 조절 피드백을 수용하여 개별 프로그램의 맞춤형 지원 체계를 더욱 강화해야 합니다.`;
+      
+      rec2 = `상대적으로 만족도 대비 실습 시간이 부족하다는 의견이 집중된 일부 하위 프로그램에 대해서는 운영 시간 확대 편성 혹은 심화 트랙(Advanced Track)으로의 분리 운영을 검토할 필요가 있습니다. 향후 성과가 지속적으로 저조하거나 학습자 흥미 유발에 실패하는 특정 프로그램이 발생할 경우, 과감한 폐지 혹은 전면 개편을 통해 전체 사업의 예산 효율성과 교육 효과성을 극대화하는 성과 기반 포트폴리오 관리가 요구됩니다.`;
+    } else {
+      conclusion = `'${pName}'의 만족도 조사 및 역량 평가 데이터를 분석한 결과, 전반적인 프로그램 운영이 기획 의도에 맞춰 성공적으로 수행되었습니다. 참여자들의 만족도 평균이 ${sat}점으로 높게 나타났으며, 강사의 전문성과 콘텐츠 구성 면에서 긍정적인 평가를 받았습니다. 또한, 사전-사후 역량 진단 결과 통계적으로 유의미한 향상(Cohen's d ${cohen}, Hake Gain ${gain}%)이 확인되어 교육이 참가자들의 실질적인 지식 및 기술 성장에 명확히 기여했음이 입증되었습니다. 주관식 응답을 종합해 볼 때, 해당 프로그램만의 특화된 실습 환경과 체험형 커리큘럼이 학습 몰입도와 성취도를 크게 견인한 것으로 평가됩니다.`;
+      
+      rec1 = isHighGain 
+        ? `본 분석 결과를 토대로, 향후 사업 운영 시 현재 입증된 '${pName}'의 우수한 체험 위주 실습 모듈을 더욱 고도화하고 타 교육 과정에도 표준 프레임워크로 확산 적용할 것을 적극 권고합니다. 아울러 성공적인 교육 성과를 지속하기 위해 전문 강사 풀 유지 및 인프라 확충에 우선적인 예산 배정이 필요합니다.` 
+        : `분석 결과 도출된 데이터를 바탕으로, 향후 '${pName}' 운영 시에는 수동적인 이론 청취 시간을 줄이고 참여형 액티비티 비중을 현행 대비 20% 이상 상향 조정하는 등 커리큘럼의 구조적 개편을 진행하여 학습자의 체감 성장 폭을 극대화할 것을 제언합니다.`;
 
-    const rec1 = isHighGain 
-      ? `[전략적 권고 1 (미래 개선 인사이트)]\n본 분석 결과를 토대로, 향후 사업 운영 시 현재 입증된 '${pName}'의 우수한 체험 위주 실습 모듈을 더욱 고도화하고 타 교육 과정에도 표준 프레임워크로 확산 적용할 것을 적극 권고합니다. 아울러 성공적인 교육 성과를 지속하기 위해 전문 강사 풀 유지 및 인프라 확충에 우선적인 예산 배정이 필요합니다.` 
-      : `[전략적 권고 1 (미래 개선 인사이트)]\n분석 결과 도출된 데이터를 바탕으로, 향후 '${pName}' 운영 시에는 수동적인 이론 청취 시간을 줄이고 참여형 액티비티 비중을 현행 대비 20% 이상 상향 조정하는 등 커리큘럼의 구조적 개편을 진행하여 학습자의 체감 성장 폭을 극대화할 것을 제언합니다.`;
-
-    const rec2 = isHighSat
-      ? `[전략적 권고 2 (미래 개선 인사이트)]\n높은 만족도 기조를 장기적으로 이어나가기 위해, 현재 '${pName}'을 성공적으로 수료한 참여자들이 지속적으로 역량을 개발할 수 있도록 후속 심화 과정(Advanced Track)을 신설하여 지역사회 내 장기적인 학습 생태계를 조성하는 전략이 요구됩니다.`
-      : `[전략적 권고 2 (미래 개선 인사이트)]\n수집된 주관식 피드백에서 일부 제기된 체감 난이도 편차 이슈를 해결하기 위해, 차기 사업 기획 시에는 참여자의 사전 지식 수준을 고려한 맞춤형 분반 제도를 도입하거나 보조 강사 비율을 높이는 등 밀착형 지원 체계를 구축할 것을 권고합니다.`;
+      rec2 = isHighSat
+        ? `높은 만족도 기조를 장기적으로 이어나가기 위해, 현재 '${pName}'을 성공적으로 수료한 참여자들이 지속적으로 역량을 개발할 수 있도록 후속 심화 과정(Advanced Track)을 신설하여 지역사회 내 장기적인 학습 생태계를 조성하는 전략이 요구됩니다.`
+        : `수집된 주관식 피드백에서 일부 제기된 체감 난이도 편차 이슈를 해결하기 위해, 차기 사업 기획 시에는 참여자의 사전 지식 수준을 고려한 맞춤형 분반 제도를 도입하거나 보조 강사 비율을 높이는 등 밀착형 지원 체계를 구축할 것을 권고합니다.`;
+    }
 
     const advice = [conclusion, rec1, rec2];
-
-    const isConsolidated = forceConsolidated;
 
     let strengthsText: string[];
     let weaknessesText: string[];
