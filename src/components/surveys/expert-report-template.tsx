@@ -123,6 +123,11 @@ export function ExpertReportTemplate({
           background-color: #f1f5f9;
           font-weight: bold;
         }
+        .report-section {
+          page-break-inside: avoid;
+          break-inside: avoid;
+          margin-bottom: 2rem;
+        }
         @media screen {
           .report-page {
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
@@ -133,6 +138,7 @@ export function ExpertReportTemplate({
           .report-page {
             margin: 0;
             box-shadow: none;
+            min-height: 100vh;
           }
         }
       `}</style>
@@ -140,13 +146,13 @@ export function ExpertReportTemplate({
       {/* Page 1: Cover - 왼쪽 정렬 반영 */}
       <div className="report-page flex flex-col items-start justify-between border-[2px] border-slate-900 px-24 py-32">
         <div className="text-left w-full shrink-0">
-          <p className="text-2xl font-bold tracking-[0.2em] mb-16 text-slate-400">2026 교육 성과 분석 보고서</p>
-          <h1 className="text-4xl sm:text-5xl font-black leading-snug mb-10 border-l-8 border-slate-900 pl-8 break-keep">
+          <p className="text-[14pt] font-bold tracking-[0.2em] mb-16 text-slate-400">2026 교육 성과 분석 보고서</p>
+          <h1 className="text-[24pt] sm:text-[28pt] font-black leading-snug mb-10 border-l-8 border-slate-900 pl-8 break-keep">
             {mainProjectName}
           </h1>
         </div>
 
-        <div className="w-full space-y-8 text-2xl mt-20 pl-10 shrink-0">
+        <div className="w-full space-y-8 text-[13pt] mt-20 pl-10 shrink-0">
           {isConsolidated && (
             <div className="flex justify-between border-b border-slate-300 pb-2">
               <span className="font-bold">분석 대상</span>
@@ -185,46 +191,46 @@ export function ExpertReportTemplate({
           )}
         </div>
 
-        <div className="mt-20 text-4xl font-black tracking-[1em] w-full text-right border-t-2 border-slate-100 pt-8 shrink-0">
+        <div className="mt-20 text-[20pt] font-black tracking-[1em] w-full text-right border-t-2 border-slate-100 pt-8 shrink-0">
           {organizationName}
         </div>
       </div>
 
       {/* Page 2: Summary & Metrics */}
       <div className="report-page">
-        <section className="mt-4 mb-12">
-          <h2 className="text-2xl font-bold mb-6 border-b-4 border-slate-900 pb-2">Ⅰ. 분석 개요 및 핵심 요약</h2>
+        <section className="report-section mt-4 mb-12">
+          <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅰ. 분석 개요 및 핵심 요약</h2>
           <div className="space-y-8">
-            <div>
-              <h3 className="text-xl font-bold mb-3 flex items-center gap-2 text-slate-800">
-                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-xs">1</span>
+            <div className="report-section">
+              <h3 className="text-[14pt] font-bold mb-3 flex items-center gap-2 text-slate-800">
+                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">1</span>
                 분석 목적 및 배경
               </h3>
-              <p className="pl-8 text-lg text-justify leading-loose">
+              <p className="pl-8 text-[12pt] text-justify leading-loose">
                 본 보고서는 {mainProjectName}의 교육 효과성을 다각도로 검증하기 위해 작성됨. 단순 만족도 조사를 넘어, 사전-사후 역량 변화를 통계적으로 분석하여 실질적인 학습 전이(Learning Transfer) 수준을 도출하고 향후 교육 설계의 전략적 방향성을 제시하고자 함.
               </p>
             </div>
             
-            <div>
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-800">
-                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-xs">2</span>
+            <div className="report-section">
+              <h3 className="text-[14pt] font-bold mb-4 flex items-center gap-2 text-slate-800">
+                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">2</span>
                 핵심 성과 요약
               </h3>
               <div className="pl-8 grid grid-cols-3 gap-4">
                 <div className="bg-slate-50 p-6 border-t-4 border-emerald-500 rounded-b-xl">
-                  <p className="text-sm text-slate-500 font-bold mb-1">종합 만족도</p>
-                  <p className="text-3xl font-black text-emerald-600">{stats.satAvg.toFixed(2)}</p>
-                  <p className="text-xs text-slate-400 mt-1">Excellent Level</p>
+                  <p className="text-[12pt] text-slate-500 font-bold mb-1">종합 만족도</p>
+                  <p className="text-[18pt] font-black text-emerald-600">{stats.satAvg.toFixed(2)}</p>
+                  <p className="text-[11pt] text-slate-400 mt-1">Excellent Level</p>
                 </div>
                 <div className="bg-slate-50 p-6 border-t-4 border-blue-500 rounded-b-xl">
-                  <p className="text-sm text-slate-500 font-bold mb-1">역량 향상도</p>
-                  <p className="text-3xl font-black text-blue-600">{Math.round(stats.hakeGain * 100)}%</p>
-                  <p className="text-xs text-slate-400 mt-1">Hake&apos;s Gain</p>
+                  <p className="text-[12pt] text-slate-500 font-bold mb-1">역량 향상도</p>
+                  <p className="text-[18pt] font-black text-blue-600">{Math.round(stats.hakeGain * 100)}%</p>
+                  <p className="text-[11pt] text-slate-400 mt-1">Hake&apos;s Gain</p>
                 </div>
                 <div className="bg-slate-50 p-6 border-t-4 border-indigo-500 rounded-b-xl">
-                  <p className="text-sm text-slate-500 font-bold mb-1">효과 크기</p>
-                  <p className="text-3xl font-black text-indigo-600">{stats.cohensD.toFixed(2)}</p>
-                  <p className="text-xs text-slate-400 mt-1">Cohen&apos;s d (Large)</p>
+                  <p className="text-[12pt] text-slate-500 font-bold mb-1">효과 크기</p>
+                  <p className="text-[18pt] font-black text-indigo-600">{stats.cohensD.toFixed(2)}</p>
+                  <p className="text-[11pt] text-slate-400 mt-1">Cohen&apos;s d (Large)</p>
                 </div>
               </div>
             </div>
@@ -233,26 +239,26 @@ export function ExpertReportTemplate({
 
         {/* 여기에 시각화 추가 (Ⅰ과 Ⅱ 사이) */}
         {(radarData.length > 0 || improvementData.length > 0) && (
-          <section className="mt-12 mb-12 page-break-inside-avoid">
+          <section className="report-section mt-12 mb-12">
             <SurveyCharts radarData={radarData} improvementData={improvementData} />
           </section>
         )}
 
-        <section className="mt-12">
-          <h2 className="text-2xl font-bold mb-6 border-b-4 border-slate-900 pb-2">Ⅱ. 정량적 지표 분석</h2>
-          <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800">
-            <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-xs">1</span>
+        <section className="report-section mt-12">
+          <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅱ. 정량적 지표 분석</h2>
+          <h3 className="text-[14pt] font-bold mb-6 flex items-center gap-2 text-slate-800">
+            <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">1</span>
             측정 지표 정밀 진단
           </h3>
           <div className="pl-8 space-y-4">
             {analysis.metricAnalysis.map((m: any, idx: number) => (
-              <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+              <div key={idx} className="report-section bg-slate-50 p-6 rounded-2xl border border-slate-100">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-lg font-bold text-slate-800">{m.name}</h4>
-                  <span className="text-2xl font-black text-slate-900">{m.value}</span>
+                  <h4 className="text-[13pt] font-bold text-slate-800">{m.name}</h4>
+                  <span className="text-[16pt] font-black text-slate-900">{m.value}</span>
                 </div>
-                <p className="text-blue-700 font-bold mb-2 text-sm">▶ {m.interpretation}</p>
-                <p className="text-sm text-slate-500 leading-relaxed">{m.desc}</p>
+                <p className="text-blue-700 font-bold mb-2 text-[12pt]">▶ {m.interpretation}</p>
+                <p className="text-[12pt] text-slate-500 leading-relaxed">{m.desc}</p>
               </div>
             ))}
           </div>
@@ -261,31 +267,31 @@ export function ExpertReportTemplate({
 
       {/* Page 3: Visuals & Qualitative */}
       <div className="report-page">
-        <section className="mt-4">
-          <h2 className="text-2xl font-bold mb-6 border-b-4 border-slate-900 pb-2">Ⅲ. 정성적 응답 분석</h2>
+        <section className="report-section mt-4">
+          <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅲ. 정성적 응답 분석</h2>
           <div className="pl-8 space-y-8">
-            <p className="text-lg text-justify leading-loose">
+            <p className="text-[12pt] text-justify leading-loose">
               학습자들이 주관식 응답을 통해 기술한 내용을 교육학적 관점에서 분류하여 도출된 주요 강점과 보완점임. 과도한 해석을 지양하고 반복 언급된 키워드를 중심으로 정리함.
             </p>
             
             <div className="grid grid-cols-2 gap-8">
-              <div className="bg-emerald-50 p-8 rounded-3xl border border-emerald-100">
-                <h4 className="text-lg font-bold text-emerald-800 mb-6 flex items-center gap-2">
+              <div className="report-section bg-emerald-50 p-8 rounded-3xl border border-emerald-100">
+                <h4 className="text-[13pt] font-bold text-emerald-800 mb-6 flex items-center gap-2">
                   <span className="size-2 rounded-full bg-emerald-500" /> 핵심 강점
                 </h4>
                 <ul className="space-y-4 text-slate-700">
                   {analysis.qualitativeAnalysis.strengths.map((s: string, i: number) => (
-                    <li key={i} className="text-sm leading-relaxed border-b border-emerald-100 pb-2 last:border-0">• {s}</li>
+                    <li key={i} className="text-[12pt] leading-relaxed border-b border-emerald-100 pb-2 last:border-0">• {s}</li>
                   ))}
                 </ul>
               </div>
-              <div className="bg-orange-50 p-8 rounded-3xl border border-orange-100">
-                <h4 className="text-lg font-bold text-orange-800 mb-6 flex items-center gap-2">
+              <div className="report-section bg-orange-50 p-8 rounded-3xl border border-orange-100">
+                <h4 className="text-[13pt] font-bold text-orange-800 mb-6 flex items-center gap-2">
                   <span className="size-2 rounded-full bg-orange-500" /> 개선 포인트
                 </h4>
                 <ul className="space-y-4 text-slate-700">
                   {analysis.qualitativeAnalysis.weaknesses.map((w: string, i: number) => (
-                    <li key={i} className="text-sm leading-relaxed border-b border-orange-100 pb-2 last:border-0">• {w}</li>
+                    <li key={i} className="text-[12pt] leading-relaxed border-b border-orange-100 pb-2 last:border-0">• {w}</li>
                   ))}
                 </ul>
               </div>
@@ -296,23 +302,23 @@ export function ExpertReportTemplate({
 
       {/* Page 4: Conclusion */}
       <div className="report-page">
-        <section className="mt-4">
-          <h2 className="text-2xl font-bold mb-8 border-b-4 border-slate-900 pb-2">Ⅳ. 종합 결론 및 전략 제언</h2>
+        <section className="report-section mt-4">
+          <h2 className="text-[15pt] font-extrabold mb-8 border-b-4 border-slate-900 pb-2">Ⅳ. 종합 결론 및 전략 제언</h2>
           <div className="bg-slate-900 text-white p-12 rounded-[3rem] space-y-12">
-            <div>
-              <p className="font-bold text-2xl mb-6 text-indigo-300">■ 종합 결론</p>
-              <p className="leading-loose pl-4 text-slate-200 text-lg text-justify">
+            <div className="report-section">
+              <p className="font-bold text-[14pt] mb-6 text-indigo-300">■ 종합 결론</p>
+              <p className="leading-loose pl-4 text-slate-200 text-[12pt] text-justify">
                 {analysis.advice[0] || `본 과정은 정량적 수치(${stats.satAvg.toFixed(2)}점)와 통계적 효과성(${stats.cohensD.toFixed(2)}) 모두에서 최상위 수준의 성과를 달성하였음.`}
               </p>
             </div>
             
-            <div>
-              <p className="font-bold text-2xl mb-6 text-indigo-300">■ 전략적 권고사항</p>
+            <div className="report-section">
+              <p className="font-bold text-[14pt] mb-6 text-indigo-300">■ 전략적 권고사항</p>
               <div className="space-y-6 pl-4">
                 {analysis.advice.slice(1).map((adv: string, idx: number) => (
-                  <div key={idx} className="flex gap-6 items-start">
-                    <span className="bg-indigo-500 text-white size-8 rounded-full flex items-center justify-center text-sm shrink-0 mt-1 font-bold">{idx+1}</span>
-                    <p className="text-xl text-slate-200 leading-relaxed">{adv}</p>
+                  <div key={idx} className="flex gap-6 items-start report-section">
+                    <span className="bg-indigo-500 text-white size-8 rounded-full flex items-center justify-center text-[10pt] shrink-0 mt-1 font-bold">{idx+1}</span>
+                    <p className="text-[12pt] text-slate-200 leading-relaxed">{adv}</p>
                   </div>
                 ))}
               </div>
@@ -323,7 +329,7 @@ export function ExpertReportTemplate({
 
       {/* Page 5: Appendix 1 - Satisfaction RAW */}
       <div className="report-page">
-        <h2 className="text-xl font-bold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 1. 만족도 설문결과 (RAW Data)</h2>
+        <h2 className="text-[14pt] font-extrabold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 1. 만족도 설문결과 (RAW Data)</h2>
         
         <table className="appendix-table">
           <thead>
@@ -354,9 +360,9 @@ export function ExpertReportTemplate({
           </tbody>
         </table>
 
-        <div className="mt-8">
-          <h3 className="text-sm font-bold mb-3">■ 만족도 설문 문항 정보</h3>
-          <table className="appendix-table text-[8px]">
+        <div className="report-section mt-8">
+          <h3 className="text-[12pt] font-bold mb-3">■ 만족도 설문 문항 정보</h3>
+          <table className="appendix-table text-[10pt]">
             <thead>
               <tr>
                 <th className="w-16">번호</th>
@@ -379,7 +385,7 @@ export function ExpertReportTemplate({
 
       {/* Page 6: Appendix 2 - Competency RAW */}
       <div className="report-page">
-        <h2 className="text-xl font-bold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 2. 사전사후 역량평가 데이터 (RAW Data)</h2>
+        <h2 className="text-[14pt] font-extrabold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 2. 사전사후 역량평가 데이터 (RAW Data)</h2>
         
         <div className="overflow-x-auto">
           <table className="appendix-table">
@@ -420,10 +426,10 @@ export function ExpertReportTemplate({
           </table>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-8">
+        <div className="report-section mt-8 grid grid-cols-2 gap-8">
           <div>
-            <h3 className="text-sm font-bold mb-3">■ 역량 진단 지표 및 문항 정보</h3>
-            <table className="appendix-table text-[8px]">
+            <h3 className="text-[12pt] font-bold mb-3">■ 역량 진단 지표 및 문항 정보</h3>
+            <table className="appendix-table text-[10pt]">
               <thead>
                 <tr>
                   <th className="w-12">번호</th>
@@ -443,8 +449,8 @@ export function ExpertReportTemplate({
             </table>
           </div>
           <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-            <h3 className="text-sm font-bold mb-4">■ 주요 통계 지표 설명 및 산식</h3>
-            <div className="space-y-4 text-[10px]">
+            <h3 className="text-[12pt] font-bold mb-4">■ 주요 통계 지표 설명 및 산식</h3>
+            <div className="space-y-4 text-[11pt]">
               <div>
                 <p className="font-bold text-blue-700">1. Hake&apos;s Gain (역량 향상도)</p>
                 <p className="text-slate-600">가능한 최대 성장 폭 대비 실제 달성한 성장의 비율</p>
@@ -455,7 +461,7 @@ export function ExpertReportTemplate({
                 <p className="text-slate-600">두 집단 간 평균 차이를 표준편차로 나눈 표준화된 지수</p>
                 <code className="block bg-white p-2 mt-1 border border-slate-200">d = (M2 - M1) / SD_pooled</code>
               </div>
-              <p className="text-[9px] text-slate-400 leading-tight mt-4">
+              <p className="text-[10pt] text-slate-400 leading-tight mt-4">
                 * 모든 데이터는 무기명으로 처리되었으며, 5점 리커트 척도(1:매우 그렇지 않다 ~ 5:매우 그렇다)를 기준으로 산출되었습니다.
               </p>
             </div>
