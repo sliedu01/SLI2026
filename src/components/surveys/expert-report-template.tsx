@@ -415,6 +415,24 @@ export function ExpertReportTemplate({
             </tbody>
           </table>
         </div>
+
+        {stats.feedbacks && stats.feedbacks.length > 0 && (
+          <div className="report-section mt-8">
+            <h3 className="text-[12pt] font-bold mb-3">■ 주관식 설문 의견 (RAW Data)</h3>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="flex flex-wrap gap-2 text-[10pt] text-slate-700 leading-relaxed">
+                {stats.feedbacks.map((f, idx) => (
+                  <div key={idx} className="flex items-start gap-1 mb-1 mr-4">
+                    <span className="flex-shrink-0 flex items-center justify-center size-5 rounded-full bg-slate-800 text-white text-[8pt] font-bold mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <span>{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Page 6: Appendix 2 - Competency RAW */}
