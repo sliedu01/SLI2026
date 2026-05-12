@@ -436,29 +436,31 @@ export default function SurveyPage() {
                 <div className="bg-slate-50 dark:bg-slate-950 p-12 rounded-[2rem] border border-slate-200/50 dark:border-slate-800/50 overflow-x-auto">
                   <div id="expert-report-content" className="bg-white min-w-[210mm]">
                     
-                    {/* 통합 보고서 */}
-                    <div className="report-page-wrapper">
-                      <ExpertReportTemplate 
-                        projects={projects.filter(p => selectedProjectIds.includes(p.id))}
-                        projectName={reportTitle} 
-                        organizationName="SLI교육그룹"
-                        stats={stats || {
-                          satAvg: 0,
-                          preAvg: 0,
-                          postAvg: 0,
-                          hakeGain: 0,
-                          cohensD: 0,
-                          pValue: 1,
-                          sampleSize: 0
-                        }}
-                        responses={responses.filter(r => selectedProjectIds.includes(r.projectId))}
-                        templates={templates}
-                        radarData={radarData}
-                        improvementData={improvementData}
-                        chartImages={{ radar: '', improvement: '' }}
-                        isConsolidated={true}
-                      />
-                    </div>
+                    {/* 통합 보고서 (다중 선택 시에만) */}
+                    {selectedProjectIds.length > 1 && (
+                      <div className="report-page-wrapper">
+                        <ExpertReportTemplate 
+                          projects={projects.filter(p => selectedProjectIds.includes(p.id))}
+                          projectName={reportTitle} 
+                          organizationName="SLI교육그룹"
+                          stats={stats || {
+                            satAvg: 0,
+                            preAvg: 0,
+                            postAvg: 0,
+                            hakeGain: 0,
+                            cohensD: 0,
+                            pValue: 1,
+                            sampleSize: 0
+                          }}
+                          responses={responses.filter(r => selectedProjectIds.includes(r.projectId))}
+                          templates={templates}
+                          radarData={radarData}
+                          improvementData={improvementData}
+                          chartImages={{ radar: '', improvement: '' }}
+                          isConsolidated={true}
+                        />
+                      </div>
+                    )}
 
                     {/* 개별 보고서들 (다중 선택 시) */}
                     {selectedProjectIds.filter(id => {
