@@ -147,24 +147,41 @@ export const ExpertReportGenerator = {
 
     if (isConsolidated) {
       strengthsText = [
-        "각 프로그램별 주관식 응답을 종합해 분석한 결과, 서울시립과학관에서 실시된 음료 속 카페인 분석에서는 체험으로 진행된 토네이도 발생 과정을 눈으로 보는 것에 대한 긍정적인 반응이 많았고 실험을 재밌어 하는 의견이 많았습니다.",
-        "웹툰작가란 무엇일까? 의 경우 캐릭터와 그림 그리는 전반적인 부분에 대한 긍정적 반응이 다수를 이루었습니다."
+        "하위 프로그램들의 주관식 응답을 종합 분석한 결과, '음료 속 카페인 분석'에서는 체험으로 진행된 토네이도 발생 과정을 눈으로 관찰한 부분과 실험 자체의 재미에 대한 긍정적 피드백이 두드러졌습니다.",
+        "또한 '웹툰작가란 무엇일까?' 프로그램의 경우, 캐릭터 설계 및 실제 드로잉 실습 등 창작 전반에 대한 높은 만족도가 공통된 핵심 강점으로 도출되었습니다."
       ];
       weaknessesText = [
-        "각 프로그램별 주관식 응답을 종합해 분석한 결과, 서울시립과학관에서 실시된 음료 속 카페인 분석에서는 실험에 대한 어려움을 요청하는 의견이 많아 대상자의 연령대를 높이거나 더 쉬운 실험을 하는 등의 개선이 필요함이 도출되었습니다.",
-        "웹툰작가란 무엇일까? 의 경우 소수의 의견으로 실습 시간 확보와 장비 및 환경의 보완 의견을 보였습니다."
+        "개선점 측면에서, '음료 속 카페인 분석'은 일부 참여자가 실험 과정에 어려움을 표출하여 대상 연령대에 맞춘 난이도 조절 및 쉬운 실험 기구 도입이 필요한 것으로 분석되었습니다.",
+        "'웹툰작가란 무엇일까?' 과정에서는 실습 시간의 절대적 부족과 일부 장비 및 환경 보완이 필요하다는 소견이 제기되어, 향후 운영 시 충분한 실습 시간 확보가 요구됩니다."
       ];
     } else {
-      strengthsText = kw.positives.length > 0 
-        ? kw.positives 
-        : (stats.feedbacks && stats.feedbacks.length > 0 
-            ? stats.feedbacks.slice(0, 3) 
-            : ["전반적인 운영 만족도 우수", "교수자와의 활발한 상호작용"]);
-      weaknessesText = kw.improvements.length > 0 
-        ? kw.improvements.map(w => `${w} (이에 따른 맞춤형 난이도 조절 및 실습 환경 개선 권고)`)
-        : (stats.feedbacks && stats.feedbacks.length > 0
-            ? stats.feedbacks.slice(-2).map(w => `${w} (이에 따른 맞춤형 난이도 조절 및 실습 환경 개선 권고)`)
-            : ["개인별 맞춤형 실습 시간 확보 필요", "일부 장비/환경 보완 건의"]);
+      const rawPositives = kw.positives.length > 0 ? kw.positives : (stats.feedbacks?.slice(0, 3) || []);
+      const rawNegatives = kw.improvements.length > 0 ? kw.improvements : (stats.feedbacks?.slice(-2) || []);
+      
+      const posList = rawPositives.map(p => `"${p}"`);
+      const negList = rawNegatives.map(n => `"${n}"`);
+
+      strengthsText = posList.length > 0 
+        ? [
+            ...posList,
+            `[종합 의견] 학습자들은 위 응답들과 같이 본 프로그램의 실습 중심 구성과 체험 요소에 큰 흥미를 느꼈으며, 이러한 능동적 참여가 높은 만족도로 직결된 것으로 분석됩니다.`
+          ]
+        : [
+            "전반적인 운영 만족도 우수", 
+            "교수자와의 활발한 상호작용", 
+            "[종합 의견] 전반적인 교육 만족도가 높으며, 향후 현재의 강점을 유지하는 것이 권장됩니다."
+          ];
+
+      weaknessesText = negList.length > 0
+        ? [
+            ...negList,
+            `[종합 의견] 위 의견들에서 볼 수 있듯, 일부 환경적 제약이나 난이도 체감 편차가 존재하므로, 향후 운영 시 수준별 분반이나 실습 시간의 탄력적 배분 등 세밀한 보완이 요구됩니다.`
+          ]
+        : [
+            "개인별 맞춤형 실습 시간 확보 필요", 
+            "일부 장비/환경 보완 건의", 
+            "[종합 의견] 대부분 긍정적인 평가이나, 실습 인프라 및 환경에 대한 지속적인 모니터링이 필요합니다."
+          ];
     }
 
     return {
