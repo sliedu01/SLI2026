@@ -298,14 +298,16 @@ export default function SurveyPage() {
   return (
     <div className="flex gap-4 h-[calc(100vh-4rem)]">
       {/* Sidebar - Project Selection */}
-      <Card className="w-80 flex flex-col border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center justify-between mb-4">
+      <Card className="w-80 flex flex-col border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md overflow-hidden">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+          <div className="flex items-center justify-between">
             <h2 className="text-sm font-black flex items-center gap-2">
               <Settings2 className="size-4 text-indigo-600" />
               사업 필터링
             </h2>
           </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
           <ProjectTree 
             projects={projects} partners={partners} 
             visibleProjectIds={visibleProjectIds} expandedIds={expandedIds} 
@@ -437,7 +439,7 @@ export default function SurveyPage() {
                   <div id="expert-report-content" className="bg-white min-w-[210mm]">
                     
                     {/* 통합 보고서 (다중 선택 시에만) */}
-                    {selectedProjectIds.length > 1 && (
+                    {topLevelSelectedIds.length > 1 && (
                       <div className="report-page-wrapper">
                         <ExpertReportTemplate 
                           projects={projects.filter(p => selectedProjectIds.includes(p.id))}
