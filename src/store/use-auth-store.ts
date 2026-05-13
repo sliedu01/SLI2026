@@ -374,15 +374,26 @@ export const useAuthStore = create<AuthState>()(
         if (perms.canUpdate !== undefined) updateData.can_update = perms.canUpdate;
         if (perms.canDelete !== undefined) updateData.can_delete = perms.canDelete;
         if (perms.canApprove !== undefined) updateData.can_approve = perms.canApprove;
-        if (perms.budgetAccessLevel !== undefined)
-          updateData.budget_access_level = perms.budgetAccessLevel;
-
-        const { error } = await supabase
+        if (perms.budgetAccessLevel !== undefined) updateData.budget_access_level = perms.budgetAccessLevel;
+        
+        const { data: existing } = await supabase
           .from('user_permissions')
-          .upsert({ user_id: userId, ...updateData })
-          .eq('user_id', userId);
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
 
-        if (error) throw error;
+        if (existing) {
+          const { error } = await supabase
+            .from('user_permissions')
+            .update(updateData)
+            .eq('user_id', userId);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('user_permissions')
+            .insert({ user_id: userId, ...updateData });
+          if (error) throw error;
+        }
       },
 
       toggleUserActive: async (userId, isActive) => {

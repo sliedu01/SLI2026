@@ -167,9 +167,9 @@ export default function AdminUsersPage() {
       ));
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save permissions:', err);
-      alert('권한 저장에 실패했습니다.');
+      alert('권한 저장에 실패했습니다. (원인: ' + (err?.message || JSON.stringify(err)) + ')');
     }
     setIsSaving(false);
   };
@@ -316,11 +316,14 @@ export default function AdminUsersPage() {
                           size="sm"
                           onClick={(e) => { e.stopPropagation(); handleToggleActive(u.id, u.isActive); }}
                           className={cn(
-                            "h-7 px-2 rounded-lg text-[10px] font-bold",
-                            u.isActive ? "text-red-500 hover:text-red-600 hover:bg-red-50" : "text-emerald-600 hover:bg-emerald-50"
+                            "h-7 px-2.5 rounded-lg text-[10px] font-bold transition-colors",
+                            u.isActive 
+                              ? "text-emerald-600 bg-emerald-50/50 hover:bg-emerald-100" 
+                              : "text-slate-500 bg-slate-100 hover:bg-slate-200"
                           )}
+                          title={u.isActive ? "클릭 시 비활성화됩니다" : "클릭 시 활성화됩니다"}
                         >
-                          {u.isActive ? '비활성' : '활성화'}
+                          {u.isActive ? '활성' : '비활성'}
                         </Button>
                       )}
                       {isSelected ? <ChevronUp className="size-4 text-indigo-400" /> : <ChevronDown className="size-4 text-slate-300" />}
