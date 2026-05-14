@@ -355,23 +355,20 @@ export default function AdminUsersPage() {
                     <UserCog className="size-4 text-indigo-500" />
                     {selectedUser.name === '미지정' ? `미지정 (${selectedUser.loginId})` : selectedUser.name} 권한 설정
                   </h3>
-                  <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  <div className="flex flex-col gap-1.5 mt-2">
                     <p className="text-[11px] font-bold text-slate-500">{selectedUser.email}</p>
-                    {selectedUser.organization && (
-                      <>
-                        <span className="text-slate-200">|</span>
-                        <p className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-                          <Building2 className="size-3" />
-                          {selectedUser.organization}
-                        </p>
-                      </>
-                    )}
-                    {selectedUser.phone && (
-                      <>
-                        <span className="text-slate-200">|</span>
-                        <p className="text-[11px] font-bold text-slate-500">{selectedUser.phone}</p>
-                      </>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
+                      <p>아이디: <span className="text-slate-700">{selectedUser.loginId}</span></p>
+                      <span className="text-slate-200">|</span>
+                      <p>이름: {selectedUser.name !== '미지정' && selectedUser.name ? <span className="text-slate-700">{selectedUser.name}</span> : <span className="text-red-400">미지정</span>}</p>
+                      <span className="text-slate-200">|</span>
+                      <p className="flex items-center gap-1">
+                        <Building2 className="size-3" />
+                        소속: {selectedUser.organization ? <span className="text-slate-700">{selectedUser.organization}</span> : <span className="text-slate-300 font-medium">미입력</span>}
+                      </p>
+                      <span className="text-slate-200">|</span>
+                      <p>연락처: {selectedUser.phone ? <span className="text-slate-700">{selectedUser.phone}</span> : <span className="text-slate-300 font-medium">미입력</span>}</p>
+                    </div>
                   </div>
                 </div>
                 {saveSuccess && (
