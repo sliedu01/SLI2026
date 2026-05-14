@@ -293,7 +293,9 @@ export default function AdminUsersPage() {
                       )} />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-black text-slate-900 truncate">{u.name}</p>
+                          <p className="text-sm font-black text-slate-900 truncate">
+                            {u.name === '미지정' ? `미지정 (${u.loginId})` : u.name}
+                          </p>
                           <Badge className={cn("text-[9px] font-bold px-1.5 py-0 border", colors.bg, colors.text, colors.border)}>
                             <RoleIcon role={u.role} />
                             <span className="ml-0.5">{ROLE_LABELS[u.role]}</span>
