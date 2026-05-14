@@ -351,9 +351,26 @@ export default function AdminUsersPage() {
                 <div>
                   <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
                     <UserCog className="size-4 text-indigo-500" />
-                    {selectedUser.name} 권한 설정
+                    {selectedUser.name === '미지정' ? `미지정 (${selectedUser.loginId})` : selectedUser.name} 권한 설정
                   </h3>
-                  <p className="text-[10px] font-bold text-slate-400 mt-0.5">{selectedUser.email}</p>
+                  <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                    <p className="text-[11px] font-bold text-slate-500">{selectedUser.email}</p>
+                    {selectedUser.organization && (
+                      <>
+                        <span className="text-slate-200">|</span>
+                        <p className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                          <Building2 className="size-3" />
+                          {selectedUser.organization}
+                        </p>
+                      </>
+                    )}
+                    {selectedUser.phone && (
+                      <>
+                        <span className="text-slate-200">|</span>
+                        <p className="text-[11px] font-bold text-slate-500">{selectedUser.phone}</p>
+                      </>
+                    )}
+                  </div>
                 </div>
                 {saveSuccess && (
                   <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 font-bold text-[10px] gap-1 animate-in fade-in duration-300">
