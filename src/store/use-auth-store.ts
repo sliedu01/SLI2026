@@ -184,12 +184,20 @@ export const useAuthStore = create<AuthState>()(
           const { data, error: authError } = await supabase.auth.signUp({
             email: payload.email,
             password: payload.password,
+            options: {
+              data: {
+                name: payload.name,
+                organization: payload.organization,
+                login_id: payload.loginId,
+                phone: payload.phone,
+              }
+            }
           });
 
           if (authError) throw authError;
           if (!data.user) throw new Error('User creation failed');
 
-          const { error: profileError } = await supabase.from('user_profiles').insert({
+          const { error: profileError } = await supabase.from('user_profiles').upsert({
             id: data.user.id,
             login_id: payload.loginId,
             name: payload.name,
@@ -197,6 +205,7 @@ export const useAuthStore = create<AuthState>()(
             organization: payload.organization,
             email: payload.email,
             role: 'viewer', // 기본값
+            updated_at: new Date().toISOString(),
           });
 
           if (profileError) throw profileError;
