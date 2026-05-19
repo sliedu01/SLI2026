@@ -47,6 +47,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "firebase-tools": "^15.15.0",
+    "puppeteer": "^25.0.4",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vercel": "^50.41.0"

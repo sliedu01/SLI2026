@@ -184,8 +184,8 @@ export default function ReportPage() {
                  <p className="text-[10px] font-bold text-slate-400 mt-1">₩{(projectStats.pSpent/10000).toLocaleString()}만 지출</p>
               </div>
               <div className="p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
-                 <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">Hake&apos;s Gain</p>
-                 <p className="text-3xl font-black text-indigo-700">{projectStats.hakeGain.toFixed(2)}</p>
+                 <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">Hake&apos;s Gain (학습 효과 지수)</p>
+                 <p className="text-3xl font-black text-indigo-700">{Math.round(projectStats.hakeGain * 100)}%</p>
                  <p className="text-[10px] font-bold text-indigo-400 mt-1">잠재력 대비 성취도</p>
               </div>
               <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100">
@@ -230,10 +230,10 @@ export default function ReportPage() {
                     </div>
                     <div className="space-y-2">
                        <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                          <TrendingUp className="size-4 text-blue-500" /> 잠재력 대비 성취도 (Hake&apos;s Gain)
+                          <TrendingUp className="size-4 text-blue-500" /> Hake&apos;s Gain (학습 효과 지수)
                        </h4>
                        <p className="text-sm font-bold text-slate-600 leading-relaxed">
-                          학습자가 도달할 수 있는 최대 성장 폭 대비 실무 역량 향상도는 <span className="text-indigo-600 font-black">{(projectStats.hakeGain * 100).toFixed(2)}%</span>로 집계되었습니다. 
+                          학습자가 도달할 수 있는 최대 성장 폭 대비 실무 역량 향상도는 <span className="text-indigo-600 font-black">{Math.round(projectStats.hakeGain * 100)}%</span>로 집계되었습니다. 
                           이는 학습자의 초기 역량 수준에 관계없이 실질적인 임팩트를 제공했음을 의미합니다.
                        </p>
                     </div>
@@ -276,8 +276,8 @@ export default function ReportPage() {
                                  <p className="text-base font-black text-emerald-600">{stats.normalizedSatScore.toFixed(2)}</p>
                               </div>
                               <div className="text-center">
-                                 <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Gain</p>
-                                 <p className="text-base font-black text-blue-600">{stats.hakeGain.toFixed(2)}</p>
+                                 <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Hake's Gain</p>
+                                 <p className="text-base font-black text-blue-600">{Math.round(stats.hakeGain * 100)}%</p>
                               </div>
                               <div className="text-center">
                                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">집행률</p>

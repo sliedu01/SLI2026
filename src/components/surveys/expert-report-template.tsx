@@ -242,9 +242,9 @@ export function ExpertReportTemplate({
                   <p className="text-[10pt] text-slate-400 mt-1">Excellent Level</p>
                 </div>
                 <div className="bg-slate-50 p-6 border-t-4 border-blue-500 rounded-b-xl flex flex-col justify-between">
-                  <p className="text-[11pt] text-slate-500 font-bold mb-1">역량 향상도</p>
+                  <p className="text-[11pt] text-slate-500 font-bold mb-1">Hake's Gain</p>
                   <p className="text-[18pt] font-black text-blue-600">{Math.round(stats.hakeGain * 100)}%</p>
-                  <p className="text-[10pt] text-slate-400 mt-1">Hake&apos;s Gain</p>
+                  <p className="text-[10pt] text-slate-400 mt-1">학습 효과 지수</p>
                 </div>
                 <div className="bg-slate-50 p-6 border-t-4 border-indigo-500 rounded-b-xl flex flex-col justify-between">
                   <p className="text-[11pt] text-slate-500 font-bold mb-1">효과 크기</p>
@@ -531,8 +531,8 @@ export function ExpertReportTemplate({
                   <th key={i} colSpan={2}>문항 {i+1}</th>
                 ))}
                 <th colSpan={2} className="bg-blue-50">평균 역량</th>
-                <th rowSpan={2} className="bg-blue-50">역량향상도<br/>(%)</th>
-                <th rowSpan={2} className="bg-indigo-50">Hake's Gain<br/>(역량 향상도)</th>
+                <th rowSpan={2} className="bg-blue-50">단순 평균 증가율<br/>(%)</th>
+                <th rowSpan={2} className="bg-indigo-50">Hake's Gain<br/>(학습 효과 지수)</th>
                 <th rowSpan={2} className="bg-indigo-50">효과크기<br/>(Cohen's d)</th>
               </tr>
               <tr>
@@ -565,7 +565,7 @@ export function ExpertReportTemplate({
                     <td className="font-bold bg-slate-50">{preAvg.toFixed(2)}</td>
                     <td className="font-bold bg-slate-50">{postAvg.toFixed(2)}</td>
                     <td className="font-bold text-blue-600 bg-slate-50">{preAvg > 0 ? ((postAvg - preAvg) / preAvg * 100).toFixed(1) + '%' : '0.0%'}</td>
-                    <td className="font-bold text-blue-600 bg-slate-50">{gain.toFixed(2)}</td>
+                    <td className="font-bold text-blue-600 bg-slate-50">{(gain * 100).toFixed(1)}%</td>
                     <td className="font-bold text-indigo-600 bg-slate-50">{cohensD.toFixed(2)}</td>
                   </tr>
                 );
@@ -586,7 +586,7 @@ export function ExpertReportTemplate({
                   <td className="bg-blue-100">{stats.preAvg.toFixed(2)}</td>
                   <td className="bg-blue-100 text-blue-700">{stats.postAvg.toFixed(2)}</td>
                   <td className="bg-blue-100 text-blue-700">{stats.preAvg > 0 ? ((stats.postAvg - stats.preAvg) / stats.preAvg * 100).toFixed(1) + '%' : '0.0%'}</td>
-                  <td className="bg-indigo-100 text-blue-700">{stats.hakeGain.toFixed(2)}</td>
+                  <td className="bg-indigo-100 text-blue-700">{(stats.hakeGain * 100).toFixed(1)}%</td>
                   <td className="bg-indigo-100 text-indigo-700">{stats.cohensD.toFixed(2)}</td>
                 </tr>
               )}
@@ -620,7 +620,7 @@ export function ExpertReportTemplate({
             <h3 className="text-[12pt] font-bold mb-4">■ 주요 통계 지표 설명 및 산식</h3>
             <div className="space-y-4 text-[11pt]">
               <div>
-                <p className="font-bold text-blue-700">1. Hake&apos;s Gain (역량 향상도)</p>
+                <p className="font-bold text-blue-700">1. Hake&apos;s Gain (학습 효과 지수)</p>
                 <p className="text-slate-600">가능한 최대 성장 폭 대비 실제 달성한 성장의 비율</p>
                 <code className="block bg-white p-2 mt-1 border border-slate-200">G = (Post - Pre) / (5 - Pre)</code>
               </div>

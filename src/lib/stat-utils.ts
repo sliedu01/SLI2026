@@ -4,7 +4,7 @@ import { Question } from '@/store/use-survey-store';
 
 export const STAT_METRICS = {
   POST_AVG: { label: '사후 역량 평균 (POST)', desc: '교육 종료 후 측정된 역량 점수의 평균값입니다.', formula: 'Σ(사후 점수) / 문항 수' },
-  HAKE_GAIN: { label: "역량 향상도 (Hake's Gain)", desc: '학습자가 사전 대비 사후에 얼마나 성장했는지를 나타내는 정규화된 향상 지수입니다.', formula: '(사후 - 사전) / (만점 - 사전)' },
+  HAKE_GAIN: { label: "Hake's Gain (학습 효과 지수)", desc: '학습자가 사전 대비 사후에 얼마나 성장했는지를 나타내는 정규화된 향상 지수입니다.', formula: '(사후 - 사전) / (만점 - 사전)' },
   COHENS_D: { label: "효과 크기 (Cohen's d)", desc: '두 집단(사전-사후) 간의 평균 차이를 표준편차로 나눈 값으로, 교육의 실제 영향력을 나타냅니다.', formula: '(사후평균 - 사전평균) / 통합표준편차' },
   P_VALUE: { label: '유의확률 (p-value)', desc: '사전-사후 변화가 우연에 의한 것이 아닐 확률을 나타냅니다.', formula: 'Paired t-test 결과값' }
 };
@@ -138,7 +138,7 @@ export const ExpertReportGenerator = {
     // 1. 지표 해석 (Metric Interpretation)
     const metricAnalysis = [
       {
-        name: "Hake's Gain (정규화 향상 지수)",
+        name: "Hake's Gain (학습 효과 지수)",
         value: `${gain}%`,
         interpretation: gain >= 70 ? "매우 높은 학습 성취도 달성" : gain >= 30 ? "안정적인 역량 성장" : "보완이 필요한 성장 폭",
         desc: "사전 지식 수준을 고려하여 순수하게 교육을 통해 성취한 성장의 비율을 의미합니다.",
