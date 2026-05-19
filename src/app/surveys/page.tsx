@@ -250,8 +250,8 @@ export default function SurveyPage() {
       }
     }
     
-    const partners = useProjectStore.getState().partners;
-    const partnerName = partners.find(pt => pt.id === foundPartnerId)?.name || '협력기관미상';
+    const partnersList = usePartnerStore.getState().partners;
+    const partnerName = partnersList.find(pt => pt.id === foundPartnerId)?.name || '협력기관미상';
     
     let dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     if (targetProject?.startDate) {
