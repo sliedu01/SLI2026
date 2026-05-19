@@ -7,7 +7,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Clipboard } from 'lucide-react';
-import { SurveyResponse, Question } from '@/store/use-survey-store';
+import { SurveyResponse, SurveyTemplate } from '@/store/use-survey-store';
 import { cn } from '@/lib/utils';
 
 interface PasteDialogProps {
@@ -63,13 +63,13 @@ interface EditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   response: SurveyResponse | null;
-  questions: Question[];
+  template: SurveyTemplate | null;
   onSave: (id: string, data: Partial<SurveyResponse>) => void;
-  onUpdateAnswer: (qId: string, score: number) => void;
+  onUpdateAnswer: (qId: string, field: 'preScore' | 'score', val: number) => void;
 }
 
-export function EditDialog({ open, onOpenChange, response, questions, onSave, onUpdateAnswer }: EditDialogProps) {
-  if (!response) return null;
+export function EditDialog({ open, onOpenChange, response, template, onSave, onUpdateAnswer }: EditDialogProps) {
+  if (!response || !template) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -82,7 +82,7 @@ export function EditDialog({ open, onOpenChange, response, questions, onSave, on
         </DialogHeader>
 
         <div className="space-y-6">
-          {questions.map((q) => {
+          {template.questions.map((q) => {
             const answer = response.answers.find(a => a.questionId === q.id);
             return (
               <div key={q.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 group hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all">
@@ -94,24 +94,71 @@ export function EditDialog({ open, onOpenChange, response, questions, onSave, on
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-snug">{q.content}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((score) => (
-                    <Button
-                      key={score}
-                      variant={answer?.score === score ? 'default' : 'outline'}
-                      size="sm"
-                      className={cn(
-                        "flex-1 h-10 rounded-xl font-bold transition-all",
-                        answer?.score === score 
-                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none scale-105" 
-                          : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-                      )}
-                      onClick={() => onUpdateAnswer(q.id, score)}
-                    >
-                      {score}
-                    </Button>
-                  ))}
-                </div>
+                {template.type === 'COMPETENCY' ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className="w-10 text-xs font-bold text-slate-500 text-right">사전</span>
+                      <div className="flex flex-1 gap-2">
+                        {[1, 2, 3, 4, 5].map((score) => (
+                          <Button
+                            key={`pre-${score}`}
+                            variant={answer?.preScore === score ? 'default' : 'outline'}
+                            size="sm"
+                            className={cn(
+                              "flex-1 h-9 rounded-xl font-bold transition-all",
+                              answer?.preScore === score 
+                                ? "bg-slate-400 text-white shadow-md shadow-slate-200 dark:shadow-none scale-[1.02]" 
+                                : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                            )}
+                            onClick={() => onUpdateAnswer(q.id, 'preScore', score)}
+                          >
+                            {score}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="w-10 text-xs font-bold text-blue-600 text-right">사후</span>
+                      <div className="flex flex-1 gap-2">
+                        {[1, 2, 3, 4, 5].map((score) => (
+                          <Button
+                            key={`post-${score}`}
+                            variant={answer?.score === score ? 'default' : 'outline'}
+                            size="sm"
+                            className={cn(
+                              "flex-1 h-9 rounded-xl font-bold transition-all",
+                              answer?.score === score 
+                                ? "bg-blue-600 text-white shadow-md shadow-blue-200 dark:shadow-none scale-[1.02]" 
+                                : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                            )}
+                            onClick={() => onUpdateAnswer(q.id, 'score', score)}
+                          >
+                            {score}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((score) => (
+                      <Button
+                        key={score}
+                        variant={answer?.score === score ? 'default' : 'outline'}
+                        size="sm"
+                        className={cn(
+                          "flex-1 h-10 rounded-xl font-bold transition-all",
+                          answer?.score === score 
+                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none scale-105" 
+                            : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                        )}
+                        onClick={() => onUpdateAnswer(q.id, 'score', score)}
+                      >
+                        {score}
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}

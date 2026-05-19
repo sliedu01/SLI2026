@@ -619,10 +619,11 @@ export default function SurveyPage() {
       />
       <EditDialog 
         open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} 
-        response={editingResponse} questions={templates.flatMap(t => t.questions)} 
+        response={editingResponse} 
+        template={editingResponse ? templates.find(t => t.id === editingResponse.templateId) || null : null}
         onSave={async (id, data) => { await updateResponse(id, data); setIsEditDialogOpen(false); }}
-        onUpdateAnswer={(qId, score) => setEditingResponse((prev: any) => ({
-          ...prev, answers: prev.answers.map((a: any) => a.questionId === qId ? {...a, score} : a)
+        onUpdateAnswer={(qId, field, val) => setEditingResponse((prev: any) => ({
+          ...prev, answers: prev.answers.map((a: any) => a.questionId === qId ? {...a, [field]: val} : a)
         }))}
       />
       <TemplateEditDialog 
