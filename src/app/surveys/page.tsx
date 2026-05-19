@@ -200,37 +200,6 @@ export default function SurveyPage() {
     return data;
   }, [stats]);
 
-  // 모든 Hook 선언 후 조기 리턴
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="size-8 text-indigo-600 animate-spin" />
-      </div>
-    );
-  }
-
-  const handleLv1Change = (id: string | null) => {
-    if (!id) return;
-    if (id === 'all') {
-      setSelectedLv1Ids([]);
-      // 전체 보기 시 모든 프로젝트 가시성 확보
-      useProjectStore.getState().setVisibleProjectIds(projects.map(p => p.id));
-    } else {
-      setSelectedLv1Ids([id]);
-      // 선택된 LV1의 하위 프로젝트들만 가시성 확보
-      const children = projects.filter(p => {
-        let curr: any = p;
-        const visited = new Set<string>();
-        while (curr && curr.level > 1 && curr.parentId && !visited.has(curr.id)) {
-          visited.add(curr.id);
-          curr = projects.find(proj => proj.id === curr.parentId);
-        }
-        return curr?.id === id;
-      });
-      useProjectStore.getState().setVisibleProjectIds([id, ...children.map(p => p.id)]);
-    }
-  };
-
   const downloadFileName = React.useMemo(() => {
     if (selectedProjectIds.length === 0) {
       const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -271,6 +240,38 @@ export default function SurveyPage() {
     
     return `${dateStr}_${partnerName}_${name}`;
   }, [selectedProjectIds, projects]);
+
+  // 모든 Hook 선언 후 조기 리턴
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="size-8 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  const handleLv1Change = (id: string | null) => {
+    if (!id) return;
+    if (id === 'all') {
+      setSelectedLv1Ids([]);
+      // 전체 보기 시 모든 프로젝트 가시성 확보
+      useProjectStore.getState().setVisibleProjectIds(projects.map(p => p.id));
+    } else {
+      setSelectedLv1Ids([id]);
+      // 선택된 LV1의 하위 프로젝트들만 가시성 확보
+      const children = projects.filter(p => {
+        let curr: any = p;
+        const visited = new Set<string>();
+        while (curr && curr.level > 1 && curr.parentId && !visited.has(curr.id)) {
+          visited.add(curr.id);
+          curr = projects.find(proj => proj.id === curr.parentId);
+        }
+        return curr?.id === id;
+      });
+      useProjectStore.getState().setVisibleProjectIds([id, ...children.map(p => p.id)]);
+    }
+  };
+
 
   const handleDownloadPDF = async () => {
     setIsDownloadingPDF(true);
