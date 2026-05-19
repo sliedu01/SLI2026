@@ -317,6 +317,15 @@ export function ExpertReportTemplate({
                     <span className="font-bold text-slate-500">3.5 미만:</span> 미흡
                   </p>
                 </div>
+                <div className="flex flex-col gap-1">
+                  <p className="font-bold text-slate-700">유의확률 p-value (Paired t-test 기준)</p>
+                  <p className="text-slate-600 pl-2 border-l-2 border-slate-200">
+                    <span className="font-bold text-emerald-600">p &lt; 0.001:</span> 매우 유의미 &nbsp;|&nbsp; 
+                    <span className="font-bold text-blue-600">p &lt; 0.01:</span> 높은 유의성 &nbsp;|&nbsp; 
+                    <span className="font-bold text-orange-600">p &lt; 0.05:</span> 유의미 &nbsp;|&nbsp; 
+                    <span className="font-bold text-slate-500">p ≥ 0.05:</span> 유의하지 않음
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -350,6 +359,15 @@ export function ExpertReportTemplate({
                   <p className="text-[10pt] text-slate-600 leading-relaxed">
                     * 위 수치는 Paired t-test(대응표본 t검정, t={analysis.statisticalEvidence.tValue})를 통해 산출.
                   </p>
+                  <div className="mt-3 pt-3 border-t border-slate-200">
+                    <p className="text-[9pt] text-slate-500 leading-relaxed">
+                      <span className="font-bold text-slate-600">※ 유의확률(p-value) 판단 기준:</span>{' '}
+                      <span className="font-bold text-emerald-600">p &lt; 0.001</span> 매우 유의미 |{' '}
+                      <span className="font-bold text-blue-600">p &lt; 0.01</span> 높은 유의성 |{' '}
+                      <span className="font-bold text-orange-600">p &lt; 0.05</span> 유의미 |{' '}
+                      <span className="font-bold text-slate-500">p ≥ 0.05</span> 유의하지 않음
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -458,7 +476,7 @@ export function ExpertReportTemplate({
             <thead>
               <tr>
                 <th className="w-16">번호</th>
-                <th className="w-24">주제</th>
+                <th className="w-[30%]">주제</th>
                 <th>설문 문항 내용</th>
               </tr>
             </thead>
@@ -466,8 +484,8 @@ export function ExpertReportTemplate({
               {satTemplate?.questions.map((q, i) => (
                 <tr key={i}>
                   <td>{i+1}</td>
-                  <td>{q.theme}</td>
-                  <td className="text-left px-2">{q.content}</td>
+                  <td className="px-3 leading-relaxed">{q.theme}</td>
+                  <td className="!text-left px-4 leading-relaxed">{q.content}</td>
                 </tr>
               ))}
             </tbody>
@@ -514,7 +532,7 @@ export function ExpertReportTemplate({
                 ))}
                 <th colSpan={2} className="bg-blue-50">평균 역량</th>
                 <th rowSpan={2} className="bg-blue-50">역량향상도<br/>(%)</th>
-                <th rowSpan={2} className="bg-indigo-50">역량향상<br/>지수(Gain)</th>
+                <th rowSpan={2} className="bg-indigo-50">Hake's Gain<br/>(역량 향상도)</th>
                 <th rowSpan={2} className="bg-indigo-50">효과크기<br/>(Cohen's d)</th>
               </tr>
               <tr>
@@ -576,14 +594,14 @@ export function ExpertReportTemplate({
           </table>
         </div>
 
-        <div className="report-section mt-8 grid grid-cols-2 gap-8">
+        <div className="report-section mt-8 flex flex-col gap-6">
           <div>
             <h3 className="text-[12pt] font-bold mb-3">■ 역량 진단 지표 및 문항 정보</h3>
             <table className="appendix-table text-[10pt]">
               <thead>
                 <tr>
-                  <th className="w-12">번호</th>
-                  <th className="w-20">주제</th>
+                  <th className="w-16">번호</th>
+                  <th className="w-[30%]">주제</th>
                   <th>문항 내용</th>
                 </tr>
               </thead>
@@ -591,8 +609,8 @@ export function ExpertReportTemplate({
                 {compTemplate?.questions.map((q, i) => (
                   <tr key={i}>
                     <td>{i+1}</td>
-                    <td>{q.theme}</td>
-                    <td className="text-left px-2">{q.content}</td>
+                    <td className="px-3 leading-relaxed">{q.theme}</td>
+                    <td className="!text-left px-4 leading-relaxed">{q.content}</td>
                   </tr>
                 ))}
               </tbody>
