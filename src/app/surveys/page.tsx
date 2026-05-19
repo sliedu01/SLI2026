@@ -60,7 +60,8 @@ export default function SurveyPage() {
   const { 
     responses, templates, fetchSurveys, 
     updateResponse, deleteResponse, addResponse, 
-    updateTemplate, deleteTemplate 
+    updateTemplate, deleteTemplate,
+    deleteRespondentResponses, clearProjectResponses
   } = useSurveyStore();
   const { 
     projects, visibleProjectIds, expandedIds, selectedProjectIds, 
@@ -574,8 +575,17 @@ export default function SurveyPage() {
               onEdit={(r) => { setEditingResponse(r); setIsEditDialogOpen(true); }}
               onDelete={(rid, pid) => setDeleteConfirm({
                 open: true, title: "데이터 삭제", description: "삭제하시겠습니까?", 
-                onConfirm: async () => { await deleteResponse(rid); setDeleteConfirm(p => ({...p, open: false})); }
+                onConfirm: async () => { await deleteRespondentResponses(pid, rid); setDeleteConfirm(p => ({...p, open: false})); }
               })}
+              onDeleteAll={selectedProjectIds.length === 1 ? () => {
+                setDeleteConfirm({
+                  open: true, title: "전체 데이터 삭제", description: "해당 과정의 모든 원본 데이터를 영구적으로 삭제하시겠습니까?",
+                  onConfirm: async () => {
+                    await clearProjectResponses(selectedProjectIds[0]);
+                    setDeleteConfirm(p => ({...p, open: false}));
+                  }
+                });
+              } : undefined}
             />
           )}
 

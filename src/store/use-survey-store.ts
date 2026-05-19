@@ -88,6 +88,7 @@ interface SurveyState {
   addResponse: (response: Omit<SurveyResponse, 'id' | 'createdAt'>) => Promise<void>;
   updateResponse: (id: string, response: Partial<Omit<SurveyResponse, 'id' | 'createdAt'>>) => Promise<void>;
   deleteResponse: (id: string) => Promise<void>;
+  deleteRespondentResponses: (projectId: string, respondentId: string) => Promise<void>;
   bulkAddResponses: (responses: Array<Omit<SurveyResponse, 'id' | 'createdAt'>>) => Promise<void>;
   clearProjectResponses: (projectId: string) => Promise<void>;
   
@@ -197,6 +198,12 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
 
   deleteResponse: async (id) => {
     const { error } = await supabase.from('surveys').delete().eq('id', id);
+    if (error) throw error;
+    await get().fetchSurveys();
+  },
+
+  deleteRespondentResponses: async (projectId, respondentId) => {
+    const { error } = await supabase.from('surveys').delete().match({ project_id: projectId, respondent_id: respondentId });
     if (error) throw error;
     await get().fetchSurveys();
   },
