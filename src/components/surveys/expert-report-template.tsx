@@ -75,15 +75,22 @@ export function ExpertReportTemplate({
       const r = map.get(res.respondentId)!;
       const tmpl = templates.find(t => t.id === res.templateId);
       
-      res.answers.forEach(ans => {
-        if (tmpl?.type === 'SATISFACTION') {
-          if (ans.score !== undefined) r.sat.push(ans.score);
-          if (ans.text) r.comments.push(ans.text);
-        } else if (tmpl?.type === 'COMPETENCY') {
-          if (ans.preScore !== undefined) r.pre.push(ans.preScore);
-          if (ans.score !== undefined) r.post.push(ans.score);
-        }
-      });
+      if (tmpl?.type === 'SATISFACTION') {
+        tmpl.questions.filter(q => q.type !== 'TEXT').forEach(q => {
+          const ans = res.answers.find(a => a.questionId === q.id);
+          if (ans && ans.score !== undefined) r.sat.push(ans.score);
+        });
+        tmpl.questions.filter(q => q.type === 'TEXT').forEach(q => {
+          const ans = res.answers.find(a => a.questionId === q.id);
+          if (ans && ans.text) r.comments.push(ans.text);
+        });
+      } else if (tmpl?.type === 'COMPETENCY') {
+        tmpl.questions.forEach(q => {
+          const ans = res.answers.find(a => a.questionId === q.id);
+          if (ans && ans.preScore !== undefined) r.pre.push(ans.preScore);
+          if (ans && ans.score !== undefined) r.post.push(ans.score);
+        });
+      }
     });
 
     // 학생 번호 기준 자연 정렬 (숫자 추출 후 오름차순)
