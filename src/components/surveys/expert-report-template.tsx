@@ -279,11 +279,48 @@ export function ExpertReportTemplate({
                   <span className="text-[14pt] font-black text-slate-900">{m.value}</span>
                 </div>
                 <p className="text-blue-700 font-bold mb-2 text-[10pt]">▶ {m.interpretation}</p>
-                <p className="text-[10pt] text-slate-500 leading-relaxed">{m.desc}</p>
+                <p className="text-[10pt] text-slate-500 leading-relaxed mb-3">{m.desc}</p>
+                {/* m.criteria is now moved to the bottom unified table for better visibility */}
               </div>
             ))}
           </div>
           
+          <div className="report-section mt-6 break-inside-avoid pl-8">
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+              <h4 className="text-[11pt] font-bold text-slate-800 mb-3 flex items-center gap-2">
+                <span className="text-blue-600">※</span> 정량적 지표의 통상적 평가 기준 (참고자료)
+              </h4>
+              <div className="grid grid-cols-1 gap-4 text-[10pt]">
+                <div className="flex flex-col gap-1">
+                  <p className="font-bold text-slate-700">[Hake's Gain] 정규화 향상 지수</p>
+                  <p className="text-slate-600 pl-2 border-l-2 border-slate-200">
+                    <span className="font-bold text-emerald-600">70% 이상:</span> 매우 높음 &nbsp;|&nbsp; 
+                    <span className="font-bold text-blue-600">30% ~ 70% 미만:</span> 중간 &nbsp;|&nbsp; 
+                    <span className="font-bold text-orange-600">30% 미만:</span> 낮음
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="font-bold text-slate-700">[Cohen's d] 효과 크기</p>
+                  <p className="text-slate-600 pl-2 border-l-2 border-slate-200">
+                    <span className="font-bold text-emerald-600">0.8 이상:</span> 큰 효과 &nbsp;|&nbsp; 
+                    <span className="font-bold text-blue-600">0.5 ~ 0.8 미만:</span> 중간 효과 &nbsp;|&nbsp; 
+                    <span className="font-bold text-orange-600">0.2 ~ 0.5 미만:</span> 작은 효과 &nbsp;|&nbsp; 
+                    <span className="font-bold text-slate-500">0.2 미만:</span> 효과 미미
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="font-bold text-slate-700">만족도 및 추천 지수 (5점 만점 기준)</p>
+                  <p className="text-slate-600 pl-2 border-l-2 border-slate-200">
+                    <span className="font-bold text-emerald-600">4.5 이상:</span> 최우수 &nbsp;|&nbsp; 
+                    <span className="font-bold text-blue-600">4.0 ~ 4.5 미만:</span> 우수 &nbsp;|&nbsp; 
+                    <span className="font-bold text-orange-600">3.5 ~ 4.0 미만:</span> 보통 &nbsp;|&nbsp; 
+                    <span className="font-bold text-slate-500">3.5 미만:</span> 미흡
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {analysis.statisticalEvidence && (
             <div className="report-section mt-8 break-inside-avoid">
               <h3 className="text-[13pt] font-bold mb-6 flex items-center gap-2 text-slate-800">
@@ -476,6 +513,7 @@ export function ExpertReportTemplate({
                   <th key={i} colSpan={2}>문항 {i+1}</th>
                 ))}
                 <th colSpan={2} className="bg-blue-50">평균 역량</th>
+                <th rowSpan={2} className="bg-blue-50">역량향상도<br/>(%)</th>
                 <th rowSpan={2} className="bg-indigo-50">역량향상<br/>지수(Gain)</th>
                 <th rowSpan={2} className="bg-indigo-50">효과크기<br/>(Cohen's d)</th>
               </tr>
@@ -508,6 +546,7 @@ export function ExpertReportTemplate({
                     ))}
                     <td className="font-bold bg-slate-50">{preAvg.toFixed(2)}</td>
                     <td className="font-bold bg-slate-50">{postAvg.toFixed(2)}</td>
+                    <td className="font-bold text-blue-600 bg-slate-50">{preAvg > 0 ? ((postAvg - preAvg) / preAvg * 100).toFixed(1) + '%' : '0.0%'}</td>
                     <td className="font-bold text-blue-600 bg-slate-50">{gain.toFixed(2)}</td>
                     <td className="font-bold text-indigo-600 bg-slate-50">{cohensD.toFixed(2)}</td>
                   </tr>
@@ -528,6 +567,7 @@ export function ExpertReportTemplate({
                   })}
                   <td className="bg-blue-100">{stats.preAvg.toFixed(2)}</td>
                   <td className="bg-blue-100 text-blue-700">{stats.postAvg.toFixed(2)}</td>
+                  <td className="bg-blue-100 text-blue-700">{stats.preAvg > 0 ? ((stats.postAvg - stats.preAvg) / stats.preAvg * 100).toFixed(1) + '%' : '0.0%'}</td>
                   <td className="bg-indigo-100 text-blue-700">{stats.hakeGain.toFixed(2)}</td>
                   <td className="bg-indigo-100 text-indigo-700">{stats.cohensD.toFixed(2)}</td>
                 </tr>
