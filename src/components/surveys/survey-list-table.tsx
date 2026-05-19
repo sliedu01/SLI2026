@@ -64,6 +64,14 @@ export function SurveyListTable({ responses, templates, selectedProjectIds, onEd
       .sort((a: RowData, b: RowData) => a.rid.localeCompare(b.rid, undefined, { numeric: true, sensitivity: 'base' }));
   }, [responses, templates, selectedProjectIds, searchTerm]);
 
+  const commonSatTemplate = allRowData.find(r => r.satTemplate)?.satTemplate;
+  const commonCompTemplate = allRowData.find(r => r.compTemplate)?.compTemplate;
+  
+  const satQuestions = commonSatTemplate?.questions.filter(q => q.type !== 'TEXT') || [];
+  const compQuestions = commonCompTemplate?.questions || [];
+
+  const totalCols = 7 + satQuestions.length + compQuestions.length;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -98,18 +106,29 @@ export function SurveyListTable({ responses, templates, selectedProjectIds, onEd
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900/50 shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-bold">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-bold text-xs">
               <tr>
-                <th className="p-3 border-r dark:border-slate-800 text-center w-14">NO</th>
-                <th className="p-3 border-r dark:border-slate-800 text-left">응답자 ID</th>
-                <th className="p-3 border-r dark:border-slate-800 text-center w-24">만족도</th>
-                <th className="p-3 border-r dark:border-slate-800 text-center w-20">사전</th>
-                <th className="p-3 border-r dark:border-slate-800 text-center w-20">사후</th>
-                <th className="p-3 border-r dark:border-slate-800 text-center w-20">향상도</th>
-                <th className="p-3 text-center w-32">관리</th>
+                <th rowSpan={2} className="p-3 border-r border-b dark:border-slate-800 text-center w-14">NO</th>
+                <th rowSpan={2} className="p-3 border-r border-b dark:border-slate-800 text-left min-w-[120px]">응답자 ID</th>
+                <th colSpan={1 + satQuestions.length} className="p-2 border-r border-b dark:border-slate-800 text-center bg-emerald-50/50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-400">만족도</th>
+                <th colSpan={3 + compQuestions.length} className="p-2 border-r border-b dark:border-slate-800 text-center bg-blue-50/50 dark:bg-blue-900/10 text-blue-700 dark:text-blue-400">역량 (사전/사후)</th>
+                <th rowSpan={2} className="p-3 border-b dark:border-slate-800 text-center w-32">관리</th>
+              </tr>
+              <tr>
+                <th className="p-2 border-r border-b dark:border-slate-800 text-center w-16 bg-emerald-50/30 dark:bg-emerald-900/5">평균</th>
+                {satQuestions.map((q, i) => (
+                  <th key={`sat-th-${q.id}`} className="p-2 border-r border-b dark:border-slate-800 text-center text-[10px] whitespace-nowrap bg-emerald-50/30 dark:bg-emerald-900/5">Q{i+1}</th>
+                ))}
+                
+                <th className="p-2 border-r border-b dark:border-slate-800 text-center w-14 bg-blue-50/30 dark:bg-blue-900/5">사전</th>
+                <th className="p-2 border-r border-b dark:border-slate-800 text-center w-14 bg-blue-50/30 dark:bg-blue-900/5">사후</th>
+                <th className="p-2 border-r border-b dark:border-slate-800 text-center w-14 bg-blue-50/30 dark:bg-blue-900/5">향상도</th>
+                {compQuestions.map((q, i) => (
+                  <th key={`comp-th-${q.id}`} className="p-2 border-r border-b dark:border-slate-800 text-center text-[10px] whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/5">Q{i+1}(전,후)</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
               {allRowData.map((row, rIdx) => {
                 const rowId = `${row.pid}-${row.rid}-${rIdx}`;
                 const isExpanded = expandedRowId === rowId;
@@ -127,12 +146,26 @@ export function SurveyListTable({ responses, templates, selectedProjectIds, onEd
                         </div>
                       </td>
                       <td className="p-3 border-r dark:border-slate-800 font-bold text-slate-700 dark:text-slate-200">{row.rid}</td>
-                      <td className="p-3 border-r dark:border-slate-800 text-center font-bold text-emerald-600 dark:text-emerald-400">{row.sAvg.toFixed(2)}</td>
-                      <td className="p-3 border-r dark:border-slate-800 text-center text-slate-400">{row.cPre.toFixed(2)}</td>
-                      <td className="p-3 border-r dark:border-slate-800 text-center font-black text-blue-600 dark:text-blue-400">{row.cPost.toFixed(2)}</td>
-                      <td className="p-3 border-r dark:border-slate-800 text-center text-blue-700 dark:text-blue-300 font-bold">
+                      <td className="p-3 border-r dark:border-slate-800 text-center font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-900/5">{row.sAvg.toFixed(2)}</td>
+                      {satQuestions.map(q => {
+                        const ans = row.sat?.answers.find(a => a.questionId === q.id);
+                        return <td key={`sat-td-${q.id}`} className="p-2 border-r dark:border-slate-800 text-center text-slate-500">{ans?.score || '-'}</td>
+                      })}
+                      <td className="p-3 border-r dark:border-slate-800 text-center text-slate-400 bg-blue-50/10 dark:bg-blue-900/5">{row.cPre.toFixed(2)}</td>
+                      <td className="p-3 border-r dark:border-slate-800 text-center font-black text-blue-600 dark:text-blue-400 bg-blue-50/10 dark:bg-blue-900/5">{row.cPost.toFixed(2)}</td>
+                      <td className="p-3 border-r dark:border-slate-800 text-center text-blue-700 dark:text-blue-300 font-bold bg-blue-50/10 dark:bg-blue-900/5">
                         {row.cPre >= 5 ? 'N/A' : `${Math.round(row.rGain * 100)}%`}
                       </td>
+                      {compQuestions.map(q => {
+                        const ans = row.comp?.answers.find(a => a.questionId === q.id);
+                        return (
+                          <td key={`comp-td-${q.id}`} className="p-2 border-r dark:border-slate-800 text-center whitespace-nowrap">
+                            <span className="text-slate-400">{ans?.preScore || '-'}</span>
+                            <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
+                            <span className="text-blue-600 dark:text-blue-400 font-bold">{ans?.score || '-'}</span>
+                          </td>
+                        )
+                      })}
                       <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1.5">
                           <TooltipProvider>
@@ -184,8 +217,8 @@ export function SurveyListTable({ responses, templates, selectedProjectIds, onEd
                       </td>
                     </tr>
                     {isExpanded && (
-                      <tr className="bg-slate-50/50 dark:bg-slate-800/20">
-                        <td colSpan={7} className="p-4 border-b dark:border-slate-800">
+                      <tr className="bg-slate-50/80 dark:bg-slate-800/40">
+                        <td colSpan={totalCols} className="p-4 border-b dark:border-slate-800">
                           <div className="grid grid-cols-2 gap-6">
                             <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
                               <h4 className="font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2 text-sm">
@@ -241,7 +274,7 @@ export function SurveyListTable({ responses, templates, selectedProjectIds, onEd
               })}
               {allRowData.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-20 text-center text-slate-400 bg-slate-50/50 dark:bg-transparent">
+                  <td colSpan={totalCols} className="p-20 text-center text-slate-400 bg-slate-50/50 dark:bg-transparent">
                     <User className="size-12 mx-auto mb-4 opacity-10" />
                     <p>표시할 응답 데이터가 없습니다.</p>
                   </td>
