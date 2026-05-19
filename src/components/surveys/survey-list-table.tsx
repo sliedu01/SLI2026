@@ -8,6 +8,7 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger 
 } from "@/components/ui/tooltip";
 import { SurveyResponse, SurveyTemplate, Answer } from '@/store/use-survey-store';
+import { utils, writeFile } from 'xlsx';
 
 interface SurveyListTableProps {
   responses: SurveyResponse[];
@@ -67,10 +68,45 @@ export function SurveyListTable({ responses, templates, selectedProjectIds, onEd
   const commonSatTemplate = allRowData.find(r => r.satTemplate)?.satTemplate;
   const commonCompTemplate = allRowData.find(r => r.compTemplate)?.compTemplate;
   
-  const satQuestions = commonSatTemplate?.questions.filter(q => q.type !== 'TEXT') || [];
+  const satQuestions = commonSatTemplate?.questions || [];
   const compQuestions = commonCompTemplate?.questions || [];
 
   const totalCols = 7 + satQuestions.length + compQuestions.length;
+
+  const handleDownloadExcel = () => {
+    if (allRowData.length === 0) return;
+    
+    const headers = [
+      'NO', '응답자 ID', '만족도 평균', 
+      ...satQuestions.map((q, i) => `만족도 Q${i+1}`),
+      '사전', '사후', '향상도',
+      ...compQuestions.map((q, i) => `역량 Q${i+1}(사전)`),
+      ...compQuestions.map((q, i) => `역량 Q${i+1}(사후)`)
+    ];
+
+    const data = allRowData.map((row, i) => {
+      const rowData: any[] = [
+        i + 1,
+        row.rid,
+        row.sAvg.toFixed(2),
+        ...satQuestions.map(q => {
+          const ans = row.sat?.answers.find(a => a.questionId === q.id);
+          return q.type === 'TEXT' ? (ans?.text || '') : (ans?.score || '');
+        }),
+        row.cPre.toFixed(2),
+        row.cPost.toFixed(2),
+        row.cPre >= 5 ? 'N/A' : `${Math.round(row.rGain * 100)}%`,
+        ...compQuestions.map(q => row.comp?.answers.find(a => a.questionId === q.id)?.preScore || ''),
+        ...compQuestions.map(q => row.comp?.answers.find(a => a.questionId === q.id)?.score || '')
+      ];
+      return rowData;
+    });
+
+    const worksheet = utils.aoa_to_sheet([headers, ...data]);
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, worksheet, "RawData");
+    writeFile(workbook, "survey_raw_data.xlsx");
+  };
 
   return (
     <div className="space-y-4">
@@ -81,10 +117,17 @@ export function SurveyListTable({ responses, templates, selectedProjectIds, onEd
           <span className="text-sm font-normal text-slate-500 ml-2">총 {allRowData.length}명</span>
         </h3>
         <div className="flex items-center gap-2">
-          <div className="relative w-64">
+          <Button 
+            variant="outline" 
+            className="rounded-xl border-green-200 dark:border-green-900/50 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+            onClick={handleDownloadExcel}
+          >
+            Raw 데이터 엑셀 다운로드
+          </Button>
+          <div className="relative w-48">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
             <Input 
-              placeholder="응답자 ID 검색..." 
+              placeholder="ID 검색..." 
               className="pl-9 h-9 rounded-xl border-slate-200 dark:border-slate-800"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -93,11 +136,10 @@ export function SurveyListTable({ responses, templates, selectedProjectIds, onEd
           {selectedProjectIds.length === 1 && onDeleteAll && (
             <Button 
               variant="outline" 
-              className="rounded-xl border-red-200 dark:border-red-900/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="rounded-xl border-red-200 dark:border-red-900/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 px-3"
               onClick={onDeleteAll}
             >
-              <Trash2 className="size-4 mr-2" />
-              선택 과정 전체 삭제
+              <Trash2 className="size-4" />
             </Button>
           )}
         </div>
@@ -108,23 +150,23 @@ export function SurveyListTable({ responses, templates, selectedProjectIds, onEd
           <table className="w-full text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-bold text-xs">
               <tr>
-                <th rowSpan={2} className="p-3 border-r border-b dark:border-slate-800 text-center w-14">NO</th>
-                <th rowSpan={2} className="p-3 border-r border-b dark:border-slate-800 text-left min-w-[120px]">응답자 ID</th>
-                <th colSpan={1 + satQuestions.length} className="p-2 border-r border-b dark:border-slate-800 text-center bg-emerald-50/50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-400">만족도</th>
-                <th colSpan={3 + compQuestions.length} className="p-2 border-r border-b dark:border-slate-800 text-center bg-blue-50/50 dark:bg-blue-900/10 text-blue-700 dark:text-blue-400">역량 (사전/사후)</th>
-                <th rowSpan={2} className="p-3 border-b dark:border-slate-800 text-center w-32">관리</th>
+                <th rowSpan={2} className="px-2 py-1.5 border-r border-b dark:border-slate-800 text-center w-10">NO</th>
+                <th rowSpan={2} className="px-2 py-1.5 border-r border-b dark:border-slate-800 text-left min-w-[80px]">응답자 ID</th>
+                <th colSpan={1 + satQuestions.length} className="px-1 py-1.5 border-r border-b dark:border-slate-800 text-left pl-2 bg-emerald-50/50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-400">만족도</th>
+                <th colSpan={3 + compQuestions.length} className="px-1 py-1.5 border-r border-b dark:border-slate-800 text-left pl-2 bg-blue-50/50 dark:bg-blue-900/10 text-blue-700 dark:text-blue-400">역량 (사전/사후)</th>
+                <th rowSpan={2} className="px-2 py-1.5 border-b dark:border-slate-800 text-center w-24">관리</th>
               </tr>
               <tr>
-                <th className="p-2 border-r border-b dark:border-slate-800 text-center w-16 bg-emerald-50/30 dark:bg-emerald-900/5">평균</th>
+                <th className="px-1 py-1 border-r border-b dark:border-slate-800 text-center w-12 bg-emerald-50/30 dark:bg-emerald-900/5">평균</th>
                 {satQuestions.map((q, i) => (
-                  <th key={`sat-th-${q.id}`} className="p-2 border-r border-b dark:border-slate-800 text-center text-[10px] whitespace-nowrap bg-emerald-50/30 dark:bg-emerald-900/5">Q{i+1}</th>
+                  <th key={`sat-th-${q.id}`} className="px-1 py-1 border-r border-b dark:border-slate-800 text-left text-[10px] whitespace-nowrap bg-emerald-50/30 dark:bg-emerald-900/5 max-w-[60px] truncate" title={q.content}>Q{i+1}</th>
                 ))}
                 
-                <th className="p-2 border-r border-b dark:border-slate-800 text-center w-14 bg-blue-50/30 dark:bg-blue-900/5">사전</th>
-                <th className="p-2 border-r border-b dark:border-slate-800 text-center w-14 bg-blue-50/30 dark:bg-blue-900/5">사후</th>
-                <th className="p-2 border-r border-b dark:border-slate-800 text-center w-14 bg-blue-50/30 dark:bg-blue-900/5">향상도</th>
+                <th className="px-1 py-1 border-r border-b dark:border-slate-800 text-center w-10 bg-blue-50/30 dark:bg-blue-900/5">사전</th>
+                <th className="px-1 py-1 border-r border-b dark:border-slate-800 text-center w-10 bg-blue-50/30 dark:bg-blue-900/5">사후</th>
+                <th className="px-1 py-1 border-r border-b dark:border-slate-800 text-center w-12 bg-blue-50/30 dark:bg-blue-900/5">향상도</th>
                 {compQuestions.map((q, i) => (
-                  <th key={`comp-th-${q.id}`} className="p-2 border-r border-b dark:border-slate-800 text-center text-[10px] whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/5">Q{i+1}(전,후)</th>
+                  <th key={`comp-th-${q.id}`} className="px-1 py-1 border-r border-b dark:border-slate-800 text-left text-[10px] whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/5 max-w-[80px] truncate" title={q.content}>Q{i+1}(전,후)</th>
                 ))}
               </tr>
             </thead>
@@ -139,34 +181,43 @@ export function SurveyListTable({ responses, templates, selectedProjectIds, onEd
                       className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
                       onClick={() => setExpandedRowId(isExpanded ? null : rowId)}
                     >
-                      <td className="p-3 border-r dark:border-slate-800 text-center text-slate-400 font-bold">
+                      <td className="px-2 py-1 border-r dark:border-slate-800 text-center text-slate-400 font-bold">
                         <div className="flex items-center justify-center gap-1">
                           {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
                           {rIdx + 1}
                         </div>
                       </td>
-                      <td className="p-3 border-r dark:border-slate-800 font-bold text-slate-700 dark:text-slate-200">{row.rid}</td>
-                      <td className="p-3 border-r dark:border-slate-800 text-center font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-900/5">{row.sAvg.toFixed(2)}</td>
+                      <td className="px-2 py-1 border-r dark:border-slate-800 font-bold text-slate-700 dark:text-slate-200 text-left">{row.rid}</td>
+                      <td className="px-1 py-1 border-r dark:border-slate-800 text-center font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-900/5">{row.sAvg.toFixed(2)}</td>
                       {satQuestions.map(q => {
                         const ans = row.sat?.answers.find(a => a.questionId === q.id);
-                        return <td key={`sat-td-${q.id}`} className="p-2 border-r dark:border-slate-800 text-center text-slate-500">{ans?.score || '-'}</td>
+                        if (q.type === 'TEXT') {
+                          const text = ans?.text || '';
+                          const display = text.length > 5 ? text.slice(0, 5) + '...' : (text || '-');
+                          return (
+                            <td key={`sat-td-${q.id}`} className="px-1 py-1 border-r dark:border-slate-800 text-left text-slate-500 max-w-[60px]" title={text}>
+                              {display}
+                            </td>
+                          );
+                        }
+                        return <td key={`sat-td-${q.id}`} className="px-1 py-1 border-r dark:border-slate-800 text-left text-slate-500">{ans?.score || '-'}</td>
                       })}
-                      <td className="p-3 border-r dark:border-slate-800 text-center text-slate-400 bg-blue-50/10 dark:bg-blue-900/5">{row.cPre.toFixed(2)}</td>
-                      <td className="p-3 border-r dark:border-slate-800 text-center font-black text-blue-600 dark:text-blue-400 bg-blue-50/10 dark:bg-blue-900/5">{row.cPost.toFixed(2)}</td>
-                      <td className="p-3 border-r dark:border-slate-800 text-center text-blue-700 dark:text-blue-300 font-bold bg-blue-50/10 dark:bg-blue-900/5">
+                      <td className="px-1 py-1 border-r dark:border-slate-800 text-center text-slate-400 bg-blue-50/10 dark:bg-blue-900/5">{row.cPre.toFixed(2)}</td>
+                      <td className="px-1 py-1 border-r dark:border-slate-800 text-center font-black text-blue-600 dark:text-blue-400 bg-blue-50/10 dark:bg-blue-900/5">{row.cPost.toFixed(2)}</td>
+                      <td className="px-1 py-1 border-r dark:border-slate-800 text-center text-blue-700 dark:text-blue-300 font-bold bg-blue-50/10 dark:bg-blue-900/5">
                         {row.cPre >= 5 ? 'N/A' : `${Math.round(row.rGain * 100)}%`}
                       </td>
                       {compQuestions.map(q => {
                         const ans = row.comp?.answers.find(a => a.questionId === q.id);
                         return (
-                          <td key={`comp-td-${q.id}`} className="p-2 border-r dark:border-slate-800 text-center whitespace-nowrap">
+                          <td key={`comp-td-${q.id}`} className="px-1 py-1 border-r dark:border-slate-800 text-left whitespace-nowrap max-w-[80px]">
                             <span className="text-slate-400">{ans?.preScore || '-'}</span>
-                            <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
+                            <span className="text-slate-300 dark:text-slate-600 mx-0.5">/</span>
                             <span className="text-blue-600 dark:text-blue-400 font-bold">{ans?.score || '-'}</span>
                           </td>
                         )
                       })}
-                      <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-2 py-1 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1.5">
                           <TooltipProvider>
                             {row.sat && (
