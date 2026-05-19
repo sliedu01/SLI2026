@@ -14,7 +14,7 @@ const USABLE_HEIGHT_MM = A4_HEIGHT_MM - PAGE_PADDING_MM; // 하단 여백만 고
  * - A4를 넘는 경우 "안전 절단점" (테이블 행 사이, 블록 사이 빈 공간)을 자동 탐색
  * - 표는 행 단위로 분할되어 페이지에 반영
  */
-export async function generateSurveyReport(containerId: string, projectName: string) {
+export async function generateSurveyReport(containerId: string, fileName: string) {
   const container = document.getElementById(containerId);
   if (!container) {
     alert('보고서 콘텐츠를 찾을 수 없습니다. 보고서 프리뷰가 화면에 표시된 상태에서 다시 시도해주세요.');
@@ -119,8 +119,7 @@ export async function generateSurveyReport(containerId: string, projectName: str
     }
   }
 
-  const date = new Date().toISOString().slice(2, 10).replace(/-/g, '');
-  pdf.save(`교육성과보고서_${projectName}_${date}.pdf`);
+  pdf.save(`${fileName}.pdf`);
 
   } catch (err: any) {
     console.error('PDF 생성 오류:', err);
@@ -208,7 +207,7 @@ function findSafeCutPoint(
 /**
  * HWP 다운로드: HTML 서식을 유지하며 HWP로 변환 (HTML-compatible HWP)
  */
-export function downloadAsHWP(containerId: string, projectName: string) {
+export function downloadAsHWP(containerId: string, fileName: string) {
   const element = document.getElementById(containerId);
   if (!element) return;
 
@@ -245,9 +244,7 @@ export function downloadAsHWP(containerId: string, projectName: string) {
   const url = URL.createObjectURL(blob);
   
   const link = document.createElement('a');
-  const date = new Date().toISOString().slice(2, 10).replace(/-/g, '');
-  link.href = url;
-  link.download = `교육성과분석보고서_${projectName}_${date}.hwp`;
+  link.download = `${fileName}.hwpx`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

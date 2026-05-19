@@ -231,17 +231,58 @@ export default function SurveyPage() {
     }
   };
 
+  const downloadFileName = React.useMemo(() => {
+    if (selectedProjectIds.length === 0) {
+      const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      return `${date}_전체사업_분석보고서`;
+    }
+    
+    const id = selectedProjectIds[0];
+    const targetProject = projects.find(proj => proj.id === id) || projects.find(proj => proj.sessions?.some(s => s.id === id));
+    
+    let currentProj = targetProject;
+    let foundPartnerId = currentProj?.partnerId;
+    
+    while (currentProj && !foundPartnerId) {
+      currentProj = projects.find(x => x.id === currentProj?.parentId);
+      if (currentProj && currentProj.partnerId) {
+        foundPartnerId = currentProj.partnerId;
+      }
+    }
+    
+    const partners = useProjectStore.getState().partners;
+    const partnerName = partners.find(pt => pt.id === foundPartnerId)?.name || '협력기관미상';
+    
+    let dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    if (targetProject?.startDate) {
+      const sD = new Date(targetProject.startDate);
+      dateStr = `${sD.getFullYear()}${String(sD.getMonth()+1).padStart(2,'0')}${String(sD.getDate()).padStart(2,'0')}`;
+    }
+    
+    let name = targetProject?.name || '';
+    if (!projects.find(p => p.id === id)) {
+      const session = targetProject?.sessions?.find(s => s.id === id);
+      if (session?.content) name = session.content;
+    }
+    
+    if (selectedProjectIds.length > 1) {
+      return `${dateStr}_${partnerName}_${name}_외_통합분석보고서`;
+    }
+    
+    return `${dateStr}_${partnerName}_${name}`;
+  }, [selectedProjectIds, projects]);
+
   const handleDownloadPDF = async () => {
     setIsDownloadingPDF(true);
     try {
-      await generateSurveyReport('expert-report-content', reportTitle);
+      await generateSurveyReport('expert-report-content', downloadFileName);
     } finally {
       setIsDownloadingPDF(false);
     }
   };
 
   const handleDownloadHWP = () => {
-    downloadAsHWP('expert-report-content', reportTitle);
+    downloadAsHWP('expert-report-content', downloadFileName);
   };
 
   const handleProcessPaste = async (shouldClear: boolean) => {
