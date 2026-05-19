@@ -65,7 +65,7 @@ interface EditDialogProps {
   response: SurveyResponse | null;
   template: SurveyTemplate | null;
   onSave: (id: string, data: Partial<SurveyResponse>) => void;
-  onUpdateAnswer: (qId: string, field: 'preScore' | 'score', val: number) => void;
+  onUpdateAnswer: (qId: string, field: 'preScore' | 'score' | 'text', val: number | string) => void;
 }
 
 export function EditDialog({ open, onOpenChange, response, template, onSave, onUpdateAnswer }: EditDialogProps) {
@@ -139,6 +139,13 @@ export function EditDialog({ open, onOpenChange, response, template, onSave, onU
                       </div>
                     </div>
                   </div>
+                ) : q.type === 'TEXT' ? (
+                  <Textarea
+                    className="min-h-[100px] resize-none rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-indigo-500"
+                    placeholder="주관식 답변 내용을 입력하세요..."
+                    value={answer?.text || ''}
+                    onChange={(e) => onUpdateAnswer(q.id, 'text', e.target.value)}
+                  />
                 ) : (
                   <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map((score) => (
