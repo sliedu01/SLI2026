@@ -489,6 +489,8 @@ export function ExpertReportTemplate({
                   <th key={i} colSpan={2}>문항 {i+1}</th>
                 ))}
                 <th colSpan={2} className="bg-blue-50">평균 역량</th>
+                <th rowSpan={2} className="bg-indigo-50">역량향상<br/>지수(Gain)</th>
+                <th rowSpan={2} className="bg-indigo-50">효과크기<br/>(Cohen's d)</th>
               </tr>
               <tr>
                 {compTemplate?.questions.map((_, i) => (
@@ -502,19 +504,47 @@ export function ExpertReportTemplate({
               </tr>
             </thead>
             <tbody>
-              {respondentData.filter(r => r.pre.length > 0).map((r, i) => (
-                <tr key={i}>
-                  <td>학생 {i + 1}</td>
-                  {r.pre.map((p, pi) => (
-                    <React.Fragment key={pi}>
-                      <td>{p}</td>
-                      <td>{r.post[pi]}</td>
-                    </React.Fragment>
-                  ))}
-                  <td className="font-bold bg-slate-50">{(r.pre.reduce((a,b)=>a+b,0)/r.pre.length).toFixed(2)}</td>
-                  <td className="font-bold bg-slate-50">{(r.post.reduce((a,b)=>a+b,0)/r.post.length).toFixed(2)}</td>
+              {respondentData.filter(r => r.pre.length > 0).map((r, i) => {
+                const preAvg = r.pre.reduce((a,b)=>a+b,0)/r.pre.length || 0;
+                const postAvg = r.post.reduce((a,b)=>a+b,0)/r.post.length || 0;
+                const gain = preAvg >= 5 ? 0 : (postAvg - preAvg) / (5 - preAvg);
+                const sd = stats.pooledStd || 1;
+                const cohensD = (postAvg - preAvg) / sd;
+                return (
+                  <tr key={i}>
+                    <td>학생 {i + 1}</td>
+                    {r.pre.map((p, pi) => (
+                      <React.Fragment key={pi}>
+                        <td>{p}</td>
+                        <td className="text-blue-700">{r.post[pi]}</td>
+                      </React.Fragment>
+                    ))}
+                    <td className="font-bold bg-slate-50">{preAvg.toFixed(2)}</td>
+                    <td className="font-bold bg-slate-50">{postAvg.toFixed(2)}</td>
+                    <td className="font-bold text-blue-600 bg-slate-50">{gain.toFixed(2)}</td>
+                    <td className="font-bold text-indigo-600 bg-slate-50">{cohensD.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
+              {respondentData.filter(r => r.pre.length > 0).length > 0 && (
+                <tr className="bg-slate-100 font-bold">
+                  <td>전체평균</td>
+                  {compTemplate?.questions.map((_, qi) => {
+                    const qPres = respondentData.map(r => r.pre[qi]).filter(p => p !== undefined);
+                    const qPosts = respondentData.map(r => r.post[qi]).filter(p => p !== undefined);
+                    return (
+                      <React.Fragment key={qi}>
+                        <td>{(qPres.reduce((a,b)=>a+b,0)/qPres.length || 0).toFixed(2)}</td>
+                        <td className="text-blue-600">{(qPosts.reduce((a,b)=>a+b,0)/qPosts.length || 0).toFixed(2)}</td>
+                      </React.Fragment>
+                    );
+                  })}
+                  <td className="bg-blue-100">{stats.preAvg.toFixed(2)}</td>
+                  <td className="bg-blue-100 text-blue-700">{stats.postAvg.toFixed(2)}</td>
+                  <td className="bg-indigo-100 text-blue-700">{stats.hakeGain.toFixed(2)}</td>
+                  <td className="bg-indigo-100 text-indigo-700">{stats.cohensD.toFixed(2)}</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
