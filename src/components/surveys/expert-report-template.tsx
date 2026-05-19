@@ -216,121 +216,108 @@ export function ExpertReportTemplate({
       </div>
 
       {/* Page 2: Summary & Metrics */}
-      <div className="report-page">
-        <div className="grid grid-cols-2 gap-8 h-full relative">
-          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-300 -translate-x-1/2" />
+      <div className="report-page space-y-12">
+        <section className="report-section">
+          <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅰ. 분석 개요 및 핵심 요약</h2>
+          <div className="space-y-8">
+            <div className="report-section">
+              <h3 className="text-[13pt] font-bold mb-3 flex items-center gap-2 text-slate-800">
+                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">1</span>
+                분석 목적 및 배경
+              </h3>
+              <p className="pl-8 text-[11pt] text-justify leading-loose">
+                본 보고서는 {mainProjectName}의 교육 효과성을 다각도로 검증하기 위해 작성됨. 단순 만족도 조사를 넘어, 사전-사후 역량 변화를 통계적으로 분석하여 실질적인 학습 전이(Learning Transfer) 수준을 도출하고 향후 교육 설계의 전략적 방향성을 제시하고자 함.
+              </p>
+            </div>
+            
+            <div className="report-section">
+              <h3 className="text-[13pt] font-bold mb-4 flex items-center gap-2 text-slate-800">
+                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">2</span>
+                핵심 성과 요약
+              </h3>
+              <div className="pl-8 grid grid-cols-3 gap-6">
+                <div className="bg-slate-50 p-6 border-t-4 border-emerald-500 rounded-b-xl flex flex-col justify-between">
+                  <p className="text-[11pt] text-slate-500 font-bold mb-1">종합 만족도</p>
+                  <p className="text-[18pt] font-black text-emerald-600">{stats.satAvg.toFixed(2)}</p>
+                  <p className="text-[10pt] text-slate-400 mt-1">Excellent Level</p>
+                </div>
+                <div className="bg-slate-50 p-6 border-t-4 border-blue-500 rounded-b-xl flex flex-col justify-between">
+                  <p className="text-[11pt] text-slate-500 font-bold mb-1">역량 향상도</p>
+                  <p className="text-[18pt] font-black text-blue-600">{Math.round(stats.hakeGain * 100)}%</p>
+                  <p className="text-[10pt] text-slate-400 mt-1">Hake&apos;s Gain</p>
+                </div>
+                <div className="bg-slate-50 p-6 border-t-4 border-indigo-500 rounded-b-xl flex flex-col justify-between">
+                  <p className="text-[11pt] text-slate-500 font-bold mb-1">효과 크기</p>
+                  <p className="text-[18pt] font-black text-indigo-600">{stats.cohensD.toFixed(2)}</p>
+                  <p className="text-[10pt] text-slate-400 mt-1">Cohen&apos;s d</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {(radarData.length > 0 || improvementData.length > 0) && (
+          <section className="report-section">
+            <div className="grid grid-cols-2 gap-8">
+              {radarData.length > 0 && <SatisfactionRadarChart radarData={radarData} />}
+              {improvementData.length > 0 && <CompetencyBarChart improvementData={improvementData} />}
+            </div>
+          </section>
+        )}
+
+        <section className="report-section">
+          <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅱ. 정량적 지표 분석</h2>
+          <h3 className="text-[13pt] font-bold mb-6 flex items-center gap-2 text-slate-800">
+            <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">1</span>
+            측정 지표 정밀 진단
+          </h3>
+          <div className="pl-8 space-y-4">
+            {analysis.metricAnalysis.map((m: any, idx: number) => (
+              <div key={idx} className="report-section bg-slate-50 p-5 rounded-2xl border border-slate-100 break-inside-avoid">
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="text-[11pt] font-bold text-slate-800">{m.name}</h4>
+                  <span className="text-[14pt] font-black text-slate-900">{m.value}</span>
+                </div>
+                <p className="text-blue-700 font-bold mb-2 text-[10pt]">▶ {m.interpretation}</p>
+                <p className="text-[10pt] text-slate-500 leading-relaxed">{m.desc}</p>
+              </div>
+            ))}
+          </div>
           
-          {/* Left Column */}
-          <div className="pr-4 space-y-12">
-            <section className="report-section">
-              <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅰ. 분석 개요 및 핵심 요약</h2>
-              <div className="space-y-8">
-                <div className="report-section">
-                  <h3 className="text-[13pt] font-bold mb-3 flex items-center gap-2 text-slate-800">
-                    <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">1</span>
-                    분석 목적 및 배경
-                  </h3>
-                  <p className="pl-8 text-[11pt] text-justify leading-loose">
-                    본 보고서는 {mainProjectName}의 교육 효과성을 다각도로 검증하기 위해 작성됨. 단순 만족도 조사를 넘어, 사전-사후 역량 변화를 통계적으로 분석하여 실질적인 학습 전이(Learning Transfer) 수준을 도출하고 향후 교육 설계의 전략적 방향성을 제시하고자 함.
+          {analysis.statisticalEvidence && (
+            <div className="report-section mt-8 break-inside-avoid">
+              <h3 className="text-[13pt] font-bold mb-6 flex items-center gap-2 text-slate-800">
+                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">2</span>
+                통계 검증 근거 (Statistical Evidence)
+              </h3>
+              <div className="pl-8">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="grid grid-cols-4 gap-4 mb-4 border-b border-slate-200 pb-4">
+                    <div>
+                      <p className="text-[10pt] text-slate-500 font-bold mb-1">표본 수 (N)</p>
+                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.n}명</p>
+                    </div>
+                    <div>
+                      <p className="text-[10pt] text-slate-500 font-bold mb-1">사전/사후 평균</p>
+                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.preAvg} / {analysis.statisticalEvidence.postAvg}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10pt] text-slate-500 font-bold mb-1">통합 표준편차</p>
+                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.pooledStd}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10pt] text-slate-500 font-bold mb-1">유의확률 (p)</p>
+                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.pValue}</p>
+                    </div>
+                  </div>
+                  <p className="text-[10pt] text-slate-600 leading-relaxed">
+                    * 위 수치는 Paired t-test(대응표본 t검정, t={analysis.statisticalEvidence.tValue})를 통해 산출.
                   </p>
                 </div>
-                
-                <div className="report-section">
-                  <h3 className="text-[13pt] font-bold mb-4 flex items-center gap-2 text-slate-800">
-                    <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">2</span>
-                    핵심 성과 요약
-                  </h3>
-                  <div className="pl-8 grid grid-cols-3 gap-2">
-                    <div className="bg-slate-50 p-4 border-t-4 border-emerald-500 rounded-b-xl flex flex-col justify-between">
-                      <p className="text-[10pt] text-slate-500 font-bold mb-1">종합 만족도</p>
-                      <p className="text-[16pt] font-black text-emerald-600">{stats.satAvg.toFixed(2)}</p>
-                      <p className="text-[9pt] text-slate-400 mt-1">Excellent Level</p>
-                    </div>
-                    <div className="bg-slate-50 p-4 border-t-4 border-blue-500 rounded-b-xl flex flex-col justify-between">
-                      <p className="text-[10pt] text-slate-500 font-bold mb-1">역량 향상도</p>
-                      <p className="text-[16pt] font-black text-blue-600">{Math.round(stats.hakeGain * 100)}%</p>
-                      <p className="text-[9pt] text-slate-400 mt-1">Hake&apos;s Gain</p>
-                    </div>
-                    <div className="bg-slate-50 p-4 border-t-4 border-indigo-500 rounded-b-xl flex flex-col justify-between">
-                      <p className="text-[10pt] text-slate-500 font-bold mb-1">효과 크기</p>
-                      <p className="text-[16pt] font-black text-indigo-600">{stats.cohensD.toFixed(2)}</p>
-                      <p className="text-[9pt] text-slate-400 mt-1">Cohen&apos;s d</p>
-                    </div>
-                  </div>
-                </div>
               </div>
-            </section>
-
-            {radarData.length > 0 && (
-              <section className="report-section">
-                <SatisfactionRadarChart radarData={radarData} />
-              </section>
-            )}
-          </div>
-
-          {/* Right Column */}
-          <div className="pl-4 space-y-12">
-            {improvementData.length > 0 && (
-              <section className="report-section mt-1">
-                <CompetencyBarChart improvementData={improvementData} />
-              </section>
-            )}
-
-            <section className="report-section">
-              <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅱ. 정량적 지표 분석</h2>
-              <h3 className="text-[13pt] font-bold mb-6 flex items-center gap-2 text-slate-800">
-                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">1</span>
-                측정 지표 정밀 진단
-              </h3>
-              <div className="pl-8 space-y-4">
-                {analysis.metricAnalysis.map((m: any, idx: number) => (
-                  <div key={idx} className="report-section bg-slate-50 p-5 rounded-2xl border border-slate-100 break-inside-avoid">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="text-[11pt] font-bold text-slate-800">{m.name}</h4>
-                      <span className="text-[14pt] font-black text-slate-900">{m.value}</span>
-                    </div>
-                    <p className="text-blue-700 font-bold mb-2 text-[10pt]">▶ {m.interpretation}</p>
-                    <p className="text-[10pt] text-slate-500 leading-relaxed">{m.desc}</p>
-                  </div>
-                ))}
-              </div>
-              
-              {analysis.statisticalEvidence && (
-                <div className="report-section mt-8 break-inside-avoid">
-                  <h3 className="text-[13pt] font-bold mb-6 flex items-center gap-2 text-slate-800">
-                    <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">2</span>
-                    통계 검증 근거 (Statistical Evidence)
-                  </h3>
-                  <div className="pl-8">
-                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
-                      <div className="grid grid-cols-2 gap-4 mb-4 border-b border-slate-200 pb-4">
-                        <div>
-                          <p className="text-[9pt] text-slate-500 font-bold mb-1">표본 수 (N)</p>
-                          <p className="text-[12pt] font-black text-slate-800">{analysis.statisticalEvidence.n}명</p>
-                        </div>
-                        <div>
-                          <p className="text-[9pt] text-slate-500 font-bold mb-1">사전/사후 평균</p>
-                          <p className="text-[12pt] font-black text-slate-800">{analysis.statisticalEvidence.preAvg} / {analysis.statisticalEvidence.postAvg}</p>
-                        </div>
-                        <div>
-                          <p className="text-[9pt] text-slate-500 font-bold mb-1">통합 표준편차 (SD)</p>
-                          <p className="text-[12pt] font-black text-slate-800">{analysis.statisticalEvidence.pooledStd}</p>
-                        </div>
-                        <div>
-                          <p className="text-[9pt] text-slate-500 font-bold mb-1">유의확률 (p-value)</p>
-                          <p className="text-[12pt] font-black text-slate-800">{analysis.statisticalEvidence.pValue}</p>
-                        </div>
-                      </div>
-                      <p className="text-[9pt] text-slate-600 leading-relaxed">
-                        * 위 수치는 Paired t-test(대응표본 t검정, t={analysis.statisticalEvidence.tValue})를 통해 산출.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </section>
-          </div>
-        </div>
+            </div>
+          )}
+        </section>
       </div>
 
       {/* Page 3: Visuals & Qualitative */}
