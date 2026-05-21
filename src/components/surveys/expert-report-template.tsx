@@ -49,6 +49,18 @@ export function ExpertReportTemplate({
   }, []);
 
   const mainProjectName = projectName || projects.find(p => p.level === 1)?.name || projects[0]?.name || '전체 사업';
+
+  // 프로젝트 명의 중복 단어(분석 분석 보고서 등) 정제 및 표준 표기법 보정
+  const cleanProjectTitle = React.useMemo(() => {
+    let title = mainProjectName;
+    title = title.replace(/\s*분석\s*분석\s*보고서$/, ' 분석 보고서');
+    title = title.replace(/\s*분석\s*보고서\s*분석\s*보고서$/, ' 분석 보고서');
+    title = title.replace(/\s*보고서\s*보고서$/, ' 보고서');
+    if (!title.includes('보고서')) {
+      title = `${title} 분석 보고서`;
+    }
+    return title;
+  }, [mainProjectName]);
   
   const subProgramCount = React.useMemo(() => {
     if (!isConsolidated) return 0;
@@ -116,12 +128,14 @@ export function ExpertReportTemplate({
           overflow: hidden;
         }
         .report-page.cover-page {
-          height: 296mm;
+          height: 295mm;
           padding: 10mm;
+          box-sizing: border-box;
         }
         .cover-inner {
-          width: 100%;
-          height: calc(100% - 4px);
+          width: calc(100% - 8px);
+          height: calc(100% - 8px);
+          margin: 4px auto;
           border: 2px solid #0f172a;
           padding: 20mm 15mm;
           display: flex;
@@ -187,7 +201,7 @@ export function ExpertReportTemplate({
           <div className="text-left w-full shrink-0">
             <p className="text-[14pt] font-bold tracking-[0.2em] mb-16 text-slate-400">2026 교육 성과 분석 보고서</p>
             <h1 className="text-[24pt] sm:text-[28pt] font-black leading-snug mb-10 border-l-8 border-slate-900 pl-8 break-keep">
-              {mainProjectName}
+              {cleanProjectTitle}
             </h1>
           </div>
 
@@ -286,7 +300,7 @@ export function ExpertReportTemplate({
                   <div className="flex flex-col items-center">
                     <p className="text-[9pt] font-bold text-slate-700 mb-1 text-center">● 항목별 만족도 분포 (5점 척도)</p>
                     <div className="h-[180px] w-full flex items-center justify-center">
-                      <SatisfactionRadarChart radarData={radarData} showTitle={false} />
+                      <SatisfactionRadarChart radarData={radarData} showTitle={false} isReport={true} />
                     </div>
                   </div>
                 )}
@@ -294,7 +308,7 @@ export function ExpertReportTemplate({
                   <div className="flex flex-col items-center">
                     <p className="text-[9pt] font-bold text-slate-700 mb-1 text-center">● 역량 변화 분석 (사전 vs 사후)</p>
                     <div className="h-[180px] w-full flex items-center justify-center">
-                      <CompetencyBarChart improvementData={improvementData} showTitle={false} />
+                      <CompetencyBarChart improvementData={improvementData} showTitle={false} isReport={true} />
                     </div>
                   </div>
                 )}

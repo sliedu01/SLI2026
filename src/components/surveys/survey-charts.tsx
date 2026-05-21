@@ -24,8 +24,36 @@ const CustomZigzagLabel = (props: any) => {
 };
 
 
-export function SatisfactionRadarChart({ radarData, showTitle = true }: { radarData: any[], showTitle?: boolean }) {
+export function SatisfactionRadarChart({ 
+  radarData, 
+  showTitle = true,
+  isReport = false
+}: { 
+  radarData: any[], 
+  showTitle?: boolean,
+  isReport?: boolean
+}) {
   if (!radarData || radarData.length === 0) return null;
+
+  if (isReport) {
+    return (
+      <div className="h-[180px] w-[320px] flex items-center justify-center mx-auto overflow-hidden bg-transparent">
+        <RadarChart cx="50%" cy="50%" outerRadius="62%" width={320} height={180} data={radarData}>
+          <PolarGrid stroke="#cbd5e1" />
+          <PolarAngleAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 9, fontWeight: 600 }} />
+          <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fontSize: 7, fill: '#64748b' }} />
+          <Radar
+            name="만족도"
+            dataKey="A"
+            stroke="#10b981"
+            fill="#10b981"
+            fillOpacity={0.2}
+          />
+        </RadarChart>
+      </div>
+    );
+  }
+
   return (
     <Card className="p-6 border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm print:border-none print:shadow-none print:bg-transparent">
       {showTitle && (
@@ -54,8 +82,37 @@ export function SatisfactionRadarChart({ radarData, showTitle = true }: { radarD
   );
 }
 
-export function CompetencyBarChart({ improvementData, showTitle = true }: { improvementData: any[], showTitle?: boolean }) {
+export function CompetencyBarChart({ 
+  improvementData, 
+  showTitle = true,
+  isReport = false
+}: { 
+  improvementData: any[], 
+  showTitle?: boolean,
+  isReport?: boolean
+}) {
   if (!improvementData || improvementData.length === 0) return null;
+
+  if (isReport) {
+    return (
+      <div className="h-[180px] w-[320px] flex items-center justify-center mx-auto overflow-hidden bg-transparent">
+        <BarChart width={320} height={180} data={improvementData} margin={{ left: -25, right: 10, top: 15, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+          <XAxis dataKey="name" tick={{ fill: '#475569', fontSize: 9, fontWeight: 600 }} axisLine={false} tickLine={false} />
+          <YAxis domain={[0, 5]} width={25} tick={{ fill: '#64748b', fontSize: 8 }} axisLine={false} tickLine={false} />
+          <Tooltip 
+            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}
+          />
+          <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '8px', paddingBottom: '5px' }} />
+          <Bar dataKey="사전" fill="#cbd5e1" radius={[3, 3, 0, 0]} barSize={16} />
+          <Bar dataKey="사후" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={16}>
+            <LabelList dataKey="label" content={<CustomZigzagLabel />} />
+          </Bar>
+        </BarChart>
+      </div>
+    );
+  }
+
   return (
     <Card className="p-6 border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm print:border-none print:shadow-none print:bg-transparent">
       {showTitle && (
