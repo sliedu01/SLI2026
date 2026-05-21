@@ -14,38 +14,38 @@ interface SurveyChartsProps {
 
 const CustomBarLabel = (props: any) => {
   const { x, y, width, value } = props;
-  if (!value) return null;
+  const displayValue = value !== undefined && value !== null ? value : props.payload?.label;
+  if (!displayValue) return null;
   return (
     <text 
       x={x + width / 2} 
       y={y - 8} 
       fill="#3b82f6" 
       style={{ fill: '#3b82f6', color: '#3b82f6', fontWeight: 'bold' }}
-      className="fill-blue-500 text-blue-500 font-bold"
       fontSize={10} 
       fontWeight="bold" 
       textAnchor="middle"
     >
-      {value}
+      {displayValue}
     </text>
   );
 };
 
 const CustomBarLabelDashboard = (props: any) => {
   const { x, y, width, value } = props;
-  if (!value) return null;
+  const displayValue = value !== undefined && value !== null ? value : props.payload?.label;
+  if (!displayValue) return null;
   return (
     <text 
       x={x + width / 2} 
       y={y - 8} 
       fill="#3b82f6" 
       style={{ fill: '#3b82f6', color: '#3b82f6', fontWeight: 'bold' }}
-      className="fill-blue-500 text-blue-500 font-bold"
       fontSize={12} 
       fontWeight="bold" 
       textAnchor="middle"
     >
-      {value}
+      {displayValue}
     </text>
   );
 };
@@ -128,10 +128,10 @@ export function CompetencyBarChart({
   if (isReport) {
     return (
       <div className="h-[200px] w-[600px] flex items-center justify-center mx-auto overflow-hidden bg-transparent">
-        <BarChart width={600} height={200} data={improvementData} margin={{ left: -15, right: 15, top: 25, bottom: 0 }}>
+        <BarChart width={600} height={200} data={improvementData} margin={{ left: 35, right: 15, top: 35, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
           <XAxis dataKey="name" tick={{ fill: '#000000', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 5]} width={25} tick={{ fill: '#000000', fontSize: 9, fontWeight: 800 }} axisLine={false} tickLine={false} />
+          <YAxis domain={[0, 5.5]} ticks={[0, 1, 2, 3, 4, 5]} width={35} tick={{ fill: '#000000', fontSize: 10, fontWeight: 800 }} axisLine={false} tickLine={false} />
           <Tooltip 
             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}
           />
@@ -155,10 +155,10 @@ export function CompetencyBarChart({
       )}
       <div className="h-[280px] w-full print:h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={improvementData} margin={{ left: -25, right: 10, top: 25, bottom: 0 }}>
+          <BarChart data={improvementData} margin={{ left: 35, right: 10, top: 25, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
             <XAxis dataKey="name" tick={{ fill: '#000000', fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
-            <YAxis domain={[0, 5]} width={25} tick={{ fill: '#000000', fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
+            <YAxis domain={[0, 5]} width={35} tick={{ fill: '#000000', fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
             <Tooltip 
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}
             />
