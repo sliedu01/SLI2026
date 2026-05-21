@@ -107,12 +107,26 @@ export function ExpertReportTemplate({
       <style>{`
         .report-page {
           width: 210mm;
-          min-height: 297mm;
+          height: 297mm;
           padding: 20mm;
           margin: 0 auto;
           background: white;
           page-break-after: always;
           position: relative;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+        .report-page.cover-page {
+          padding: 10mm;
+        }
+        .cover-inner {
+          width: 100%;
+          height: 100%;
+          border: 2px solid #0f172a;
+          padding: 20mm 15mm;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
           box-sizing: border-box;
         }
         .appendix-table {
@@ -133,7 +147,7 @@ export function ExpertReportTemplate({
         .report-section {
           page-break-inside: avoid;
           break-inside: avoid;
-          margin-bottom: 2rem;
+          margin-bottom: 1.5rem;
         }
         @media screen {
           .report-page {
@@ -151,9 +165,13 @@ export function ExpertReportTemplate({
             padding: 20mm;
             box-shadow: none;
             width: 210mm;
-            min-height: 297mm;
+            height: 297mm;
+            overflow: hidden;
             page-break-after: always;
             page-break-inside: avoid;
+          }
+          .report-page.cover-page {
+            padding: 10mm;
           }
           body {
             -webkit-print-color-adjust: exact;
@@ -162,66 +180,68 @@ export function ExpertReportTemplate({
         }
       `}</style>
 
-      {/* Page 1: Cover - 왼쪽 정렬 반영 */}
-      <div className="report-page flex flex-col items-start justify-between border-[2px] border-slate-900 px-24 py-32">
-        <div className="text-left w-full shrink-0">
-          <p className="text-[14pt] font-bold tracking-[0.2em] mb-16 text-slate-400">2026 교육 성과 분석 보고서</p>
-          <h1 className="text-[24pt] sm:text-[28pt] font-black leading-snug mb-10 border-l-8 border-slate-900 pl-8 break-keep">
-            {mainProjectName}
-          </h1>
-        </div>
+      {/* Page 1: Cover */}
+      <div className="report-page cover-page">
+        <div className="cover-inner">
+          <div className="text-left w-full shrink-0">
+            <p className="text-[14pt] font-bold tracking-[0.2em] mb-16 text-slate-400">2026 교육 성과 분석 보고서</p>
+            <h1 className="text-[24pt] sm:text-[28pt] font-black leading-snug mb-10 border-l-8 border-slate-900 pl-8 break-keep">
+              {mainProjectName}
+            </h1>
+          </div>
 
-        <div className="w-full space-y-8 text-[13pt] mt-20 pl-10 shrink-0">
-          {isConsolidated && (
+          <div className="w-full space-y-6 text-[12pt] pl-10 shrink-0">
+            {isConsolidated && (
+              <div className="flex justify-between border-b border-slate-300 pb-2">
+                <span className="font-bold">분석 대상</span>
+                <span>{subProgramCount > 0 ? `${subProgramCount}개 프로그램 통합` : '단일 프로그램 분석'}</span>
+              </div>
+            )}
             <div className="flex justify-between border-b border-slate-300 pb-2">
-              <span className="font-bold">분석 대상</span>
-              <span>{subProgramCount > 0 ? `${subProgramCount}개 프로그램 통합` : '단일 프로그램 분석'}</span>
+              <span className="font-bold">분석 표본</span>
+              <span>N = {stats.sampleSize || 0} (응답자 전수)</span>
             </div>
-          )}
-          <div className="flex justify-between border-b border-slate-300 pb-2">
-            <span className="font-bold">분석 표본</span>
-            <span>N = {stats.sampleSize || 0} (응답자 전수)</span>
+            <div className="flex justify-between border-b border-slate-300 pb-2">
+              <span className="font-bold">보고 일자</span>
+              <span>{today}</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-300 pb-2">
+              <span className="font-bold">주관 부서</span>
+              <span>{organizationName} 서울런 현장운영팀</span>
+            </div>
+            {!isConsolidated && partnerName && (
+              <div className="flex justify-between border-b border-slate-300 pb-2">
+                <span className="font-bold">협력 기관</span>
+                <span>{partnerName}</span>
+              </div>
+            )}
+            {!isConsolidated && locationName && (
+              <div className="flex justify-between border-b border-slate-300 pb-2">
+                <span className="font-bold">교육 장소</span>
+                <span>{locationName}</span>
+              </div>
+            )}
+            {!isConsolidated && dateRange && (
+              <div className="flex justify-between border-b border-slate-300 pb-2">
+                <span className="font-bold">교육 일시</span>
+                <span>{dateRange}</span>
+              </div>
+            )}
           </div>
-          <div className="flex justify-between border-b border-slate-300 pb-2">
-            <span className="font-bold">보고 일자</span>
-            <span>{today}</span>
-          </div>
-          <div className="flex justify-between border-b border-slate-300 pb-2">
-            <span className="font-bold">주관 부서</span>
-            <span>{organizationName} 서울런 현장운영팀</span>
-          </div>
-          {!isConsolidated && partnerName && (
-            <div className="flex justify-between border-b border-slate-300 pb-2">
-              <span className="font-bold">협력 기관</span>
-              <span>{partnerName}</span>
-            </div>
-          )}
-          {!isConsolidated && locationName && (
-            <div className="flex justify-between border-b border-slate-300 pb-2">
-              <span className="font-bold">교육 장소</span>
-              <span>{locationName}</span>
-            </div>
-          )}
-          {!isConsolidated && dateRange && (
-            <div className="flex justify-between border-b border-slate-300 pb-2">
-              <span className="font-bold">교육 일시</span>
-              <span>{dateRange}</span>
-            </div>
-          )}
-        </div>
 
-        <div className="mt-20 text-[20pt] font-black tracking-[1em] w-full text-right border-t-2 border-slate-100 pt-8 shrink-0">
-          {organizationName}
+          <div className="text-[18pt] font-black tracking-[1em] w-full text-right border-t-2 border-slate-100 pt-8 shrink-0">
+            {organizationName}
+          </div>
         </div>
       </div>
 
-      {/* Page 2: Summary & Metrics */}
-      <div className="report-page space-y-12">
-        <section className="report-section">
-          <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅰ. 분석 개요 및 핵심 요약</h2>
+      {/* Page 2: Summary & Metrics - Text Only */}
+      <div className="report-page flex flex-col justify-between py-12">
+        <div>
+          <h2 className="text-[15pt] font-extrabold mb-8 border-b-4 border-slate-900 pb-2">Ⅰ. 분석 개요 및 핵심 요약</h2>
           <div className="space-y-8">
             <div className="report-section">
-              <h3 className="text-[13pt] font-bold mb-3 flex items-center gap-2 text-slate-800">
+              <h3 className="text-[12pt] font-bold mb-4 flex items-center gap-2 text-slate-800">
                 <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">1</span>
                 분석 목적 및 배경
               </h3>
@@ -231,69 +251,130 @@ export function ExpertReportTemplate({
             </div>
             
             <div className="report-section">
-              <h3 className="text-[13pt] font-bold mb-4 flex items-center gap-2 text-slate-800">
+              <h3 className="text-[12pt] font-bold mb-4 flex items-center gap-2 text-slate-800">
                 <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">2</span>
                 핵심 성과 요약
               </h3>
               <div className="pl-8 grid grid-cols-3 gap-6">
-                <div className="bg-slate-50 p-6 border-t-4 border-emerald-500 rounded-b-xl flex flex-col justify-between">
-                  <p className="text-[11pt] text-slate-500 font-bold mb-1">종합 만족도</p>
-                  <p className="text-[18pt] font-black text-emerald-600">{stats.satAvg.toFixed(2)}</p>
-                  <p className="text-[10pt] text-slate-400 mt-1">Excellent Level</p>
+                <div className="bg-slate-50 p-6 border-t-4 border-emerald-500 rounded-b-xl flex flex-col justify-between min-h-[140px] shadow-sm">
+                  <p className="text-[10pt] text-slate-500 font-bold mb-1">종합 만족도</p>
+                  <p className="text-[20pt] font-black text-emerald-600">{stats.satAvg.toFixed(2)}</p>
+                  <p className="text-[9pt] text-slate-400 mt-2">Excellent Level</p>
                 </div>
-                <div className="bg-slate-50 p-6 border-t-4 border-blue-500 rounded-b-xl flex flex-col justify-between">
-                  <p className="text-[11pt] text-slate-500 font-bold mb-1">Hake's Gain</p>
-                  <p className="text-[18pt] font-black text-blue-600">{Math.round(stats.hakeGain * 100)}%</p>
-                  <p className="text-[10pt] text-slate-400 mt-1">학습 효과 지수</p>
+                <div className="bg-slate-50 p-6 border-t-4 border-blue-500 rounded-b-xl flex flex-col justify-between min-h-[140px] shadow-sm">
+                  <p className="text-[10pt] text-slate-500 font-bold mb-1">Hake's Gain</p>
+                  <p className="text-[20pt] font-black text-blue-600">{Math.round(stats.hakeGain * 100)}%</p>
+                  <p className="text-[9pt] text-slate-400 mt-2">학습 효과 지수</p>
                 </div>
-                <div className="bg-slate-50 p-6 border-t-4 border-indigo-500 rounded-b-xl flex flex-col justify-between">
-                  <p className="text-[11pt] text-slate-500 font-bold mb-1">효과 크기</p>
-                  <p className="text-[18pt] font-black text-indigo-600">{stats.cohensD.toFixed(2)}</p>
-                  <p className="text-[10pt] text-slate-400 mt-1">Cohen&apos;s d</p>
+                <div className="bg-slate-50 p-6 border-t-4 border-indigo-500 rounded-b-xl flex flex-col justify-between min-h-[140px] shadow-sm">
+                  <p className="text-[10pt] text-slate-500 font-bold mb-1">효과 크기</p>
+                  <p className="text-[20pt] font-black text-indigo-600">{stats.cohensD.toFixed(2)}</p>
+                  <p className="text-[9pt] text-slate-400 mt-2">Cohen&apos;s d</p>
                 </div>
               </div>
             </div>
           </div>
-        </section>
-
-        {(radarData.length > 0 || improvementData.length > 0) && (
-          <section className="report-section">
-            <div className="grid grid-cols-2 gap-8">
-              {radarData.length > 0 && <SatisfactionRadarChart radarData={radarData} />}
-              {improvementData.length > 0 && <CompetencyBarChart improvementData={improvementData} />}
-            </div>
-          </section>
-        )}
+        </div>
       </div>
 
-      {/* Page 3: Quantitative Analysis */}
-      <div className="report-page space-y-12">
-        <section className="report-section">
-          <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅱ. 정량적 지표 분석</h2>
-          <h3 className="text-[13pt] font-bold mb-6 flex items-center gap-2 text-slate-800">
+      {/* Page 3: Summary & Metrics - Visual Charts */}
+      {(radarData.length > 0 || improvementData.length > 0) && (
+        <div className="report-page flex flex-col justify-between py-12">
+          <div>
+            <h2 className="text-[15pt] font-extrabold mb-8 border-b-4 border-slate-900 pb-2">Ⅰ. 분석 개요 및 핵심 요약 (계속)</h2>
+            <div className="report-section">
+              <h3 className="text-[12pt] font-bold mb-8 flex items-center gap-2 text-slate-800">
+                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">3</span>
+                항목별 만족도 분포 및 역량 변화 분석
+              </h3>
+              <div className="pl-8 grid grid-cols-2 gap-8 items-center">
+                {radarData.length > 0 && (
+                  <div className="flex flex-col items-center">
+                    <p className="text-[10pt] font-bold text-slate-700 mb-4 text-center">● 항목별 만족도 분포 (5점 척도)</p>
+                    <SatisfactionRadarChart radarData={radarData} />
+                  </div>
+                )}
+                {improvementData.length > 0 && (
+                  <div className="flex flex-col items-center">
+                    <p className="text-[10pt] font-bold text-slate-700 mb-4 text-center">● 역량 변화 분석 (사전 vs 사후)</p>
+                    <CompetencyBarChart improvementData={improvementData} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Page 4: Quantitative Analysis - Metrics Diagnostics */}
+      <div className="report-page flex flex-col justify-between py-12">
+        <div>
+          <h2 className="text-[15pt] font-extrabold mb-8 border-b-4 border-slate-900 pb-2">Ⅱ. 정량적 지표 분석</h2>
+          <h3 className="text-[12pt] font-bold mb-6 flex items-center gap-2 text-slate-800">
             <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">1</span>
             측정 지표 정밀 진단
           </h3>
           <div className="pl-8 space-y-4">
             {analysis.metricAnalysis.map((m: any, idx: number) => (
-              <div key={idx} className="report-section bg-slate-50 p-5 rounded-2xl border border-slate-100 break-inside-avoid">
+              <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-[11pt] font-bold text-slate-800">{m.name}</h4>
+                  <h4 className="text-[12pt] font-bold text-slate-800">{m.name}</h4>
                   <span className="text-[14pt] font-black text-slate-900">{m.value}</span>
                 </div>
                 <p className="text-blue-700 font-bold mb-2 text-[10pt]">▶ {m.interpretation}</p>
-                <p className="text-[10pt] text-slate-500 leading-relaxed mb-3">{m.desc}</p>
+                <p className="text-[10pt] text-slate-500 leading-relaxed">{m.desc}</p>
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Page 5: Quantitative Analysis - Statistical Evidence & Criteria */}
+      <div className="report-page flex flex-col justify-between py-12">
+        <div>
+          <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅱ. 정량적 지표 분석 (계속)</h2>
           
-          <div className="report-section mt-6 break-inside-avoid pl-8">
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-              <h4 className="text-[11pt] font-bold text-slate-800 mb-3 flex items-center gap-2">
+          {analysis.statisticalEvidence && (
+            <div className="report-section mb-6">
+              <h3 className="text-[12pt] font-bold mb-4 flex items-center gap-2 text-slate-800">
+                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">2</span>
+                통계 검증 근거 (Statistical Evidence)
+              </h3>
+              <div className="pl-8">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                  <div className="grid grid-cols-4 gap-4 border-b border-slate-200 pb-4">
+                    <div>
+                      <p className="text-[9pt] text-slate-500 font-bold mb-1">표본 수 (N)</p>
+                      <p className="text-[13pt] font-black text-slate-800">{analysis.statisticalEvidence.n}명</p>
+                    </div>
+                    <div>
+                      <p className="text-[9pt] text-slate-500 font-bold mb-1">사전/사후 평균</p>
+                      <p className="text-[13pt] font-black text-slate-800">{analysis.statisticalEvidence.preAvg} / {analysis.statisticalEvidence.postAvg}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9pt] text-slate-500 font-bold mb-1">통합 표준편차</p>
+                      <p className="text-[13pt] font-black text-slate-800">{analysis.pooledStd}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9pt] text-slate-500 font-bold mb-1">유의확률 (p)</p>
+                      <p className="text-[13pt] font-black text-slate-800">{analysis.statisticalEvidence.pValue}</p>
+                    </div>
+                  </div>
+                  <p className="text-[9pt] text-slate-500">
+                    * 대응표본 t-검정(Paired t-test, t={analysis.statisticalEvidence.tValue})을 통해 유의확률이 도출되었습니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="report-section pl-8">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <h4 className="text-[10.5pt] font-bold text-slate-800 mb-3 flex items-center gap-2">
                 <span className="text-blue-600">※</span> 정량적 지표의 평가 기준 (참고자료)
               </h4>
-              <div className="grid grid-cols-1 gap-4 text-[10pt]">
-                <div className="flex flex-col gap-1">
+              <div className="grid grid-cols-1 gap-3 text-[9pt]">
+                <div className="flex flex-col gap-0.5">
                   <p className="font-bold text-slate-700">[Hake's Gain] 정규화 향상 지수</p>
                   <p className="text-slate-600 pl-2 border-l-2 border-slate-200">
                     <span className="font-bold text-emerald-600">70% 이상:</span> 매우 높음 &nbsp;|&nbsp; 
@@ -301,7 +382,7 @@ export function ExpertReportTemplate({
                     <span className="font-bold text-orange-600">30% 미만:</span> 낮음
                   </p>
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-0.5">
                   <p className="font-bold text-slate-700">[Cohen's d] 효과 크기</p>
                   <p className="text-slate-600 pl-2 border-l-2 border-slate-200">
                     <span className="font-bold text-emerald-600">0.8 이상:</span> 큰 효과 &nbsp;|&nbsp; 
@@ -310,7 +391,7 @@ export function ExpertReportTemplate({
                     <span className="font-bold text-slate-500">0.2 미만:</span> 효과 미미
                   </p>
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-0.5">
                   <p className="font-bold text-slate-700">만족도 및 추천 지수 (5점 만점 기준)</p>
                   <p className="text-slate-600 pl-2 border-l-2 border-slate-200">
                     <span className="font-bold text-emerald-600">4.5 이상:</span> 최우수 &nbsp;|&nbsp; 
@@ -319,7 +400,7 @@ export function ExpertReportTemplate({
                     <span className="font-bold text-slate-500">3.5 미만:</span> 미흡
                   </p>
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-0.5">
                   <p className="font-bold text-slate-700">유의확률 p-value (Paired t-test 기준)</p>
                   <p className="text-slate-600 pl-2 border-l-2 border-slate-200">
                     <span className="font-bold text-emerald-600">p &lt; 0.001:</span> 매우 유의미 &nbsp;|&nbsp; 
@@ -331,279 +412,252 @@ export function ExpertReportTemplate({
               </div>
             </div>
           </div>
-
-          {analysis.statisticalEvidence && (
-            <div className="report-section mt-8 break-inside-avoid">
-              <h3 className="text-[13pt] font-bold mb-6 flex items-center gap-2 text-slate-800">
-                <span className="size-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10pt]">2</span>
-                통계 검증 근거 (Statistical Evidence)
-              </h3>
-              <div className="pl-8">
-                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm">
-                  <div className="grid grid-cols-4 gap-4 mb-4 border-b border-slate-200 pb-4">
-                    <div>
-                      <p className="text-[10pt] text-slate-500 font-bold mb-1">표본 수 (N)</p>
-                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.n}명</p>
-                    </div>
-                    <div>
-                      <p className="text-[10pt] text-slate-500 font-bold mb-1">사전/사후 평균</p>
-                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.preAvg} / {analysis.statisticalEvidence.postAvg}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10pt] text-slate-500 font-bold mb-1">통합 표준편차</p>
-                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.pooledStd}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10pt] text-slate-500 font-bold mb-1">유의확률 (p)</p>
-                      <p className="text-[14pt] font-black text-slate-800">{analysis.statisticalEvidence.pValue}</p>
-                    </div>
-                  </div>
-                  <p className="text-[10pt] text-slate-600 leading-relaxed">
-                    * 위 수치는 Paired t-test(대응표본 t검정, t={analysis.statisticalEvidence.tValue})를 통해 산출.
-                  </p>
-                  <div className="mt-3 pt-3 border-t border-slate-200">
-                    <p className="text-[9pt] text-slate-500 leading-relaxed">
-                      <span className="font-bold text-slate-600">※ 유의확률(p-value) 판단 기준:</span>{' '}
-                      <span className="font-bold text-emerald-600">p &lt; 0.001</span> 매우 유의미 |{' '}
-                      <span className="font-bold text-blue-600">p &lt; 0.01</span> 높은 유의성 |{' '}
-                      <span className="font-bold text-orange-600">p &lt; 0.05</span> 유의미 |{' '}
-                      <span className="font-bold text-slate-500">p ≥ 0.05</span> 유의하지 않음
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
+        </div>
       </div>
 
-      {/* Page 4: Visuals & Qualitative */}
-      <div className="report-page">
-        <section className="report-section mt-4">
+      {/* Page 6: Qualitative Feedback Analysis */}
+      <div className="report-page flex flex-col justify-between py-12">
+        <div>
           <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅲ. 정성적 응답 분석</h2>
-          <div className="pl-8 space-y-8">
-            <p className="text-[12pt] text-justify leading-loose">
+          <div className="pl-8 space-y-6">
+            <p className="text-[11pt] text-justify leading-loose text-slate-700">
               학습자들이 주관식 응답을 통해 기술한 내용을 교육학적 관점에서 분류하여 도출된 주요 강점과 보완점임. 과도한 해석을 지양하고 반복 언급된 키워드를 중심으로 정리함.
             </p>
             
-            <div className="grid grid-cols-2 gap-8">
-              <div className="report-section bg-emerald-50 p-8 rounded-3xl border border-emerald-100">
-                <h4 className="text-[13pt] font-bold text-emerald-800 mb-6 flex items-center gap-2">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100 min-h-[360px] flex flex-col">
+                <h4 className="text-[12pt] font-bold text-emerald-800 mb-4 flex items-center gap-2">
                   <span className="size-2 rounded-full bg-emerald-500" /> 핵심 강점
                 </h4>
-                <ul className="space-y-4 text-slate-700">
+                <ul className="space-y-3 text-slate-700 flex-1">
                   {analysis.qualitativeAnalysis.strengths.map((s: string, i: number) => (
-                    <li key={i} className="text-[12pt] leading-relaxed border-b border-emerald-100 pb-2 last:border-0">• {s}</li>
+                    <li key={i} className="text-[10pt] leading-relaxed border-b border-emerald-100/50 pb-2 last:border-0">• {s}</li>
                   ))}
                 </ul>
               </div>
-              <div className="report-section bg-orange-50 p-8 rounded-3xl border border-orange-100">
-                <h4 className="text-[13pt] font-bold text-orange-800 mb-6 flex items-center gap-2">
+              <div className="bg-orange-50/50 p-6 rounded-2xl border border-orange-100 min-h-[360px] flex flex-col">
+                <h4 className="text-[12pt] font-bold text-orange-800 mb-4 flex items-center gap-2">
                   <span className="size-2 rounded-full bg-orange-500" /> 개선 포인트
                 </h4>
-                <ul className="space-y-4 text-slate-700">
+                <ul className="space-y-3 text-slate-700 flex-1">
                   {analysis.qualitativeAnalysis.weaknesses.map((w: string, i: number) => (
-                    <li key={i} className="text-[12pt] leading-relaxed border-b border-orange-100 pb-2 last:border-0">• {w}</li>
+                    <li key={i} className="text-[10pt] leading-relaxed border-b border-orange-100/50 pb-2 last:border-0">• {w}</li>
                   ))}
                 </ul>
               </div>
             </div>
           </div>
-        </section>
+        </div>
       </div>
- 
-      {/* Page 5: Conclusion */}
-      <div className="report-page">
-        <section className="report-section mt-4">
-          <h2 className="text-[15pt] font-extrabold mb-8 border-b-4 border-slate-900 pb-2">Ⅳ. 종합 결론 및 전략 제언</h2>
-          <div className="bg-slate-50 text-slate-900 border border-slate-200 p-12 rounded-[3rem] space-y-12 shadow-sm">
-            <div className="report-section">
-              <p className="font-bold text-[14pt] mb-6 text-slate-800">■ 종합 결론</p>
-              <p className="leading-loose pl-4 text-slate-700 text-[12pt] text-justify">
+
+      {/* Page 7: Conclusion & Advice */}
+      <div className="report-page flex flex-col justify-between py-12">
+        <div>
+          <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅳ. 종합 결론 및 전략 제언</h2>
+          <div className="bg-slate-50 text-slate-900 border border-slate-200 p-8 rounded-3xl space-y-6 shadow-sm">
+            <div>
+              <p className="font-bold text-[12pt] mb-3 text-slate-800">■ 종합 결론</p>
+              <p className="leading-relaxed pl-3 text-slate-700 text-[10.5pt] text-justify">
                 {analysis.advice[0] || `본 과정은 정량적 수치(${stats.satAvg.toFixed(2)}점)와 통계적 효과성(${stats.cohensD.toFixed(2)}) 모두에서 최상위 수준의 성과를 달성하였음.`}
               </p>
             </div>
             
-            <div className="report-section">
-              <p className="font-bold text-[14pt] mb-6 text-slate-800">■ 전략적 권고사항</p>
-              <div className="space-y-6 pl-4">
+            <div className="border-t border-slate-200 pt-6">
+              <p className="font-bold text-[12pt] mb-4 text-slate-800">■ 전략적 권고사항</p>
+              <div className="space-y-4 pl-3">
                 {analysis.advice.slice(1).map((adv: string, idx: number) => (
-                  <div key={idx} className="flex gap-6 items-start report-section">
-                    <span className="bg-slate-800 text-white size-8 rounded-full flex items-center justify-center text-[10pt] shrink-0 mt-1 font-bold">{idx+1}</span>
-                    <p className="text-[12pt] text-slate-700 leading-relaxed">{adv}</p>
+                  <div key={idx} className="flex gap-4 items-start">
+                    <span className="bg-slate-800 text-white size-6 rounded-full flex items-center justify-center text-[9pt] shrink-0 mt-0.5 font-bold">{idx+1}</span>
+                    <p className="text-[10.5pt] text-slate-700 leading-relaxed text-justify">{adv}</p>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        </section>
-      </div>
- 
-      {/* Page 6: Appendix 1 - Satisfaction RAW */}
-      <div className="report-page">
-        <h2 className="text-[14pt] font-extrabold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 1. 만족도 설문결과 (RAW Data)</h2>
-        
-        <table className="appendix-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              {satTemplate?.questions.filter(q => q.type === 'SCALE').map((q, i) => (
-                <th key={i}>문항 {i+1}</th>
-              ))}
-              <th>평균</th>
-            </tr>
-          </thead>
-          <tbody>
-            {respondentData.filter(r => r.sat.length > 0).map((r, i) => (
-              <tr key={i}>
-                <td>학생 {i + 1}</td>
-                {r.sat.map((s, si) => <td key={si}>{s}</td>)}
-                <td className="font-bold bg-slate-50">{(r.sat.reduce((a,b)=>a+b,0)/r.sat.length).toFixed(2)}</td>
-              </tr>
-            ))}
-            <tr className="bg-slate-100 font-bold">
-              <td>문항평균</td>
-              {satTemplate?.questions.filter(q => q.type === 'SCALE').map((_, qi) => {
-                const qScores = respondentData.map(r => r.sat[qi]).filter(s => s !== undefined);
-                return <td key={qi}>{(qScores.reduce((a,b)=>a+b,0)/qScores.length).toFixed(2)}</td>
-              })}
-              <td className="bg-emerald-100">{stats.satAvg.toFixed(2)}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div className="report-section mt-8">
-          <h3 className="text-[12pt] font-bold mb-3">■ 만족도 설문 문항 정보</h3>
-          <table className="appendix-table text-[10pt]">
-            <thead>
-              <tr>
-                <th className="w-16">번호</th>
-                <th className="w-[30%]">주제</th>
-                <th>설문 문항 내용</th>
-              </tr>
-            </thead>
-            <tbody>
-              {satTemplate?.questions.map((q, i) => (
-                <tr key={i}>
-                  <td>{i+1}</td>
-                  <td className="px-3 leading-relaxed">{q.theme}</td>
-                  <td className="!text-left px-4 leading-relaxed">{q.content}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-
-        {stats.textResponses && stats.textResponses.length > 0 && (
-          <div className="report-section mt-8">
-            <h3 className="text-[12pt] font-bold mb-3">■ 주관식 설문 의견 (RAW Data)</h3>
-            <div className="flex flex-col gap-4">
-              {stats.textResponses.map((tr, qIdx) => (
-                <div key={tr.questionId} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  <p className="font-bold text-[11pt] text-slate-800 mb-3 border-b border-slate-200 pb-2">
-                    문항 {satTemplate?.questions.findIndex(q => q.id === tr.questionId) !== -1 ? (satTemplate!.questions.findIndex(q => q.id === tr.questionId) + 1) : '-'}. {tr.content}
-                  </p>
-                  <div className="flex flex-col gap-2 text-[10pt] text-slate-700 leading-relaxed">
-                    {tr.answers.map((ans, idx) => (
-                      <div key={idx} className="flex items-start gap-2">
-                        <span className="flex-shrink-0 flex items-center justify-center size-5 rounded-full bg-slate-800 text-white text-[8pt] font-bold mt-0.5">
-                          {idx + 1}
-                        </span>
-                        <span>{ans}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Page 7: Appendix 2 - Competency RAW */}
-      <div className="report-page">
-        <h2 className="text-[14pt] font-extrabold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 2. 사전사후 역량평가 데이터 (RAW Data)</h2>
-        
-        <div className="overflow-x-auto">
+      {/* Page 8: Appendix 1 - Satisfaction RAW Table */}
+      <div className="report-page flex flex-col justify-between py-12">
+        <div>
+          <h2 className="text-[13pt] font-extrabold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 1. 만족도 설문결과 (RAW Data)</h2>
+          
           <table className="appendix-table">
             <thead>
               <tr>
-                <th rowSpan={2}>ID</th>
-                {compTemplate?.questions.map((q, i) => (
-                  <th key={i} colSpan={2}>문항 {i+1}</th>
+                <th>ID</th>
+                {satTemplate?.questions.filter(q => q.type === 'SCALE').map((q, i) => (
+                  <th key={i}>문항 {i+1}</th>
                 ))}
-                <th colSpan={2} className="bg-blue-50">평균 역량</th>
-                <th rowSpan={2} className="bg-blue-50">단순 평균 증가율<br/>(%)</th>
-                <th rowSpan={2} className="bg-indigo-50">Hake's Gain<br/>(학습 효과 지수)</th>
-                <th rowSpan={2} className="bg-indigo-50">효과크기<br/>(Cohen's d)</th>
-              </tr>
-              <tr>
-                {compTemplate?.questions.map((_, i) => (
-                  <React.Fragment key={i}>
-                    <th>사전</th>
-                    <th>사후</th>
-                  </React.Fragment>
-                ))}
-                <th className="bg-blue-100">사전</th>
-                <th className="bg-blue-100">사후</th>
+                <th>평균</th>
               </tr>
             </thead>
             <tbody>
-              {respondentData.filter(r => r.pre.length > 0).map((r, i) => {
-                const preAvg = r.pre.reduce((a,b)=>a+b,0)/r.pre.length || 0;
-                const postAvg = r.post.reduce((a,b)=>a+b,0)/r.post.length || 0;
-                const gain = preAvg >= 5 ? 0 : (postAvg - preAvg) / (5 - preAvg);
-                const sd = stats.pooledStd || 1;
-                const cohensD = (postAvg - preAvg) / sd;
-                return (
-                  <tr key={i}>
-                    <td>학생 {i + 1}</td>
-                    {r.pre.map((p, pi) => (
-                      <React.Fragment key={pi}>
-                        <td>{p}</td>
-                        <td className="text-blue-700">{r.post[pi]}</td>
-                      </React.Fragment>
-                    ))}
-                    <td className="font-bold bg-slate-50">{preAvg.toFixed(2)}</td>
-                    <td className="font-bold bg-slate-50">{postAvg.toFixed(2)}</td>
-                    <td className="font-bold text-blue-600 bg-slate-50">{preAvg > 0 ? ((postAvg - preAvg) / preAvg * 100).toFixed(1) + '%' : '0.0%'}</td>
-                    <td className="font-bold text-blue-600 bg-slate-50">{(gain * 100).toFixed(1)}%</td>
-                    <td className="font-bold text-indigo-600 bg-slate-50">{cohensD.toFixed(2)}</td>
-                  </tr>
-                );
-              })}
-              {respondentData.filter(r => r.pre.length > 0).length > 0 && (
-                <tr className="bg-slate-100 font-bold">
-                  <td>전체평균</td>
-                  {compTemplate?.questions.map((_, qi) => {
-                    const qPres = respondentData.map(r => r.pre[qi]).filter(p => p !== undefined);
-                    const qPosts = respondentData.map(r => r.post[qi]).filter(p => p !== undefined);
-                    return (
-                      <React.Fragment key={qi}>
-                        <td>{(qPres.reduce((a,b)=>a+b,0)/qPres.length || 0).toFixed(2)}</td>
-                        <td className="text-blue-600">{(qPosts.reduce((a,b)=>a+b,0)/qPosts.length || 0).toFixed(2)}</td>
-                      </React.Fragment>
-                    );
-                  })}
-                  <td className="bg-blue-100">{stats.preAvg.toFixed(2)}</td>
-                  <td className="bg-blue-100 text-blue-700">{stats.postAvg.toFixed(2)}</td>
-                  <td className="bg-blue-100 text-blue-700">{stats.preAvg > 0 ? ((stats.postAvg - stats.preAvg) / stats.preAvg * 100).toFixed(1) + '%' : '0.0%'}</td>
-                  <td className="bg-indigo-100 text-blue-700">{(stats.hakeGain * 100).toFixed(1)}%</td>
-                  <td className="bg-indigo-100 text-indigo-700">{stats.cohensD.toFixed(2)}</td>
+              {respondentData.filter(r => r.sat.length > 0).map((r, i) => (
+                <tr key={i}>
+                  <td>학생 {i + 1}</td>
+                  {r.sat.map((s, si) => <td key={si}>{s}</td>)}
+                  <td className="font-bold bg-slate-50">{(r.sat.reduce((a,b)=>a+b,0)/r.sat.length).toFixed(2)}</td>
                 </tr>
-              )}
+              ))}
+              <tr className="bg-slate-100 font-bold">
+                <td>문항평균</td>
+                {satTemplate?.questions.filter(q => q.type === 'SCALE').map((_, qi) => {
+                  const qScores = respondentData.map(r => r.sat[qi]).filter(s => s !== undefined);
+                  return <td key={qi}>{(qScores.reduce((a,b)=>a+b,0)/qScores.length).toFixed(2)}</td>
+                })}
+                <td className="bg-emerald-100">{stats.satAvg.toFixed(2)}</td>
+              </tr>
             </tbody>
           </table>
         </div>
+      </div>
 
-        <div className="report-section mt-8 flex flex-col gap-6">
+      {/* Page 9: Appendix 1 - Satisfaction Item Details & Text Responses */}
+      <div className="report-page flex flex-col justify-between py-12">
+        <div className="space-y-6">
+          <h2 className="text-[13pt] font-extrabold mb-4 border-b-2 border-slate-900 pb-2"># 별첨 1. 만족도 설문결과 (계속)</h2>
+          
           <div>
-            <h3 className="text-[12pt] font-bold mb-3">■ 역량 진단 지표 및 문항 정보</h3>
-            <table className="appendix-table text-[10pt]">
+            <h3 className="text-[11pt] font-bold mb-2">■ 만족도 설문 문항 정보</h3>
+            <table className="appendix-table text-[9pt]">
               <thead>
                 <tr>
-                  <th className="w-16">번호</th>
-                  <th className="w-[30%]">주제</th>
+                  <th className="w-12">번호</th>
+                  <th className="w-[25%]">주제</th>
+                  <th>설문 문항 내용</th>
+                </tr>
+              </thead>
+              <tbody>
+                {satTemplate?.questions.map((q, i) => (
+                  <tr key={i}>
+                    <td>{i+1}</td>
+                    <td className="px-2 leading-relaxed">{q.theme}</td>
+                    <td className="!text-left px-3 leading-relaxed">{q.content}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {stats.textResponses && stats.textResponses.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-[11pt] font-bold mb-2">■ 주관식 설문 의견 (RAW Data)</h3>
+              <div className="flex flex-col gap-3">
+                {stats.textResponses.map((tr, qIdx) => (
+                  <div key={tr.questionId} className="bg-slate-50 p-4 rounded-xl border border-slate-200 h-auto">
+                    <p className="font-bold text-[9.5pt] text-slate-800 mb-2 border-b border-slate-200 pb-1">
+                      문항 {satTemplate?.questions.findIndex(q => q.id === tr.questionId) !== -1 ? (satTemplate!.questions.findIndex(q => q.id === tr.questionId) + 1) : '-'}. {tr.content}
+                    </p>
+                    <div className="flex flex-col gap-1.5 text-[8.5pt] text-slate-700 leading-relaxed">
+                      {tr.answers.map((ans, idx) => (
+                        <div key={idx} className="flex items-start gap-1.5">
+                          <span className="flex-shrink-0 flex items-center justify-center size-4 rounded-full bg-slate-800 text-white text-[7pt] font-bold mt-0.5">
+                            {idx + 1}
+                          </span>
+                          <span>{ans}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Page 10: Appendix 2 - Competency RAW Table */}
+      <div className="report-page flex flex-col justify-between py-12">
+        <div>
+          <h2 className="text-[13pt] font-extrabold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 2. 사전사후 역량평가 데이터 (RAW Data)</h2>
+          
+          <div className="overflow-x-auto">
+            <table className="appendix-table">
+              <thead>
+                <tr>
+                  <th rowSpan={2}>ID</th>
+                  {compTemplate?.questions.map((q, i) => (
+                    <th key={i} colSpan={2}>문항 {i+1}</th>
+                  ))}
+                  <th colSpan={2} className="bg-blue-50">평균 역량</th>
+                  <th rowSpan={2} className="bg-blue-50">단순 평균 증가율<br/>(%)</th>
+                  <th rowSpan={2} className="bg-indigo-50">Hake's Gain<br/>(학습 효과 지수)</th>
+                  <th rowSpan={2} className="bg-indigo-50">효과크기<br/>(Cohen's d)</th>
+                </tr>
+                <tr>
+                  {compTemplate?.questions.map((_, i) => (
+                    <React.Fragment key={i}>
+                      <th>사전</th>
+                      <th>사후</th>
+                    </React.Fragment>
+                  ))}
+                  <th className="bg-blue-100">사전</th>
+                  <th className="bg-blue-100">사후</th>
+                </tr>
+              </thead>
+              <tbody>
+                {respondentData.filter(r => r.pre.length > 0).map((r, i) => {
+                  const preAvg = r.pre.reduce((a,b)=>a+b,0)/r.pre.length || 0;
+                  const postAvg = r.post.reduce((a,b)=>a+b,0)/r.post.length || 0;
+                  const gain = preAvg >= 5 ? 0 : (postAvg - preAvg) / (5 - preAvg);
+                  const sd = stats.pooledStd || 1;
+                  const cohensD = (postAvg - preAvg) / sd;
+                  return (
+                    <tr key={i}>
+                      <td>학생 {i + 1}</td>
+                      {r.pre.map((p, pi) => (
+                        <React.Fragment key={pi}>
+                          <td>{p}</td>
+                          <td className="text-blue-700">{r.post[pi]}</td>
+                        </React.Fragment>
+                      ))}
+                      <td className="font-bold bg-slate-50">{preAvg.toFixed(2)}</td>
+                      <td className="font-bold bg-slate-50">{postAvg.toFixed(2)}</td>
+                      <td className="font-bold text-blue-600 bg-slate-50">{preAvg > 0 ? ((postAvg - preAvg) / preAvg * 100).toFixed(1) + '%' : '0.0%'}</td>
+                      <td className="font-bold text-blue-600 bg-slate-50">{(gain * 100).toFixed(1)}%</td>
+                      <td className="font-bold text-indigo-600 bg-slate-50">{cohensD.toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+                {respondentData.filter(r => r.pre.length > 0).length > 0 && (
+                  <tr className="bg-slate-100 font-bold">
+                    <td>전체평균</td>
+                    {compTemplate?.questions.map((_, qi) => {
+                      const qPres = respondentData.map(r => r.pre[qi]).filter(p => p !== undefined);
+                      const qPosts = respondentData.map(r => r.post[qi]).filter(p => p !== undefined);
+                      return (
+                        <React.Fragment key={qi}>
+                          <td>{(qPres.reduce((a,b)=>a+b,0)/qPres.length || 0).toFixed(2)}</td>
+                          <td className="text-blue-600">{(qPosts.reduce((a,b)=>a+b,0)/qPosts.length || 0).toFixed(2)}</td>
+                        </React.Fragment>
+                      );
+                    })}
+                    <td className="bg-blue-100">{stats.preAvg.toFixed(2)}</td>
+                    <td className="bg-blue-100 text-blue-700">{stats.postAvg.toFixed(2)}</td>
+                    <td className="bg-blue-100 text-blue-700">{stats.preAvg > 0 ? ((stats.postAvg - stats.preAvg) / stats.preAvg * 100).toFixed(1) + '%' : '0.0%'}</td>
+                    <td className="bg-indigo-100 text-blue-700">{(stats.hakeGain * 100).toFixed(1)}%</td>
+                    <td className="bg-indigo-100 text-indigo-700">{stats.cohensD.toFixed(2)}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Page 11: Appendix 2 - Competency Item Details & Explanations */}
+      <div className="report-page flex flex-col justify-between py-12">
+        <div className="space-y-6">
+          <h2 className="text-[13pt] font-extrabold mb-4 border-b-2 border-slate-900 pb-2"># 별첨 2. 사전사후 역량평가 데이터 (계속)</h2>
+          
+          <div>
+            <h3 className="text-[11pt] font-bold mb-2">■ 역량 진단 지표 및 문항 정보</h3>
+            <table className="appendix-table text-[9pt]">
+              <thead>
+                <tr>
+                  <th className="w-12">번호</th>
+                  <th className="w-[25%]">주제</th>
                   <th>문항 내용</th>
                 </tr>
               </thead>
@@ -611,27 +665,28 @@ export function ExpertReportTemplate({
                 {compTemplate?.questions.map((q, i) => (
                   <tr key={i}>
                     <td>{i+1}</td>
-                    <td className="px-3 leading-relaxed">{q.theme}</td>
-                    <td className="!text-left px-4 leading-relaxed">{q.content}</td>
+                    <td className="px-2 leading-relaxed">{q.theme}</td>
+                    <td className="!text-left px-3 leading-relaxed">{q.content}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-            <h3 className="text-[12pt] font-bold mb-4">■ 주요 통계 지표 설명 및 산식</h3>
-            <div className="space-y-4 text-[11pt]">
+          
+          <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+            <h3 className="text-[11pt] font-bold mb-3">■ 주요 통계 지표 설명 및 산식</h3>
+            <div className="space-y-3 text-[9.5pt]">
               <div>
                 <p className="font-bold text-blue-700">1. Hake&apos;s Gain (학습 효과 지수)</p>
                 <p className="text-slate-600">가능한 최대 성장 폭 대비 실제 달성한 성장의 비율</p>
-                <code className="block bg-white p-2 mt-1 border border-slate-200">G = (Post - Pre) / (5 - Pre)</code>
+                <code className="block bg-white p-2 mt-1 border border-slate-200 text-[8.5pt]">G = (Post - Pre) / (5 - Pre)</code>
               </div>
               <div>
                 <p className="font-bold text-indigo-700">2. Cohen&apos;s d (효과 크기)</p>
                 <p className="text-slate-600">두 집단 간 평균 차이를 표준편차로 나눈 표준화된 지수</p>
-                <code className="block bg-white p-2 mt-1 border border-slate-200">d = (M2 - M1) / SD_pooled</code>
+                <code className="block bg-white p-2 mt-1 border border-slate-200 text-[8.5pt]">d = (M2 - M1) / SD_pooled</code>
               </div>
-              <p className="text-[10pt] text-slate-400 leading-tight mt-4">
+              <p className="text-[8.5pt] text-slate-400 leading-tight mt-2">
                 * 모든 데이터는 무기명으로 처리되었으며, 5점 리커트 척도(1:매우 그렇지 않다 ~ 5:매우 그렇다)를 기준으로 산출되었습니다.
               </p>
             </div>
