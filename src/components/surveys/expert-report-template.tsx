@@ -118,8 +118,8 @@ export function ExpertReportTemplate({
       <style>{`
         .report-page {
           width: 210mm;
-          height: 297mm;
-          padding: 20mm;
+          height: 288mm; /* A4 297mm보다 보수적으로 작게 하여 인쇄 시 하단 잘림을 완벽 차단 */
+          padding: 15mm 20mm; /* 내부 상하 여백을 조정해 내부 공간 확보 */
           margin: 0 auto;
           background: white;
           page-break-after: always;
@@ -128,7 +128,7 @@ export function ExpertReportTemplate({
           overflow: hidden;
         }
         .report-page.cover-page {
-          height: 295mm;
+          height: 282mm; /* 표지는 282mm로 더 안전하게 가둡니다 */
           padding: 10mm;
           box-sizing: border-box;
         }
@@ -176,16 +176,16 @@ export function ExpertReportTemplate({
           }
           .report-page {
             margin: 0;
-            padding: 20mm;
+            padding: 15mm 20mm;
             box-shadow: none;
             width: 210mm;
-            height: 297mm;
+            height: 288mm;
             overflow: hidden;
             page-break-after: always;
             page-break-inside: avoid;
           }
           .report-page.cover-page {
-            height: 296mm;
+            height: 282mm;
             padding: 10mm;
           }
           body {
@@ -265,7 +265,7 @@ export function ExpertReportTemplate({
             </p>
           </div>
           
-          <div className="report-section">
+          <div className="report-section mt-7">
             <h3 className="text-[11pt] font-bold mb-2 flex items-center gap-2 text-slate-800">
               <span className="size-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9pt]">2</span>
               핵심 성과 요약
@@ -290,7 +290,7 @@ export function ExpertReportTemplate({
           </div>
 
           {(radarData.length > 0 || improvementData.length > 0) && (
-            <div className="report-section">
+            <div className="report-section mt-7">
               <h3 className="text-[11pt] font-bold mb-2 flex items-center gap-2 text-slate-800">
                 <span className="size-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9pt]">3</span>
                 항목별 만족도 분포 및 역량 변화 분석
@@ -343,7 +343,7 @@ export function ExpertReportTemplate({
           </div>
 
           {analysis.statisticalEvidence && (
-            <div className="report-section">
+            <div className="report-section mt-7">
               <h3 className="text-[11pt] font-bold mb-2 flex items-center gap-2 text-slate-800">
                 <span className="size-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9pt]">2</span>
                 통계 검증 근거 (Statistical Evidence)
@@ -376,7 +376,7 @@ export function ExpertReportTemplate({
             </div>
           )}
 
-          <div className="report-section pl-7">
+          <div className="report-section pl-7 mt-7">
             <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
               <h4 className="text-[9pt] font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
                 <span className="text-blue-600">※</span> 정량적 지표의 평가 기준 (참고자료)
