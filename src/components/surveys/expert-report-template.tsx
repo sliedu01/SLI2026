@@ -361,7 +361,7 @@ export function ExpertReportTemplate({
                     </div>
                     <div>
                       <p className="text-[7.5pt] text-slate-500 font-bold">통합 표준편차</p>
-                      <p className="text-[10.5pt] font-black text-slate-800">{analysis.pooledStd}</p>
+                      <p className="text-[10.5pt] font-black text-slate-800">{analysis.statisticalEvidence.pooledStd}</p>
                     </div>
                     <div>
                       <p className="text-[7.5pt] text-slate-500 font-bold">유의확률 (p)</p>
