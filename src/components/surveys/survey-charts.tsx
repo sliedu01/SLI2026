@@ -12,18 +12,36 @@ interface SurveyChartsProps {
   improvementData: Record<string, unknown>[];
 }
 
-const CustomZigzagLabel = (props: any) => {
-  const { x, y, width, height, value, index } = props;
-  const midY = y + height / 2;
-  const yPos = index % 2 === 0 ? midY - 12 : midY + 12; 
+const CustomBarLabel = (props: any) => {
+  const { x, y, width, value } = props;
+  if (!value) return null;
   return (
     <text 
       x={x + width / 2} 
-      y={yPos} 
-      fill="#000000" 
-      style={{ fill: '#000000', color: '#000000' }}
-      className="fill-black text-black font-bold"
-      fontSize={11} 
+      y={y - 6} 
+      fill="#3b82f6" 
+      style={{ fill: '#3b82f6', color: '#3b82f6', fontWeight: 'bold' }}
+      className="fill-blue-500 text-blue-500 font-bold"
+      fontSize={9} 
+      fontWeight="bold" 
+      textAnchor="middle"
+    >
+      {value}
+    </text>
+  );
+};
+
+const CustomBarLabelDashboard = (props: any) => {
+  const { x, y, width, value } = props;
+  if (!value) return null;
+  return (
+    <text 
+      x={x + width / 2} 
+      y={y - 8} 
+      fill="#3b82f6" 
+      style={{ fill: '#3b82f6', color: '#3b82f6', fontWeight: 'bold' }}
+      className="fill-blue-500 text-blue-500 font-bold"
+      fontSize={12} 
       fontWeight="bold" 
       textAnchor="middle"
     >
@@ -115,7 +133,7 @@ export function CompetencyBarChart({
           <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '8px', paddingBottom: '5px', color: '#000000', fontWeight: 'bold' }} />
           <Bar dataKey="사전" fill="#cbd5e1" radius={[3, 3, 0, 0]} barSize={16} />
           <Bar dataKey="사후" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={16}>
-            <LabelList dataKey="label" position="top" fill="#3b82f6" fontSize={8} fontWeight="bold" />
+            <LabelList dataKey="label" content={<CustomBarLabel />} />
           </Bar>
         </BarChart>
       </div>
@@ -142,7 +160,7 @@ export function CompetencyBarChart({
             <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ color: '#000000', fontWeight: 'bold' }} />
             <Bar dataKey="사전" fill="#94a3b8" radius={[4, 4, 0, 0]} barSize={30} />
             <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
-              <LabelList dataKey="label" position="top" fill="#3b82f6" fontSize={10} fontWeight="bold" />
+              <LabelList dataKey="label" content={<CustomBarLabelDashboard />} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
