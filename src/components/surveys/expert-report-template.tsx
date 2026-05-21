@@ -128,8 +128,8 @@ export function ExpertReportTemplate({
           overflow: hidden;
         }
         .report-page.cover-page {
-          height: 282mm; /* 표지는 282mm로 더 안전하게 가둡니다 */
-          padding: 10mm;
+          height: 268mm; /* 표지 높이를 268mm로 축소하여 다음 페이지 침범을 완벽 차단 */
+          padding: 8mm;
           box-sizing: border-box;
         }
         .cover-inner {
@@ -137,7 +137,7 @@ export function ExpertReportTemplate({
           height: calc(100% - 8px);
           margin: 4px auto;
           border: 2px solid #0f172a;
-          padding: 20mm 15mm;
+          padding: 15mm 12mm; /* 내부 패딩을 미세하게 압축하여 컨텐츠 수용 공간을 확보 */
           display: flex;
           flex-direction: column;
           justify-content: space-between;
@@ -185,8 +185,8 @@ export function ExpertReportTemplate({
             page-break-inside: avoid;
           }
           .report-page.cover-page {
-            height: 282mm;
-            padding: 10mm;
+            height: 268mm;
+            padding: 8mm;
           }
           body {
             -webkit-print-color-adjust: exact;
@@ -199,13 +199,13 @@ export function ExpertReportTemplate({
       <div className="report-page cover-page">
         <div className="cover-inner">
           <div className="text-left w-full shrink-0">
-            <p className="text-[14pt] font-bold tracking-[0.2em] mb-16 text-slate-400">2026 교육 성과 분석 보고서</p>
-            <h1 className="text-[24pt] sm:text-[28pt] font-black leading-snug mb-10 border-l-8 border-slate-900 pl-8 break-keep">
+            <p className="text-[14pt] font-bold tracking-[0.2em] mb-10 text-slate-400">2026 교육 성과 분석 보고서</p>
+            <h1 className="text-[24pt] sm:text-[28pt] font-black leading-snug mb-6 border-l-8 border-slate-900 pl-8 break-keep">
               {cleanProjectTitle}
             </h1>
           </div>
 
-          <div className="w-full space-y-6 text-[12pt] pl-10 shrink-0">
+          <div className="w-full space-y-4 text-[11pt] pl-10 shrink-0">
             {isConsolidated && (
               <div className="flex justify-between border-b border-slate-300 pb-2">
                 <span className="font-bold">분석 대상</span>
@@ -244,7 +244,7 @@ export function ExpertReportTemplate({
             )}
           </div>
 
-          <div className="text-[18pt] font-black tracking-[1em] w-full text-right border-t-2 border-slate-100 pt-8 shrink-0">
+          <div className="text-[18pt] font-black tracking-[1em] w-full text-right border-t-2 border-slate-100 pt-4 shrink-0">
             {organizationName}
           </div>
         </div>
@@ -255,7 +255,7 @@ export function ExpertReportTemplate({
         <div className="space-y-3">
           <h2 className="text-[14pt] font-extrabold mb-4 border-b-4 border-slate-900 pb-2">Ⅰ. 분석 개요 및 핵심 요약</h2>
           
-          <div className="report-section">
+          <div className="report-section mt-7">
             <h3 className="text-[11pt] font-bold mb-1.5 flex items-center gap-2 text-slate-800">
               <span className="size-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9pt]">1</span>
               분석 목적 및 배경
@@ -323,7 +323,7 @@ export function ExpertReportTemplate({
         <div className="space-y-3.5">
           <h2 className="text-[14pt] font-extrabold mb-4 border-b-4 border-slate-900 pb-2">Ⅱ. 정량적 지표 분석</h2>
           
-          <div className="report-section">
+          <div className="report-section mt-7">
             <h3 className="text-[11pt] font-bold mb-2 flex items-center gap-2 text-slate-800">
               <span className="size-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9pt]">1</span>
               측정 지표 정밀 진단
