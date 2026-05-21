@@ -17,7 +17,7 @@ const CustomZigzagLabel = (props: any) => {
   const midY = y + height / 2;
   const yPos = index % 2 === 0 ? midY - 12 : midY + 12; 
   return (
-    <text x={x + width / 2} y={yPos} fill="#ffffff" fontSize={11} fontWeight="bold" textAnchor="middle">
+    <text x={x + width / 2} y={yPos} fill="#000000" fontSize={11} fontWeight="bold" textAnchor="middle">
       {value}
     </text>
   );
