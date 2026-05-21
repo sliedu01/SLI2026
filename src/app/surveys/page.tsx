@@ -164,7 +164,7 @@ export default function SurveyPage() {
     return Object.entries(stats.themeStats)
       .filter(([_, d]) => d.satAvg > 0)
       .map(([theme, d]) => ({
-        subject: theme,
+        subject: `${theme}(${d.satAvg.toFixed(1)}점)`,
         A: d.satAvg,
         fullMark: 5
       }));
@@ -532,6 +532,47 @@ export default function SurveyPage() {
                       const indStats = calculateSurveyStats(responses, templates, individualIds);
                       if (!indStats) return null;
 
+                      const indRadarData = (() => {
+                        if (!indStats?.themeStats) return [];
+                        return Object.entries(indStats.themeStats)
+                          .filter(([_, d]) => d.satAvg > 0)
+                          .map(([theme, d]) => ({
+                            subject: `${theme}(${d.satAvg.toFixed(1)}점)`,
+                            A: d.satAvg,
+                            fullMark: 5
+                          }));
+                      })();
+
+                      const indImprovementData = (() => {
+                        if (!indStats?.themeStats) return [];
+                        const data = Object.entries(indStats.themeStats)
+                          .filter(([_, d]) => d.preAvg > 0 || d.postAvg > 0)
+                          .map(([theme, d]) => {
+                            const diff = d.postAvg - d.preAvg;
+                            const pct = d.preAvg > 0 ? (diff / d.preAvg * 100) : 0;
+                            const sign = diff > 0 ? '+' : '';
+                            return {
+                              name: theme,
+                              사전: Number(d.preAvg.toFixed(2)),
+                              사후: Number(d.postAvg.toFixed(2)),
+                              label: `${sign}${pct.toFixed(1)}%`
+                            };
+                          });
+                          
+                        if (data.length > 0 && indStats.preAvg > 0) {
+                          const diff = indStats.postAvg - indStats.preAvg;
+                          const pct = indStats.preAvg > 0 ? (diff / indStats.preAvg * 100) : 0;
+                          const sign = diff > 0 ? '+' : '';
+                          data.push({
+                            name: '종합(평균)',
+                            사전: Number(indStats.preAvg.toFixed(2)),
+                            사후: Number(indStats.postAvg.toFixed(2)),
+                            label: `${sign}${pct.toFixed(1)}%`
+                          });
+                        }
+                        return data;
+                      })();
+
                       const p = projects.find(proj => proj.id === id);
                       let name = p?.name || '';
                       let sessionObj: any = null;
@@ -606,8 +647,8 @@ export default function SurveyPage() {
                             stats={indStats}
                             responses={responses.filter(r => individualIds.includes(r.projectId))}
                             templates={templates}
-                            radarData={radarData}
-                            improvementData={improvementData}
+                            radarData={indRadarData}
+                            improvementData={indImprovementData}
                             chartImages={{ radar: '', improvement: '' }}
                             isConsolidated={false}
                             partnerName={partnerName}
