@@ -534,14 +534,28 @@ export default function SurveyPage() {
 
                       const p = projects.find(proj => proj.id === id);
                       let name = p?.name || '';
+                      let sessionObj: any = null;
                       if (!p) {
                          const parentProj = projects.find(proj => proj.sessions?.some(s => s.id === id));
                          const session = parentProj?.sessions?.find(s => s.id === id);
                          const idx = parentProj?.sessions?.findIndex(s => s.id === id);
                          name = session?.content || `${parentProj?.name} - ${idx! + 1}차시`;
+                         if (session) {
+                           sessionObj = {
+                             id: session.id,
+                             name: session.content,
+                             startDate: session.startDate,
+                             endDate: session.endDate,
+                             startTime: session.startTime,
+                             endTime: session.endTime,
+                             parentId: parentProj?.id || null,
+                             partnerId: parentProj?.partnerId,
+                             location: parentProj?.location
+                           };
+                         }
                       }
 
-                      const targetProject = p || projects.find(proj => proj.sessions?.some(s => s.id === id));
+                      const targetProject = p || sessionObj || projects.find(proj => proj.sessions?.some(s => s.id === id));
                       
                       let currentProj = targetProject;
                       let foundPartnerId = currentProj?.partnerId;

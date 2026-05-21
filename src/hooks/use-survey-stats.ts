@@ -42,11 +42,44 @@ export function calculateSurveyStats(responses: SurveyResponse[], templates: Sur
   const respondentIds = new Set(selectedResponses.map(r => r.respondentId));
   const sampleSize = respondentIds.size;
 
-  const pairedTValue = calculatePairedTTest(preScores, postScores);
-  const pValue = getPValueFromT(pairedTValue, preScores.length - 1);
+  // 응답자별 사전/사후 평균 조립하여 짝맞춤 T-test 수행
+  const respondents = new Map<string, { preSum: number; preCount: number; postSum: number; postCount: number }>();
+  
+  selectedResponses.forEach(res => {
+    if (!respondents.has(res.respondentId)) {
+      respondents.set(res.respondentId, { preSum: 0, preCount: 0, postSum: 0, postCount: 0 });
+    }
+    const r = respondents.get(res.respondentId)!;
+    res.answers.forEach((ans: Answer) => {
+      if (compQuestionIds.has(ans.questionId)) {
+        if (ans.preScore !== undefined && ans.preScore > 0) {
+          r.preSum += Number(ans.preScore);
+          r.preCount++;
+        }
+        if (ans.score !== undefined && ans.score > 0) {
+          r.postSum += Number(ans.score);
+          r.postCount++;
+        }
+      }
+    });
+  });
 
+  const respondentAvgs = Array.from(respondents.values()).map(r => ({
+    pre: r.preCount > 0 ? r.preSum / r.preCount : null,
+    post: r.postCount > 0 ? r.postSum / r.postCount : null,
+  }));
+
+  const pairs = respondentAvgs.filter(a => a.pre !== null && a.post !== null);
+  const preList = pairs.map(p => p.pre as number);
+  const postList = pairs.map(p => p.post as number);
+
+  const pairedTValue = pairs.length >= 2 ? calculatePairedTTest(preList, postList) : 0;
+  const pValue = pairs.length >= 2 ? getPValueFromT(pairedTValue, pairs.length - 1) : 1.0;
+
+  // feedbacks는 문항 6번(order === 6) 응답만 모수로 필터링
+  const q6QuestionIds = new Set(satTemplates.flatMap(t => t.questions.filter(q => q.order === 6).map(q => q.id)));
   const feedbacks = selectedResponses.flatMap(r => 
-    r.answers.filter((a: Answer) => a.text).map((a: Answer) => a.text!)
+    r.answers.filter((a: Answer) => q6QuestionIds.has(a.questionId) && a.text).map((a: Answer) => a.text!)
   );
 
   const textResponsesMap = new Map<string, { questionId: string, content: string, answers: string[] }>();
