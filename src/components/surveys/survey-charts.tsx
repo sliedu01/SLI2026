@@ -105,7 +105,7 @@ export function CompetencyBarChart({
   if (isReport) {
     return (
       <div className="h-[180px] w-[320px] flex items-center justify-center mx-auto overflow-hidden bg-transparent">
-        <BarChart width={320} height={180} data={improvementData} margin={{ left: -25, right: 10, top: 15, bottom: 0 }}>
+        <BarChart width={320} height={180} data={improvementData} margin={{ left: -25, right: 10, top: 20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
           <XAxis dataKey="name" tick={{ fill: '#000000', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} />
           <YAxis domain={[0, 5]} width={25} tick={{ fill: '#000000', fontSize: 8, fontWeight: 800 }} axisLine={false} tickLine={false} />
@@ -115,7 +115,7 @@ export function CompetencyBarChart({
           <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '8px', paddingBottom: '5px', color: '#000000', fontWeight: 'bold' }} />
           <Bar dataKey="사전" fill="#cbd5e1" radius={[3, 3, 0, 0]} barSize={16} />
           <Bar dataKey="사후" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={16}>
-            <LabelList dataKey="label" content={<CustomZigzagLabel />} fill="#000000" />
+            <LabelList dataKey="label" position="top" fill="#3b82f6" fontSize={8} fontWeight="bold" />
           </Bar>
         </BarChart>
       </div>
@@ -132,7 +132,7 @@ export function CompetencyBarChart({
       )}
       <div className="h-[280px] w-full print:h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={improvementData} margin={{ left: -25, right: 10, top: 20, bottom: 0 }}>
+          <BarChart data={improvementData} margin={{ left: -25, right: 10, top: 25, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
             <XAxis dataKey="name" tick={{ fill: '#000000', fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
             <YAxis domain={[0, 5]} width={25} tick={{ fill: '#000000', fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
@@ -142,7 +142,7 @@ export function CompetencyBarChart({
             <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ color: '#000000', fontWeight: 'bold' }} />
             <Bar dataKey="사전" fill="#94a3b8" radius={[4, 4, 0, 0]} barSize={30} />
             <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
-              <LabelList dataKey="label" content={<CustomZigzagLabel />} fill="#000000" />
+              <LabelList dataKey="label" position="top" fill="#3b82f6" fontSize={10} fontWeight="bold" />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
