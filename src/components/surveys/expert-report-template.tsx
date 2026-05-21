@@ -295,19 +295,19 @@ export function ExpertReportTemplate({
                 <span className="size-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9pt]">3</span>
                 항목별 만족도 분포 및 역량 변화 분석
               </h3>
-              <div className="pl-7 flex flex-col gap-2 items-center">
+              <div className="flex flex-col gap-4 items-center w-full">
                 {radarData.length > 0 && (
                   <div className="flex flex-col items-center w-full">
-                    <p className="text-[9.5pt] font-bold text-slate-700 mb-0.5 text-center">● 항목별 만족도 분포 (5점 척도)</p>
-                    <div className="h-[150px] w-full flex items-center justify-center">
+                    <p className="text-[9.5pt] font-bold text-slate-700 mb-0.5 text-left w-full pl-7">● 항목별 만족도 분포 (5점 척도)</p>
+                    <div className="h-[270px] w-full flex items-center justify-center">
                       <SatisfactionRadarChart radarData={radarData} showTitle={false} isReport={true} />
                     </div>
                   </div>
                 )}
                 {improvementData.length > 0 && (
                   <div className="flex flex-col items-center w-full">
-                    <p className="text-[9.5pt] font-bold text-slate-700 mb-0.5 mt-2.5 text-center">● 역량 변화 분석 (사전 vs 사후)</p>
-                    <div className="h-[130px] w-full flex items-center justify-center">
+                    <p className="text-[9.5pt] font-bold text-slate-700 mb-0.5 mt-2 text-left w-full pl-7">● 역량 변화 분석 (사전 vs 사후)</p>
+                    <div className="h-[200px] w-full flex items-center justify-center">
                       <CompetencyBarChart improvementData={improvementData} showTitle={false} isReport={true} />
                     </div>
                   </div>

@@ -18,11 +18,11 @@ const CustomBarLabel = (props: any) => {
   return (
     <text 
       x={x + width / 2} 
-      y={y - 6} 
+      y={y - 8} 
       fill="#3b82f6" 
       style={{ fill: '#3b82f6', color: '#3b82f6', fontWeight: 'bold' }}
       className="fill-blue-500 text-blue-500 font-bold"
-      fontSize={9} 
+      fontSize={10} 
       fontWeight="bold" 
       textAnchor="middle"
     >
@@ -64,11 +64,16 @@ export function SatisfactionRadarChart({
 
   if (isReport) {
     return (
-      <div className="h-[150px] w-[480px] flex items-center justify-center mx-auto overflow-hidden bg-transparent">
-        <RadarChart cx="50%" cy="50%" outerRadius="55%" width={480} height={150} data={radarData}>
+      <div className="h-[270px] w-[600px] flex items-center justify-center mx-auto overflow-hidden bg-transparent">
+        <RadarChart cx="50%" cy="50%" outerRadius="72%" width={600} height={270} data={radarData}>
           <PolarGrid stroke="#cbd5e1" />
-          <PolarAngleAxis dataKey="subject" tick={{ fill: '#000000', fontSize: 9, fontWeight: 700 }} />
-          <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fontSize: 8, fill: '#000000', fontWeight: 800 }} />
+          <PolarAngleAxis dataKey="subject" tick={{ fill: '#000000', fontSize: 10, fontWeight: 700 }} />
+          <PolarRadiusAxis 
+            angle={30} 
+            domain={[0, 5]} 
+            ticks={[0, 1, 2, 3, 4, 5]} 
+            tick={{ fontSize: 14, fill: '#64748b', fontWeight: 700 }} 
+          />
           <Radar
             name="만족도"
             dataKey="A"
@@ -122,17 +127,17 @@ export function CompetencyBarChart({
 
   if (isReport) {
     return (
-      <div className="h-[130px] w-[480px] flex items-center justify-center mx-auto overflow-hidden bg-transparent">
-        <BarChart width={480} height={130} data={improvementData} margin={{ left: -20, right: 10, top: 20, bottom: 0 }}>
+      <div className="h-[200px] w-[600px] flex items-center justify-center mx-auto overflow-hidden bg-transparent">
+        <BarChart width={600} height={200} data={improvementData} margin={{ left: -15, right: 15, top: 25, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-          <XAxis dataKey="name" tick={{ fill: '#000000', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 5]} width={25} tick={{ fill: '#000000', fontSize: 8, fontWeight: 800 }} axisLine={false} tickLine={false} />
+          <XAxis dataKey="name" tick={{ fill: '#000000', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
+          <YAxis domain={[0, 5]} width={25} tick={{ fill: '#000000', fontSize: 9, fontWeight: 800 }} axisLine={false} tickLine={false} />
           <Tooltip 
             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}
           />
-          <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '8px', paddingBottom: '3px', color: '#000000', fontWeight: 'bold' }} />
-          <Bar dataKey="사전" fill="#cbd5e1" radius={[3, 3, 0, 0]} barSize={16} />
-          <Bar dataKey="사후" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={16}>
+          <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', paddingBottom: '3px', color: '#000000', fontWeight: 'bold' }} />
+          <Bar dataKey="사전" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={22} />
+          <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={22}>
             <LabelList dataKey="label" content={<CustomBarLabel />} />
           </Bar>
         </BarChart>
