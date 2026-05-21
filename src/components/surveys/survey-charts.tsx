@@ -17,7 +17,16 @@ const CustomZigzagLabel = (props: any) => {
   const midY = y + height / 2;
   const yPos = index % 2 === 0 ? midY - 12 : midY + 12; 
   return (
-    <text x={x + width / 2} y={yPos} fill="#000000" fontSize={11} fontWeight="bold" textAnchor="middle">
+    <text 
+      x={x + width / 2} 
+      y={yPos} 
+      fill="#000000" 
+      style={{ fill: '#000000', color: '#000000' }}
+      className="fill-black text-black font-bold"
+      fontSize={11} 
+      fontWeight="bold" 
+      textAnchor="middle"
+    >
       {value}
     </text>
   );
@@ -40,8 +49,8 @@ export function SatisfactionRadarChart({
       <div className="h-[180px] w-[320px] flex items-center justify-center mx-auto overflow-hidden bg-transparent">
         <RadarChart cx="50%" cy="50%" outerRadius="62%" width={320} height={180} data={radarData}>
           <PolarGrid stroke="#cbd5e1" />
-          <PolarAngleAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 9, fontWeight: 600 }} />
-          <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fontSize: 7, fill: '#64748b' }} />
+          <PolarAngleAxis dataKey="subject" tick={{ fill: '#000000', fontSize: 9, fontWeight: 700 }} />
+          <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fontSize: 8, fill: '#000000', fontWeight: 800 }} />
           <Radar
             name="만족도"
             dataKey="A"
@@ -66,8 +75,8 @@ export function SatisfactionRadarChart({
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
             <PolarGrid stroke="#e2e8f0" />
-            <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }} />
-            <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fontSize: 10 }} />
+            <PolarAngleAxis dataKey="subject" tick={{ fill: '#000000', fontSize: 12, fontWeight: 600 }} />
+            <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fontSize: 10, fill: '#000000', fontWeight: 600 }} />
             <Radar
               name="만족도"
               dataKey="A"
@@ -98,15 +107,15 @@ export function CompetencyBarChart({
       <div className="h-[180px] w-[320px] flex items-center justify-center mx-auto overflow-hidden bg-transparent">
         <BarChart width={320} height={180} data={improvementData} margin={{ left: -25, right: 10, top: 15, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-          <XAxis dataKey="name" tick={{ fill: '#475569', fontSize: 9, fontWeight: 600 }} axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 5]} width={25} tick={{ fill: '#64748b', fontSize: 8 }} axisLine={false} tickLine={false} />
+          <XAxis dataKey="name" tick={{ fill: '#000000', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} />
+          <YAxis domain={[0, 5]} width={25} tick={{ fill: '#000000', fontSize: 8, fontWeight: 800 }} axisLine={false} tickLine={false} />
           <Tooltip 
             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}
           />
-          <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '8px', paddingBottom: '5px' }} />
+          <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '8px', paddingBottom: '5px', color: '#000000', fontWeight: 'bold' }} />
           <Bar dataKey="사전" fill="#cbd5e1" radius={[3, 3, 0, 0]} barSize={16} />
           <Bar dataKey="사후" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={16}>
-            <LabelList dataKey="label" content={<CustomZigzagLabel />} />
+            <LabelList dataKey="label" content={<CustomZigzagLabel />} fill="#000000" />
           </Bar>
         </BarChart>
       </div>
@@ -125,15 +134,15 @@ export function CompetencyBarChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={improvementData} margin={{ left: -25, right: 10, top: 20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-            <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
-            <YAxis domain={[0, 5]} width={25} tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="name" tick={{ fill: '#000000', fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
+            <YAxis domain={[0, 5]} width={25} tick={{ fill: '#000000', fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
             <Tooltip 
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}
             />
-            <Legend verticalAlign="top" align="right" iconType="circle" />
+            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ color: '#000000', fontWeight: 'bold' }} />
             <Bar dataKey="사전" fill="#94a3b8" radius={[4, 4, 0, 0]} barSize={30} />
             <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
-              <LabelList dataKey="label" content={<CustomZigzagLabel />} />
+              <LabelList dataKey="label" content={<CustomZigzagLabel />} fill="#000000" />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
