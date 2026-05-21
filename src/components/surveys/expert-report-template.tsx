@@ -277,9 +277,9 @@ export function ExpertReportTemplate({
                 <p className="text-[7.5pt] text-slate-400">Excellent Level</p>
               </div>
               <div className="bg-slate-50 p-3.5 border-t-4 border-blue-500 rounded-b-xl flex flex-col justify-between min-h-[90px] shadow-sm">
-                <p className="text-[8.5pt] text-slate-500 font-bold">Hake's Gain</p>
+                <p className="text-[8.5pt] text-slate-500 font-bold">학습 효과 지수</p>
                 <p className="text-[18pt] font-black text-blue-600 my-0.5">{Math.round(stats.hakeGain * 100)}%</p>
-                <p className="text-[7.5pt] text-slate-400">학습 효과 지수</p>
+                <p className="text-[7.5pt] text-slate-400">Hake&apos;s Gain</p>
               </div>
               <div className="bg-slate-50 p-3.5 border-t-4 border-indigo-500 rounded-b-xl flex flex-col justify-between min-h-[90px] shadow-sm">
                 <p className="text-[8.5pt] text-slate-500 font-bold">효과 크기</p>
