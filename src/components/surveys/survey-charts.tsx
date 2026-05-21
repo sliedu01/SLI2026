@@ -50,6 +50,77 @@ const CustomBarLabelDashboard = (props: any) => {
   );
 };
 
+const CustomMinLabel = (props: any) => {
+  const { x, y, width, height, value } = props;
+  if (value === undefined || value === null) return null;
+  return (
+    <text 
+      x={x + width / 2} 
+      y={y + height - 6} 
+      fill="#000000" 
+      style={{ fill: '#000000', fontWeight: 'bold' }}
+      fontSize={9} 
+      fontWeight="bold" 
+      textAnchor="middle"
+    >
+      {Number(value).toFixed(2)}
+    </text>
+  );
+};
+
+const CustomMaxLabel = (props: any) => {
+  const { x, y, width, height, value } = props;
+  if (value === undefined || value === null) return null;
+  return (
+    <text 
+      x={x + width / 2} 
+      y={y + height - 6} 
+      fill="#ffffff" 
+      style={{ fill: '#ffffff', fontWeight: 'bold' }}
+      fontSize={9} 
+      fontWeight="bold" 
+      textAnchor="middle"
+    >
+      {Number(value).toFixed(2)}
+    </text>
+  );
+};
+
+const CustomMinLabelDashboard = (props: any) => {
+  const { x, y, width, height, value } = props;
+  if (value === undefined || value === null) return null;
+  return (
+    <text 
+      x={x + width / 2} 
+      y={y + height - 8} 
+      fill="#000000" 
+      style={{ fill: '#000000', fontWeight: 'bold' }}
+      fontSize={11} 
+      fontWeight="bold" 
+      textAnchor="middle"
+    >
+      {Number(value).toFixed(2)}
+    </text>
+  );
+};
+
+const CustomMaxLabelDashboard = (props: any) => {
+  const { x, y, width, height, value } = props;
+  if (value === undefined || value === null) return null;
+  return (
+    <text 
+      x={x + width / 2} 
+      y={y + height - 8} 
+      fill="#ffffff" 
+      style={{ fill: '#ffffff', fontWeight: 'bold' }}
+      fontSize={11} 
+      fontWeight="bold" 
+      textAnchor="middle"
+    >
+      {Number(value).toFixed(2)}
+    </text>
+  );
+};
 
 export function SatisfactionRadarChart({ 
   radarData, 
@@ -136,9 +207,12 @@ export function CompetencyBarChart({
             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}
           />
           <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', paddingBottom: '3px', color: '#000000', fontWeight: 'bold' }} />
-          <Bar dataKey="사전" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={22} />
+          <Bar dataKey="사전" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={22}>
+            <LabelList dataKey="사전" content={<CustomMinLabel />} />
+          </Bar>
           <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={22}>
             <LabelList dataKey="label" content={<CustomBarLabel />} />
+            <LabelList dataKey="사후" content={<CustomMaxLabel />} />
           </Bar>
         </BarChart>
       </div>
@@ -163,9 +237,12 @@ export function CompetencyBarChart({
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}
             />
             <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ color: '#000000', fontWeight: 'bold' }} />
-            <Bar dataKey="사전" fill="#94a3b8" radius={[4, 4, 0, 0]} barSize={30} />
+            <Bar dataKey="사전" fill="#94a3b8" radius={[4, 4, 0, 0]} barSize={30}>
+              <LabelList dataKey="사전" content={<CustomMinLabelDashboard />} />
+            </Bar>
             <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
               <LabelList dataKey="label" content={<CustomBarLabelDashboard />} />
+              <LabelList dataKey="사후" content={<CustomMaxLabelDashboard />} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
