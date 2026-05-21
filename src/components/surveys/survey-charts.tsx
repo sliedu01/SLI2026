@@ -151,6 +151,7 @@ export function SatisfactionRadarChart({
             stroke="#10b981"
             fill="#10b981"
             fillOpacity={0.2}
+            isAnimationActive={false}
           />
         </RadarChart>
       </div>
@@ -177,6 +178,7 @@ export function SatisfactionRadarChart({
               stroke="#10b981"
               fill="#10b981"
               fillOpacity={0.2}
+              isAnimationActive={false}
             />
           </RadarChart>
         </ResponsiveContainer>
@@ -207,10 +209,10 @@ export function CompetencyBarChart({
             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}
           />
           <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', paddingBottom: '3px', color: '#000000', fontWeight: 'bold' }} />
-          <Bar dataKey="사전" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={22}>
+          <Bar dataKey="사전" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={22} isAnimationActive={false}>
             <LabelList dataKey="사전" content={<CustomMinLabel />} />
           </Bar>
-          <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={22}>
+          <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={22} isAnimationActive={false}>
             <LabelList dataKey="label" content={<CustomBarLabel />} />
             <LabelList dataKey="사후" content={<CustomMaxLabel />} />
           </Bar>
@@ -237,10 +239,10 @@ export function CompetencyBarChart({
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}
             />
             <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ color: '#000000', fontWeight: 'bold' }} />
-            <Bar dataKey="사전" fill="#94a3b8" radius={[4, 4, 0, 0]} barSize={30}>
+            <Bar dataKey="사전" fill="#94a3b8" radius={[4, 4, 0, 0]} barSize={30} isAnimationActive={false}>
               <LabelList dataKey="사전" content={<CustomMinLabelDashboard />} />
             </Bar>
-            <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
+            <Bar dataKey="사후" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} isAnimationActive={false}>
               <LabelList dataKey="label" content={<CustomBarLabelDashboard />} />
               <LabelList dataKey="사후" content={<CustomMaxLabelDashboard />} />
             </Bar>
