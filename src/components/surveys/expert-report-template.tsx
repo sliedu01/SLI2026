@@ -264,7 +264,10 @@ export function ExpertReportTemplate({
             </div>
           </section>
         )}
+      </div>
 
+      {/* Page 3: Quantitative Analysis */}
+      <div className="report-page space-y-12">
         <section className="report-section">
           <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅱ. 정량적 지표 분석</h2>
           <h3 className="text-[13pt] font-bold mb-6 flex items-center gap-2 text-slate-800">
@@ -280,7 +283,6 @@ export function ExpertReportTemplate({
                 </div>
                 <p className="text-blue-700 font-bold mb-2 text-[10pt]">▶ {m.interpretation}</p>
                 <p className="text-[10pt] text-slate-500 leading-relaxed mb-3">{m.desc}</p>
-                {/* m.criteria is now moved to the bottom unified table for better visibility */}
               </div>
             ))}
           </div>
@@ -375,7 +377,7 @@ export function ExpertReportTemplate({
         </section>
       </div>
 
-      {/* Page 3: Visuals & Qualitative */}
+      {/* Page 4: Visuals & Qualitative */}
       <div className="report-page">
         <section className="report-section mt-4">
           <h2 className="text-[15pt] font-extrabold mb-6 border-b-4 border-slate-900 pb-2">Ⅲ. 정성적 응답 분석</h2>
@@ -409,8 +411,8 @@ export function ExpertReportTemplate({
           </div>
         </section>
       </div>
-
-      {/* Page 4: Conclusion */}
+ 
+      {/* Page 5: Conclusion */}
       <div className="report-page">
         <section className="report-section mt-4">
           <h2 className="text-[15pt] font-extrabold mb-8 border-b-4 border-slate-900 pb-2">Ⅳ. 종합 결론 및 전략 제언</h2>
@@ -436,8 +438,8 @@ export function ExpertReportTemplate({
           </div>
         </section>
       </div>
-
-      {/* Page 5: Appendix 1 - Satisfaction RAW */}
+ 
+      {/* Page 6: Appendix 1 - Satisfaction RAW */}
       <div className="report-page">
         <h2 className="text-[14pt] font-extrabold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 1. 만족도 설문결과 (RAW Data)</h2>
         
@@ -518,7 +520,7 @@ export function ExpertReportTemplate({
         )}
       </div>
 
-      {/* Page 6: Appendix 2 - Competency RAW */}
+      {/* Page 7: Appendix 2 - Competency RAW */}
       <div className="report-page">
         <h2 className="text-[14pt] font-extrabold mb-6 border-b-2 border-slate-900 pb-2"># 별첨 2. 사전사후 역량평가 데이터 (RAW Data)</h2>
         
