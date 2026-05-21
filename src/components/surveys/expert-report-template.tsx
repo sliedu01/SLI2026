@@ -683,12 +683,12 @@ export function ExpertReportTemplate({
               <div>
                 <p className="font-bold text-blue-700">1. Hake&apos;s Gain (학습 효과 지수)</p>
                 <p className="text-slate-600">가능한 최대 성장 폭 대비 실제 달성한 성장의 비율</p>
-                <code className="block bg-white p-2 mt-1 border border-slate-200 text-[8.5pt]">G = (Post - Pre) / (5 - Pre)</code>
+                <code className="block bg-white p-2 mt-1 border border-slate-200 text-[8.5pt]">지수(G) = (사후 점수 - 사전 점수) / (5 - 사전 점수)</code>
               </div>
               <div>
                 <p className="font-bold text-indigo-700">2. Cohen&apos;s d (효과 크기)</p>
                 <p className="text-slate-600">두 집단 간 평균 차이를 표준편차로 나눈 표준화된 지수</p>
-                <code className="block bg-white p-2 mt-1 border border-slate-200 text-[8.5pt]">d = (M2 - M1) / SD_pooled</code>
+                <code className="block bg-white p-2 mt-1 border border-slate-200 text-[8.5pt]">효과 크기(d) = (사후 평균 - 사전 평균) / 통합 표준편차</code>
               </div>
               <p className="text-[8.5pt] text-slate-400 leading-tight mt-2">
                 * 모든 데이터는 무기명으로 처리되었으며, 5점 리커트 척도(1:매우 그렇지 않다 ~ 5:매우 그렇다)를 기준으로 산출되었습니다.
