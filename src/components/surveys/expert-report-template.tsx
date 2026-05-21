@@ -288,7 +288,7 @@ export function ExpertReportTemplate({
           <div className="report-section mt-6 break-inside-avoid pl-8">
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
               <h4 className="text-[11pt] font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <span className="text-blue-600">※</span> 정량적 지표의 통상적 평가 기준 (참고자료)
+                <span className="text-blue-600">※</span> 정량적 지표의 평가 기준 (참고자료)
               </h4>
               <div className="grid grid-cols-1 gap-4 text-[10pt]">
                 <div className="flex flex-col gap-1">
