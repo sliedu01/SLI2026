@@ -205,48 +205,146 @@ function findSafeCutPoint(
 }
 
 /**
- * HWP 다운로드: HTML 서식을 유지하며 HWP로 변환 (HTML-compatible HWP)
+ * HWP 다운로드: PDF 다운로드와 동일하게 html2canvas를 사용하여
+ * 디자인을 완벽하게 캡처한 후 이미지 형태의 HWP 문서로 저장합니다.
  */
-export function downloadAsHWP(containerId: string, fileName: string) {
-  const element = document.getElementById(containerId);
-  if (!element) return;
+export async function downloadAsHWP(containerId: string, fileName: string) {
+  const container = document.getElementById(containerId);
+  if (!container) {
+    alert('보고서 콘텐츠를 찾을 수 없습니다. 보고서 프리뷰가 화면에 표시된 상태에서 다시 시도해주세요.');
+    return;
+  }
 
-  // HWP에서 한글 폰트 및 레이아웃이 잘 보이도록 인라인 스타일 강화된 복사본 생성
-  const header = `
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-    <head>
-      <meta charset="utf-8">
-      <title>교육 성과 보고서</title>
-      <style>
-        body { font-family: 'Batang', 'serif'; line-height: 1.6; color: #000; }
-        .report-page { width: 100%; page-break-after: always; padding: 40px; border: 1px solid #eee; margin-bottom: 20px; }
-        h1 { font-size: 24pt; font-weight: bold; text-align: center; margin-bottom: 30px; }
-        h2 { font-size: 18pt; font-weight: bold; border-bottom: 2px solid #000; padding-bottom: 10px; margin-top: 40px; }
-        h3 { font-size: 14pt; font-weight: bold; margin-top: 20px; }
-        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
-        th, td { border: 1px solid #000; padding: 10px; text-align: center; }
-        .bg-slate-900 { background-color: #1a1a1a !important; color: #ffffff !important; }
-        .text-white { color: #ffffff !important; }
-        .grid { display: block; }
-        .p-6, .p-10, .p-12 { padding: 20px; }
-        img { max-width: 100%; height: auto; display: block; margin: 20px auto; }
-      </style>
-    </head>
-    <body>
-  `;
-  const footer = "</body></html>";
+  // 캡처 전: overflow 제한 해제 (부모 컨테이너의 overflow:hidden이 캡처를 방해할 수 있음)
+  const overflowAnchestors: { el: HTMLElement; orig: string }[] = [];
+  let ancestor: HTMLElement | null = container.parentElement;
+  while (ancestor && ancestor !== document.body) {
+    const cs = getComputedStyle(ancestor);
+    if (cs.overflow !== 'visible' || cs.overflowY !== 'visible' || cs.overflowX !== 'visible') {
+      overflowAnchestors.push({ el: ancestor, orig: ancestor.style.overflow });
+      ancestor.style.overflow = 'visible';
+    }
+    ancestor = ancestor.parentElement;
+  }
 
-  // 현재 화면의 내용을 가져와서 스타일을 인라인화하거나 보정
-  const content = element.innerHTML;
-  
-  // Blob 생성 (MS Word/HWP 호환 MimeType)
-  const blob = new Blob([header + content + footer], { type: 'application/msword' });
-  const url = URL.createObjectURL(blob);
-  
-  const link = document.createElement('a');
-  link.download = `${fileName}.hwpx`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  try {
+    const pages = container.querySelectorAll('.report-page');
+    if (pages.length === 0) {
+      alert('보고서 페이지가 없습니다.');
+      return;
+    }
+
+    const imgTags: string[] = [];
+    let isFirstPage = true;
+
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i] as HTMLElement;
+
+      // 첫 페이지(표지)는 고정 A4 높이 유지, 나머지는 자연 높이로 캡처
+      const origMinHeight = page.style.minHeight;
+      const origHeight = page.style.height;
+      if (i > 0) {
+        page.style.minHeight = 'auto';
+        page.style.height = 'auto';
+      }
+
+      const canvas = await html2canvas(page, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: page.scrollWidth,
+      });
+
+      // 원래 스타일 복원
+      if (i > 0) {
+        page.style.minHeight = origMinHeight;
+        page.style.height = origHeight;
+      }
+
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const pxPerMm = canvasWidth / A4_WIDTH_MM;
+      const maxPageHeightPx = USABLE_HEIGHT_MM * pxPerMm;
+
+      // A4 한 페이지 이내인 경우 그대로 삽입
+      if (canvasHeight <= maxPageHeightPx * 1.02) {
+        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        if (!isFirstPage) {
+          imgTags.push("<br clear=all style='mso-special-character:line-break;page-break-before:always'>");
+        }
+        isFirstPage = false;
+        imgTags.push(`<img src="${imgData}" style="width: 100%; max-width: ${A4_WIDTH_MM}mm;" />`);
+        continue;
+      }
+
+      // A4를 넘는 경우: 안전한 절단점을 찾아 분할
+      let yOffset = 0;
+      while (yOffset < canvasHeight) {
+        const remaining = canvasHeight - yOffset;
+        let sliceHeight = Math.min(maxPageHeightPx, remaining);
+
+        // 마지막 조각이 아닌 경우 안전한 절단점 탐색
+        if (remaining > maxPageHeightPx) {
+          sliceHeight = findSafeCutPoint(canvas, yOffset, sliceHeight, pxPerMm);
+        }
+
+        // 이 슬라이스를 새 캔버스로 추출
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvasWidth;
+        sliceCanvas.height = Math.ceil(sliceHeight);
+        const ctx = sliceCanvas.getContext('2d')!;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvasWidth, sliceCanvas.height);
+        ctx.drawImage(
+          canvas,
+          0, yOffset, canvasWidth, Math.ceil(sliceHeight),
+          0, 0, canvasWidth, Math.ceil(sliceHeight)
+        );
+
+        const imgData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+        if (!isFirstPage) {
+          imgTags.push("<br clear=all style='mso-special-character:line-break;page-break-before:always'>");
+        }
+        isFirstPage = false;
+        imgTags.push(`<img src="${imgData}" style="width: 100%; max-width: ${A4_WIDTH_MM}mm;" />`);
+
+        yOffset += sliceHeight;
+      }
+    }
+
+    const header = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset="utf-8">
+        <title>교육 성과 보고서</title>
+        <style>
+          body { margin: 0; padding: 0; text-align: center; }
+          img { display: block; margin: 0 auto; }
+        </style>
+      </head>
+      <body>
+    `;
+    const footer = "</body></html>";
+    const content = imgTags.join('\\n');
+    
+    const blob = new Blob([header + content + footer], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${fileName}.hwp`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+  } catch (err: any) {
+    console.error('HWP 생성 오류:', err);
+    alert(\`HWP 생성 중 오류가 발생했습니다.\\n\\n[오류 내용]\\n\${err.message || String(err)}\`);
+  } finally {
+    overflowAnchestors.forEach(({ el, orig }) => {
+      el.style.overflow = orig;
+    });
+  }
 }
