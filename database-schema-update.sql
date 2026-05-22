@@ -128,3 +128,10 @@ ALTER TABLE budget_categories DISABLE ROW LEVEL SECURITY;
 ALTER TABLE budget_managements DISABLE ROW LEVEL SECURITY;
 ALTER TABLE budget_executions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE expenditures DISABLE ROW LEVEL SECURITY;
+
+-- ==========================================
+-- 2026-05-22 모니터링 요원 코멘트 기능 추가
+-- ==========================================
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS monitoring_sat_comment VARCHAR(300) DEFAULT '';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS monitoring_comp_comment VARCHAR(300) DEFAULT '';
+

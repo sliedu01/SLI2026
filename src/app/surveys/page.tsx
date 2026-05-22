@@ -25,6 +25,7 @@ import { ProjectTree } from '@/components/surveys/project-tree';
 import { PasteDialog, EditDialog } from '@/components/surveys/survey-dialogs';
 import { SurveyTemplateSettings } from '@/components/surveys/template-settings';
 import { TemplateEditDialog } from '@/components/surveys/template-edit-dialog';
+import { MonitoringCommentCard } from '@/components/surveys/monitoring-comment-card';
 import { useSurveyStats, calculateSurveyStats } from '@/hooks/use-survey-stats';
 import { generateSurveyReport, downloadAsHWP } from '@/utils/survey-report-utils';
 import { ExpertReportTemplate } from '@/components/surveys/expert-report-template';
@@ -66,7 +67,7 @@ export default function SurveyPage() {
   const { 
     projects, visibleProjectIds, expandedIds, selectedProjectIds, 
     fetchProjects, toggleExpand, setSelectedProjectIds,
-    selectedLv1Ids, setSelectedLv1Ids
+    selectedLv1Ids, setSelectedLv1Ids, updateProject
   } = useProjectStore();
   const { partners, fetchPartners } = usePartnerStore();
   const { user, permissions, hasModuleAccess, canPerform } = useAuthStore();
@@ -450,6 +451,19 @@ export default function SurveyPage() {
               </div>
 
               <SurveyStatsCards stats={stats} />
+              
+              <MonitoringCommentCard 
+                project={currentProject} 
+                onSave={async (satComment, compComment) => {
+                  if (currentProject) {
+                    await updateProject(currentProject.id, {
+                      monitoringSatComment: satComment,
+                      monitoringCompComment: compComment
+                    });
+                  }
+                }} 
+              />
+              
               <SurveyCharts radarData={radarData} improvementData={improvementData} />
 
               <Card className="p-8 border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 shadow-2xl rounded-[2.5rem]">

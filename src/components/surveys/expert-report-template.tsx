@@ -340,6 +340,44 @@ export function ExpertReportTemplate({
                 </div>
               ))}
             </div>
+
+            {/* 만족도 지표 모니터링 요원 코멘트 반영 */}
+            {(() => {
+              const satComments = projects
+                .filter(p => p.monitoringSatComment)
+                .map(p => ({ name: p.name, comment: p.monitoringSatComment }));
+
+              if (satComments.length === 0) {
+                return (
+                  <div className="mt-2.5 pl-7">
+                    <div className="bg-slate-50/70 border border-slate-200/50 rounded-xl p-2.5 text-center">
+                      <p className="text-[8.5pt] text-slate-400 italic font-medium leading-normal">
+                        (본 과정의 교육 만족도 수치에 관한 모니터링 종합 의견이 등록되지 않았습니다.)
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="mt-2.5 pl-7">
+                  <div className="bg-gradient-to-r from-slate-50 to-indigo-50/30 border border-indigo-100/50 rounded-xl p-3 shadow-sm">
+                    <h4 className="text-[8.5pt] font-black text-indigo-900 mb-1 flex items-center gap-1.5">
+                      <span className="inline-block w-1.5 h-3 bg-indigo-600 rounded-full" />
+                      현장 모니터링 요원 만족도 종합 평가
+                    </h4>
+                    <div className="space-y-1">
+                      {satComments.map((sc, scIdx) => (
+                        <div key={scIdx} className="text-[8.5pt] text-slate-700 leading-relaxed text-justify">
+                          {isConsolidated && <span className="font-extrabold text-indigo-700">[{sc.name}] </span>}
+                          &ldquo;{sc.comment}&rdquo;
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {analysis.statisticalEvidence && (
@@ -373,6 +411,44 @@ export function ExpertReportTemplate({
                   </p>
                 </div>
               </div>
+
+              {/* 성숙도 지표 모니터링 요원 코멘트 반영 */}
+              {(() => {
+                const compComments = projects
+                  .filter(p => p.monitoringCompComment)
+                  .map(p => ({ name: p.name, comment: p.monitoringCompComment }));
+
+                if (compComments.length === 0) {
+                  return (
+                    <div className="mt-2.5 pl-7">
+                      <div className="bg-slate-50/70 border border-slate-200/50 rounded-xl p-2.5 text-center">
+                        <p className="text-[8.5pt] text-slate-400 italic font-medium leading-normal">
+                          (본 과정의 사전사후 성숙도 변화에 관한 모니터링 종합 의견이 등록되지 않았습니다.)
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="mt-2.5 pl-7">
+                    <div className="bg-gradient-to-r from-slate-50 to-blue-50/30 border border-blue-100/50 rounded-xl p-3 shadow-sm">
+                      <h4 className="text-[8.5pt] font-black text-blue-900 mb-1 flex items-center gap-1.5">
+                        <span className="inline-block w-1.5 h-3 bg-blue-600 rounded-full" />
+                        현장 모니터링 요원 역량 성숙도 평가
+                      </h4>
+                      <div className="space-y-1">
+                        {compComments.map((cc, ccIdx) => (
+                          <div key={ccIdx} className="text-[8.5pt] text-slate-700 leading-relaxed text-justify">
+                            {isConsolidated && <span className="font-extrabold text-blue-700">[{cc.name}] </span>}
+                            &ldquo;{cc.comment}&rdquo;
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

@@ -28,6 +28,8 @@ export interface Project {
   participantCount: number; 
   sessions?: ProjectSession[]; // 다차시 정보
   abbreviation?: string; // 사업 약어
+  monitoringSatComment?: string; // 만족도 모니터링 코멘트
+  monitoringCompComment?: string; // 성숙도(역량) 모니터링 코멘트
   createdAt: number;
 }
 
@@ -108,6 +110,8 @@ export const useProjectStore = create<ProjectState>()(
             participantCount: p.participant_count || 0,
             sessions: p.sessions || [],
             abbreviation: localAbbrs[p.id] || p.abbreviation || '',
+            monitoringSatComment: p.monitoring_sat_comment || '',
+            monitoringCompComment: p.monitoring_comp_comment || '',
             createdAt: new Date(p.created_at).getTime(),
           }));
           set({ projects: mappedProjects });
@@ -179,6 +183,8 @@ export const useProjectStore = create<ProjectState>()(
         if (updates.participantCount !== undefined) updateData.participant_count = updates.participantCount;
         if (updates.sessions !== undefined) updateData.sessions = updates.sessions;
         if (updates.abbreviation !== undefined) updateData.abbreviation = updates.abbreviation;
+        if (updates.monitoringSatComment !== undefined) updateData.monitoring_sat_comment = updates.monitoringSatComment;
+        if (updates.monitoringCompComment !== undefined) updateData.monitoring_comp_comment = updates.monitoringCompComment;
 
         const { error } = await supabase
           .from('projects')
@@ -226,6 +232,8 @@ export const useProjectStore = create<ProjectState>()(
             quota: source.quota,
             participant_count: source.participantCount,
             sessions: source.sessions || [],
+            monitoring_sat_comment: source.monitoringSatComment || '',
+            monitoring_comp_comment: source.monitoringCompComment || '',
           };
 
           const { data, error } = await supabase
