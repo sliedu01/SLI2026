@@ -337,7 +337,11 @@ export async function downloadAsHWP(containerId: string, fileName: string) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    
+    // 다운로드가 시작될 수 있도록 Blob URL 해제를 약간 지연시킵니다.
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 1000);
 
   } catch (err: any) {
     console.error('HWP 생성 오류:', err);

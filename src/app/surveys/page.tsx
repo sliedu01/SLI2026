@@ -325,8 +325,13 @@ export default function SurveyPage() {
     }
   };
 
-  const handleDownloadHWP = () => {
-    downloadAsHWP('expert-report-content', downloadFileName);
+  const handleDownloadHWP = async () => {
+    setIsDownloadingPDF(true);
+    try {
+      await downloadAsHWP('expert-report-content', downloadFileName);
+    } finally {
+      setIsDownloadingPDF(false);
+    }
   };
 
   const handleProcessPaste = async (shouldClear: boolean) => {
@@ -485,8 +490,8 @@ export default function SurveyPage() {
                     {isDownloadingPDF ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Download className="size-4 mr-2" />}
                     보고서 PDF 다운로드
                   </Button>
-                  <Button variant="outline" className="rounded-xl border-slate-900 dark:border-slate-100 dark:text-slate-100 font-bold" onClick={handleDownloadHWP}>
-                    <FileDown className="size-4 mr-2 text-blue-600" />
+                  <Button disabled={isDownloadingPDF} variant="outline" className="rounded-xl border-slate-900 dark:border-slate-100 dark:text-slate-100 font-bold" onClick={handleDownloadHWP}>
+                    {isDownloadingPDF ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Download className="size-4 mr-2" />}
                     보고서 HWP 다운로드
                   </Button>
                 </div>
@@ -527,8 +532,8 @@ export default function SurveyPage() {
                     보고서 프리뷰
                   </h3>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="rounded-xl border-slate-900 dark:border-slate-100 font-bold" onClick={handleDownloadHWP}>
-                      <FileDown className="size-4 mr-2 text-blue-600" />
+                    <Button disabled={isDownloadingPDF} variant="outline" size="sm" className="rounded-xl border-slate-900 dark:border-slate-100 font-bold" onClick={handleDownloadHWP}>
+                      {isDownloadingPDF ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Download className="size-4 mr-2" />}
                       HWP 다운로드
                     </Button>
                     <Button disabled={isDownloadingPDF} size="sm" className="bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-xl font-bold" onClick={handleDownloadPDF}>
