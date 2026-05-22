@@ -583,9 +583,14 @@ export function ExpertReportTemplate({
                           </div>
                         )}
                         
-                        <p className="text-[9.5pt] text-slate-700 font-bold leading-normal pt-1.5 border-t border-slate-100 flex items-center gap-1 text-justify">
-                          👉 <span className="text-indigo-800">시사점:</span> 상기 현장 지적 사항에 따라 학습자의 눈높이에 맞춘 체험 프로그램 단위의 교과 난이도 필터링 및 조율을 차기 운영 시 권고함.
-                        </p>
+                        <div className="pt-2 border-t border-slate-100 mt-2">
+                          <p className="text-[9.5pt] text-slate-700 font-bold flex items-center gap-1 mb-1">
+                            👉 <span className="text-indigo-800">시사점:</span>
+                          </p>
+                          <p className="text-[9.5pt] text-slate-700 leading-relaxed text-justify pl-5">
+                            상기 현장 지적 사항에 따라 학습자의 눈높이에 맞춘 체험 프로그램 단위의 교과 난이도 필터링 및 조율을 차기 운영 시 권고함.
+                          </p>
+                        </div>
                       </div>
                     );
                   })}
