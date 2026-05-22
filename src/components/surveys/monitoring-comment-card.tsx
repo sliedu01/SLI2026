@@ -22,14 +22,16 @@ export function MonitoringCommentCard({ project, onSave }: MonitoringCommentCard
   // 선택된 프로젝트가 바뀔 때 기존 등록된 코멘트를 불러옴
   React.useEffect(() => {
     if (project) {
-      setSatComment(project.monitoringSatComment || '');
-      setCompComment(project.monitoringCompComment || '');
-      setSaveSuccess(false);
+      // 💡 저장 중이거나 저장 직후 성공 알림 중일 때는 로컬 입력값을 덮어씌우지 않고 유지합니다.
+      if (!isSaving && !saveSuccess) {
+        setSatComment(project.monitoringSatComment || '');
+        setCompComment(project.monitoringCompComment || '');
+      }
     } else {
       setSatComment('');
       setCompComment('');
     }
-  }, [project]);
+  }, [project, isSaving, saveSuccess]);
 
   if (!project) {
     return (

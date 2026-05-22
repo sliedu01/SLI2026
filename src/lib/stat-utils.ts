@@ -285,11 +285,27 @@ export const ExpertReportGenerator = {
     const cohen = stats.cohensD.toFixed(2);
     const sat = stats.satAvg.toFixed(2);
 
-    return `『 수석 데이터 분석가 정밀 통합 보고서 』\n\n` +
-           `사업명: ${projectName}\n\n` +
-           `■ 인사이트 1: 운영 인프라 분석\n운영 만족도 ${sat}점으로 매우 안정적인 교육 환경이 제공되었습니다.\n\n` +
-           `■ 인사이트 2: 역량 성취 임팩트\n효과 크기 ${cohen} 및 향상도 ${gain}%로 유의미한 역량 성장이 확인되었습니다.\n\n` +
-           `■ 총평 및 제언\n핵심 성공 요인을 자산화하여 전사 표준 모델로 확대 적용할 것을 권고합니다.`;
+    const descriptions = projects.map(p => p.description).filter(d => d && d.trim().length > 0);
+    const uniqueDescriptions = [...new Set(descriptions)];
+    const contentText = uniqueDescriptions.length > 0 ? uniqueDescriptions.join(', ') : '해당 교육 과정';
+    
+    const satComments = projects.map(p => p.monitoringSatComment).filter(c => c && c.trim().length > 0);
+    const compComments = projects.map(p => p.monitoringCompComment).filter(c => c && c.trim().length > 0);
+
+    let commentsText = '';
+    if (satComments.length > 0 || compComments.length > 0) {
+      commentsText = `\n■ 모니터링 요원 종합 의견\n`;
+      if (satComments.length > 0) commentsText += `[만족도 코멘트]\n${satComments.map(c => `- ${c}`).join('\n')}\n`;
+      if (compComments.length > 0) commentsText += `[성숙도 코멘트]\n${compComments.map(c => `- ${c}`).join('\n')}\n`;
+    }
+
+    return `『 교육 성과 정밀 분석 보고서 』\n\n` +
+           `사업명: ${projectName}\n` +
+           `사업 내용: ${contentText}\n\n` +
+           `■ 인사이트 1: 만족도 지표 (운영 인프라 및 전반적 만족도)\n운영 만족도 ${sat}점으로 성공적인 교육 환경이 제공되었습니다.\n\n` +
+           `■ 인사이트 2: 성숙도 지표 (역량 성취 임팩트)\n효과 크기 ${cohen} 및 향상도 ${gain}%로 유의미한 역량 성장이 사전/사후 진단 결과 확인되었습니다.\n` +
+           commentsText +
+           `\n■ 총평 및 제언\n수집된 정량적 성과와 모니터링 요원의 정성적 의견을 종합하여, 긍정적인 평가를 받은 실습형 체험 과정을 지속 유지하되, 차기 사업 기획 시 피드백을 반영하여 교과 난이도 필터링 및 조율 등의 보완 조치를 권고합니다.`;
   }
 };
 

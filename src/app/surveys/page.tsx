@@ -4,7 +4,7 @@ import * as React from 'react';
 import { 
   FileText, Clipboard, Download, Plus, Search, 
   BarChart3, Settings2, LayoutDashboard, Share2, AlertTriangle,
-  LayoutGrid, FileDown, Loader2
+  LayoutGrid, FileDown, Loader2, Edit, Lightbulb, Rocket, RefreshCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -83,10 +83,52 @@ export default function SurveyPage() {
       const session = p.sessions?.find(s => s.id === id);
       if (session) {
         const idx = p.sessions!.findIndex(s => s.id === id);
-        return { id: session.id, name: session.content || `${p.name} - ${idx + 1}차시`, level: p.level + 1 } as any;
+        return { 
+          id: session.id, 
+          name: session.content || `${p.name} - ${idx + 1}차시`, 
+          level: p.level + 1,
+          monitoringSatComment: session.monitoringSatComment || '',
+          monitoringCompComment: session.monitoringCompComment || '',
+          isSession: true,
+          parentId: p.id
+        } as any;
       }
     }
     return null;
+  }, [selectedProjectIds, projects]);
+
+  const selectedReportProjects = React.useMemo(() => {
+    const getAllDescIds = (parentId: string): string[] => {
+      const parent = projects.find(p => p.id === parentId);
+      let ids = parent?.sessions?.map(s => s.id) || [];
+      const children = projects.filter(p => p.parentId === parentId);
+      ids = [...ids, ...children.map(c => c.id)];
+      children.forEach(c => { ids = [...ids, ...getAllDescIds(c.id)]; });
+      return ids;
+    };
+    
+    const allIds = new Set(selectedProjectIds);
+    selectedProjectIds.forEach(id => getAllDescIds(id).forEach(cid => allIds.add(cid)));
+    
+    return Array.from(allIds).map(id => {
+       const p = projects.find(proj => proj.id === id);
+       if (p) return p;
+       const parent = projects.find(proj => proj.sessions?.some(s => s.id === id));
+       if (parent) {
+         const session = parent.sessions!.find(s => s.id === id)!;
+         const idx = parent.sessions!.findIndex(s => s.id === id);
+         return {
+           ...parent,
+           id: session.id,
+           name: session.content || `${parent.name} - ${idx + 1}차시`,
+           level: parent.level + 1,
+           monitoringSatComment: session.monitoringSatComment,
+           monitoringCompComment: session.monitoringCompComment,
+           description: session.content
+         } as unknown as Project;
+       }
+       return null;
+    }).filter(Boolean) as Project[];
   }, [selectedProjectIds, projects]);
 
   const topLevelSelectedIds = React.useMemo(() => {
@@ -456,10 +498,22 @@ export default function SurveyPage() {
                 project={currentProject} 
                 onSave={async (satComment, compComment) => {
                   if (currentProject) {
-                    await updateProject(currentProject.id, {
-                      monitoringSatComment: satComment,
-                      monitoringCompComment: compComment
-                    });
+                    if (currentProject.isSession) {
+                      const parentProj = projects.find(p => p.id === currentProject.parentId);
+                      if (parentProj && parentProj.sessions) {
+                        const updatedSessions = parentProj.sessions.map(s => 
+                          s.id === currentProject.id 
+                            ? { ...s, monitoringSatComment: satComment, monitoringCompComment: compComment } 
+                            : s
+                        );
+                        await updateProject(parentProj.id, { sessions: updatedSessions });
+                      }
+                    } else {
+                      await updateProject(currentProject.id, {
+                        monitoringSatComment: satComment,
+                        monitoringCompComment: compComment
+                      });
+                    }
                   }
                 }} 
               />
@@ -483,7 +537,7 @@ export default function SurveyPage() {
                     </Button>
                     <Button variant="outline" size="sm" className="rounded-xl" onClick={() => {
                       if (!stats) return;
-                      const text = ExpertReportGenerator.generateConsultingReport(projects, [], stats);
+                      const text = ExpertReportGenerator.generateConsultingReport(selectedReportProjects, [], stats);
                       navigator.clipboard.writeText(text);
                       alert('복사되었습니다.');
                     }}>
@@ -499,7 +553,7 @@ export default function SurveyPage() {
                     {topLevelSelectedIds.length > 1 && (
                       <div className="report-page-wrapper">
                         <ExpertReportTemplate 
-                          projects={projects.filter(p => selectedProjectIds.includes(p.id))}
+                          projects={selectedReportProjects}
                           projectName={reportTitle} 
                           organizationName="SLI교육그룹"
                           stats={stats || {
@@ -545,6 +599,26 @@ export default function SurveyPage() {
                       const individualIds = [id, ...descendantIds];
                       const indStats = calculateSurveyStats(responses, templates, individualIds);
                       if (!indStats) return null;
+
+                      const indReportProjects = individualIds.map(iid => {
+                         const p = projects.find(proj => proj.id === iid);
+                         if (p) return p;
+                         const parent = projects.find(proj => proj.sessions?.some(s => s.id === iid));
+                         if (parent) {
+                           const session = parent.sessions!.find(s => s.id === iid)!;
+                           const idx = parent.sessions!.findIndex(s => s.id === iid);
+                           return {
+                             ...parent,
+                             id: session.id,
+                             name: session.content || `${parent.name} - ${idx + 1}차시`,
+                             level: parent.level + 1,
+                             monitoringSatComment: session.monitoringSatComment,
+                             monitoringCompComment: session.monitoringCompComment,
+                             description: session.content
+                           } as unknown as Project;
+                         }
+                         return null;
+                      }).filter(Boolean) as Project[];
 
                       const indRadarData = (() => {
                         if (!indStats?.themeStats) return [];
@@ -655,7 +729,7 @@ export default function SurveyPage() {
                              </div>
                           </div>
                           <ExpertReportTemplate 
-                            projects={projects.filter(proj => individualIds.includes(proj.id))}
+                            projects={indReportProjects}
                             projectName={`${name} 분석 보고서`} 
                             organizationName="SLI교육그룹"
                             stats={indStats}

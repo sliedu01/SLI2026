@@ -10,6 +10,8 @@ export interface ProjectSession {
   endTime: string;
   content: string;
   participantCount: number;
+  monitoringSatComment?: string;
+  monitoringCompComment?: string;
 }
 
 export interface Project {
