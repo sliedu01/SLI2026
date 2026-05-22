@@ -554,6 +554,44 @@ export function ExpertReportTemplate({
                 ))}
               </div>
             </div>
+
+            {/* 💡 현장 모니터링 피드백 기반 시사점 및 제언 연계 반영 */}
+            {projects.some(p => p.monitoringSatComment || p.monitoringCompComment) && (
+              <div className="border-t border-slate-200 pt-5">
+                <p className="font-bold text-[12pt] mb-3 text-slate-800">■ 현장 모니터링 피드백 기반 시사점</p>
+                <div className="space-y-3.5 pl-3">
+                  {projects.map((p, idx) => {
+                    if (!p.monitoringSatComment && !p.monitoringCompComment) return null;
+                    return (
+                      <div key={idx} className="bg-indigo-50/20 border border-indigo-100/50 rounded-2xl p-4 space-y-2 shadow-sm">
+                        <span className="font-extrabold text-indigo-950 text-[10pt] flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 inline-block" />
+                          [{p.name}] 과정의 종합 피드백 연계 권고
+                        </span>
+                        
+                        {p.monitoringSatComment && (
+                          <div className="pl-3 border-l-2 border-indigo-400">
+                            <span className="text-[7.5pt] font-extrabold text-indigo-700 uppercase tracking-wider block mb-0.5">교육 만족도 모니터링 의견</span>
+                            <p className="text-[9.5pt] text-slate-600 leading-relaxed italic whitespace-pre-line">&ldquo;{p.monitoringSatComment}&rdquo;</p>
+                          </div>
+                        )}
+                        
+                        {p.monitoringCompComment && (
+                          <div className="pl-3 border-l-2 border-blue-400 mt-2">
+                            <span className="text-[7.5pt] font-extrabold text-blue-700 uppercase tracking-wider block mb-0.5">역량 성숙도 모니터링 의견</span>
+                            <p className="text-[9.5pt] text-slate-600 leading-relaxed italic whitespace-pre-line">&ldquo;{p.monitoringCompComment}&rdquo;</p>
+                          </div>
+                        )}
+                        
+                        <p className="text-[9.5pt] text-slate-700 font-bold leading-normal pt-1.5 border-t border-slate-100 flex items-center gap-1 text-justify">
+                          👉 <span className="text-indigo-800">시사점:</span> 상기 현장 지적 사항에 따라 학습자의 눈높이에 맞춘 체험 프로그램 단위의 교과 난이도 필터링 및 조율을 차기 운영 시 권고함.
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
