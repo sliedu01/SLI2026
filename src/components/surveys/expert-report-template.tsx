@@ -368,7 +368,7 @@ export function ExpertReportTemplate({
                     </h4>
                     <div className="space-y-1">
                       {satComments.map((sc, scIdx) => (
-                        <div key={scIdx} className="text-[8.5pt] text-slate-700 leading-relaxed text-justify">
+                        <div key={scIdx} className="text-[8.5pt] text-slate-700 leading-relaxed text-justify whitespace-pre-line">
                           {isConsolidated && <span className="font-extrabold text-indigo-700">[{sc.name}] </span>}
                           &ldquo;{sc.comment}&rdquo;
                         </div>
@@ -439,7 +439,7 @@ export function ExpertReportTemplate({
                       </h4>
                       <div className="space-y-1">
                         {compComments.map((cc, ccIdx) => (
-                          <div key={ccIdx} className="text-[8.5pt] text-slate-700 leading-relaxed text-justify">
+                          <div key={ccIdx} className="text-[8.5pt] text-slate-700 leading-relaxed text-justify whitespace-pre-line">
                             {isConsolidated && <span className="font-extrabold text-blue-700">[{cc.name}] </span>}
                             &ldquo;{cc.comment}&rdquo;
                           </div>
