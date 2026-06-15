@@ -90,7 +90,9 @@ export default function MeetingsPage() {
 
   const filteredMeetings = React.useMemo(() => {
     const sorted = getSortedMeetings();
-    let filtered = sorted.filter(m => visibleProjects.some(vp => vp.id === m.projectId));
+    let filtered = sorted.filter(m => 
+      !m.projectId || visibleProjects.some(vp => vp.id === m.projectId)
+    );
     
     if (selectedProjectId && selectedProjectId !== 'all') {
       filtered = filtered.filter(m => m.projectId === selectedProjectId);
@@ -99,7 +101,7 @@ export default function MeetingsPage() {
       filtered = filtered.filter(m => m.title.toLowerCase().includes(searchTerm.toLowerCase()));
     }
     return sortOrder === 'asc' ? filtered : [...filtered].reverse();
-  }, [sortOrder, selectedProjectId, getSortedMeetings, searchTerm]);
+  }, [sortOrder, selectedProjectId, getSortedMeetings, searchTerm, visibleProjects, meetings]);
 
   React.useEffect(() => {
     if (filteredMeetings.length > 0) {

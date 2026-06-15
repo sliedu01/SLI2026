@@ -345,7 +345,7 @@ export async function downloadAsHWP(containerId: string, fileName: string) {
 
   } catch (err: any) {
     console.error('HWP 생성 오류:', err);
-    alert(\`HWP 생성 중 오류가 발생했습니다.\\n\\n[오류 내용]\\n\${err.message || String(err)}\`);
+    alert(`HWP 생성 중 오류가 발생했습니다.\n\n[오류 내용]\n${err.message || String(err)}`);
   } finally {
     overflowAnchestors.forEach(({ el, orig }) => {
       el.style.overflow = orig;
