@@ -7,7 +7,7 @@ import { useAuthStore } from "@/store/use-auth-store";
 import { 
   Video, Plus, ArrowUpDown, Trash2, Edit, 
   Search, Calendar as CalendarIcon, Filter,
-  LayoutGrid, Loader2
+  LayoutGrid, Loader2, MapPin
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -157,6 +157,17 @@ export default function MeetingsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-slate-400 font-medium">{filteredMeetings.length}건</span>
+            <Button 
+              size="sm" variant="ghost" 
+              onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+              className="h-6 px-2 rounded-lg text-[10px] font-bold text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 gap-1"
+            >
+              <ArrowUpDown className="size-3" />
+              {sortOrder === 'desc' ? '최신순' : '오래된순'}
+            </Button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -171,11 +182,29 @@ export default function MeetingsPage() {
                   : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
               )}
             >
-              <p className="text-xs font-bold truncate mb-1">{meeting.title}</p>
-              <div className="flex items-center justify-between">
-                <span className={cn("text-[10px] font-medium opacity-60", selectedMeetingId === meeting.id ? "text-slate-300" : "text-slate-500")}>
-                  {meeting.date}
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className={cn(
+                  "shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded-md",
+                  selectedMeetingId === meeting.id 
+                    ? "bg-indigo-500 text-white" 
+                    : "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"
+                )}>
+                  {meeting.sessionNumber}회차
                 </span>
+                <p className="text-xs font-bold truncate">{meeting.title}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-[10px] font-medium opacity-60", selectedMeetingId === meeting.id ? "text-slate-300" : "text-slate-500")}>
+                    {meeting.date}
+                  </span>
+                  {meeting.location && (
+                    <span className={cn("text-[10px] font-medium flex items-center gap-0.5 opacity-50", selectedMeetingId === meeting.id ? "text-slate-300" : "text-slate-500")}>
+                      <MapPin className="size-2.5" />
+                      {meeting.location}
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={(e) => { e.stopPropagation(); setEditingMeeting(meeting); setIsEditDialogOpen(true); }}>
                     <Edit className="size-3 text-blue-400" />
