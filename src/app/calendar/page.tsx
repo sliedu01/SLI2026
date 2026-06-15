@@ -160,9 +160,6 @@ export default function CalendarPage() {
       });
 
       leafProjects.forEach(p => {
-        // LV2 레벨 사업은 하위 프로젝트(LV3, LV4)가 없는 리프 노드이고, 
-        // 실제 차시(sessions) 일정이 등록된 경우에 한해 캘린더에 표시합니다.
-        if (p.level === 2 && (!p.sessions || p.sessions.length === 0)) return;
 
         // LV2 조상 찾기
         const ancestorLv2 = findAncestor(p.id, 2);
