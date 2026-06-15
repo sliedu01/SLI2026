@@ -154,8 +154,8 @@ export default function CalendarPage() {
       // visibleProjects 중 리프 노드만 추출
       const leafProjects = visibleProjects.filter(p => {
         if (p.level < 2) return false;
-        // 이 프로젝트를 부모로 가진 하위 프로젝트가 없으면 리프 노드
-        const hasChildren = projects.some(child => child.parentId === p.id);
+        // 이 프로젝트를 부모로 가진 하위 프로젝트(레벨이 더 큰 것)가 없으면 리프 노드
+        const hasChildren = projects.some(child => child.parentId === p.id && child.level > p.level);
         return !hasChildren;
       });
 
@@ -172,8 +172,8 @@ export default function CalendarPage() {
           return;
         }
 
-        // LV2 세부 사업 필터링 (LV2 조상이 있고, 선택된 LV2 목록이 있을 때만 필터링 적용)
-        if (selectedLv2Ids.length > 0 && ancestorLv2 && !selectedLv2Ids.includes(ancestorLv2.id)) {
+        // LV2 세부 사업 필터링 (특정 LV1 사업이 선택된 상태에서만 적용)
+        if (selectedProjectId !== 'all' && ancestorLv2 && !selectedLv2Ids.includes(ancestorLv2.id)) {
           return;
         }
 
@@ -270,6 +270,14 @@ export default function CalendarPage() {
           return;
         }
 
+        // LV2 세부 사업 필터링 (특정 LV1 사업이 선택된 상태에서만 적용)
+        if (selectedProjectId !== 'all') {
+          const ancestorLv2 = findAncestor(m.projectId, 2);
+          if (ancestorLv2 && !selectedLv2Ids.includes(ancestorLv2.id)) {
+            return;
+          }
+        }
+
         allEvents.push({
           id: `meeting-${m.id}`,
           title: `[회의] ${m.sessionNumber}회차: ${m.title}`,
@@ -306,6 +314,14 @@ export default function CalendarPage() {
         // 사업 선택 필터링
         if (selectedProjectId !== 'all' && cat?.projectId !== selectedProjectId) {
           return;
+        }
+
+        // LV2 세부 사업 필터링 (특정 LV1 사업이 선택된 상태에서만 적용)
+        if (selectedProjectId !== 'all' && cat?.projectId) {
+          const ancestorLv2 = findAncestor(cat.projectId, 2);
+          if (ancestorLv2 && !selectedLv2Ids.includes(ancestorLv2.id)) {
+            return;
+          }
         }
 
         allEvents.push({
