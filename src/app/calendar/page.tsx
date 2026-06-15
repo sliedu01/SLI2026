@@ -160,10 +160,11 @@ export default function CalendarPage() {
       });
 
       leafProjects.forEach(p => {
+        // LV3, LV4 중 가장 낮은 단계(리프 노드)의 일정만 표기하라는 기준 반영 (LV1, LV2는 캘린더 표시 제외)
+        if (p.level < 3) return;
 
         // LV2 조상 찾기
         const ancestorLv2 = findAncestor(p.id, 2);
-        if (!ancestorLv2) return;
 
         // LV1 사업 선택 필터링
         const ancestorLv1 = findAncestor(p.id, 1);
@@ -171,13 +172,20 @@ export default function CalendarPage() {
           return;
         }
 
-        // LV2 세부 사업 필터링
-        if (selectedLv2Ids.length > 0 && !selectedLv2Ids.includes(ancestorLv2.id)) {
+        // LV2 세부 사업 필터링 (LV2 조상이 있고, 선택된 LV2 목록이 있을 때만 필터링 적용)
+        if (selectedLv2Ids.length > 0 && ancestorLv2 && !selectedLv2Ids.includes(ancestorLv2.id)) {
           return;
         }
 
-        // 협력사 정보 — 리프 자신 또는 상위에서 가져옴
-        const partnerId = p.partnerId || projects.find(pp => pp.id === p.parentId)?.partnerId;
+        // 협력사 정보 — 리프 자신 또는 상위 조상에서 가져옴
+        let currentForPartner: any = p;
+        let partnerId = currentForPartner.partnerId;
+        while (!partnerId && currentForPartner.parentId) {
+          currentForPartner = projects.find(pp => pp.id === currentForPartner.parentId);
+          if (!currentForPartner) break;
+          partnerId = currentForPartner.partnerId;
+        }
+        
         const partner = partners.find(ptr => ptr.id === partnerId);
         const partnerLabel = partner?.name || '협력사';
         
